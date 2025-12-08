@@ -1,12 +1,10 @@
 package com.bentork.ev_system.service;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.annotation.PostConstruct;
-
 import org.apache.commons.codec.binary.Hex;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -19,14 +17,18 @@ import java.math.BigDecimal;
 public class RazorpayService {
 
     private RazorpayClient razorpayClient;
-    private Dotenv dotenv;
+
+    // INJECTED VALUES (Works on AWS & Local)
+    @Value("${RAZORPAY_KEY_ID}")
+    private String keyId;
+
+    @Value("${RAZORPAY_KEY_SECRET}")
+    private String keySecret;
 
     @PostConstruct
     public void init() throws RazorpayException {
-        dotenv = Dotenv.load();
-        String keyId = dotenv.get("RAZORPAY_KEY_ID");
-        String keySecret = dotenv.get("RAZORPAY_KEY_SECRET");
-        razorpayClient = new RazorpayClient(keyId, keySecret);
+        // Initialize client using the injected values
+        this.razorpayClient = new RazorpayClient(keyId, keySecret);
     }
 
     // Create Razorpay order
@@ -43,11 +45,11 @@ public class RazorpayService {
 
     // Verify Razorpay payment signature
     public boolean verifySignature(String orderId, String paymentId, String razorpaySignature) throws Exception {
-        String secret = dotenv.get("RAZORPAY_KEY_SECRET");
+        // Use the injected keySecret directly
         String payload = orderId + "|" + paymentId;
 
         Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+        SecretKeySpec secretKey = new SecretKeySpec(keySecret.getBytes(), "HmacSHA256");
         sha256_HMAC.init(secretKey);
 
         byte[] hash = sha256_HMAC.doFinal(payload.getBytes());
