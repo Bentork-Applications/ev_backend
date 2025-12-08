@@ -19,7 +19,7 @@ jobs:
 
       - name: Build JAR
         run: |
-          cd backend
+          # UPDATED: Removed "cd backend" since pom.xml is in the root
           mvn clean package -DskipTests
 
       - name: Copy to EC2
@@ -28,9 +28,9 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend/target/*.jar"
+          source: "target/*.jar"        # UPDATED: Removed "backend/" prefix
           target: "/home/ubuntu/app"
-          strip_components: 2
+          strip_components: 1           # UPDATED: Changed to 1 to strip just "target/"
 
       - name: Restart Service
         uses: appleboy/ssh-action@master
