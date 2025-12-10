@@ -16,7 +16,7 @@ public class EvChargingSystemApplication {
                 .ignoreIfMissing()
                 .load();
 
-        // 2. SAFE SETTING: Only set system property if the value exists in .env
+        // 2.SAFE SETTING: Only set system property if the value exists in .env
         // On AWS, these will be skipped (which is good!)
         safeSetProperty(dotenv, "GOOGLE_CLIENT_ID");
         safeSetProperty(dotenv, "GOOGLE_CLIENT_SECRET");

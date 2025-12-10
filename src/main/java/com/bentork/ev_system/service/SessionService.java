@@ -63,6 +63,8 @@ public class SessionService {
 
 	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
+	// REPLACE YOUR EXISTING startSessionFromReceipt METHOD WITH THIS ONE
+
 	/**
 	 * Start session only if receipt is already PAID.
 	 * Sends RemoteStartTransaction to physical charger.
@@ -95,12 +97,12 @@ public class SessionService {
 
 			log.info("Session created in DB: sessionId={}, status=INITIATED", session.getId());
 
-			// FIXED: Send RemoteStartTransaction with correct idTag format
+			// Send RemoteStartTransaction with correct idTag format
 			String ocppId = session.getCharger().getOcppId();
 			if (ocppId != null && !ocppId.isEmpty()) {
 				try {
 					com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
-					// ✅ CRITICAL: Use "SESSION_" prefix so handleStartTransaction recognizes it
+					// Use "SESSION_" prefix so handleStartTransaction recognizes it
 					payload.put("idTag", "SESSION_" + session.getId());
 					payload.put("connectorId", 1);
 
@@ -125,10 +127,6 @@ public class SessionService {
 								"Charger Offline",
 								"Cannot start charging - charger is offline. Please try again or contact support.",
 								"WARNING");
-
-						// Optional: You might want to mark session as failed here
-						// session.setStatus("FAILED");
-						// sessionRepository.save(session);
 					}
 				} catch (Exception e) {
 					log.error("❌ Error sending RemoteStartTransaction to {}: {}", ocppId, e.getMessage(), e);
@@ -145,15 +143,25 @@ public class SessionService {
 
 			// Schedule auto-stop
 			if (receipt.getPlan() != null) {
+				// For TIME based plans, we stop exactly when time is up
 				int durationMin = receipt.getPlan().getDurationMin();
-				log.info("Scheduling auto-stop for plan session: sessionId={}, durationMin={}",
+				log.info("Scheduling auto-stop for TIME plan: sessionId={}, durationMin={}",
 						session.getId(), durationMin);
 				scheduleAutoStop(session.getId(), durationMin);
+
 			} else if (receipt.getSelectedKwh() != null) {
-				double minutesRequired = receipt.getSelectedKwh().doubleValue() / 0.075;
-				log.info("Scheduling auto-stop for kWh session: sessionId={}, selectedKwh={}, estimatedMinutes={}",
-						session.getId(), receipt.getSelectedKwh(), minutesRequired);
-				scheduleAutoStop(session.getId(), (int) Math.ceil(minutesRequired));
+				// ✅ FIX: For kWh packages, do NOT stop based on estimated time.
+				// Charging speed varies (grid, car onboard charger, etc).
+				// We rely on MeterValues to stop accurately.
+				// We set a 24-hour "Safety Fallback" just in case.
+
+				int safetyBufferMinutes = 24 * 60;
+
+				log.info(
+						"Scheduling safety fallback for kWh session: sessionId={}, selectedKwh={}, safetyTimeout={} mins",
+						session.getId(), receipt.getSelectedKwh(), safetyBufferMinutes);
+
+				scheduleAutoStop(session.getId(), safetyBufferMinutes);
 			}
 
 			adminNotificationService.createSystemNotification(

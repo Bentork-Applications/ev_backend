@@ -445,6 +445,8 @@ public class OcppWebSocketServer extends WebSocketServer {
         sendCallResult(conn, messageId, objectMapper.createObjectNode());
     }
 
+    // REPLACE YOUR EXISTING handleMeterValues METHOD WITH THIS ONE
+
     /**
      * Handle MeterValues - Update energy consumption during charging
      * For RFID sessions: incremental wallet deduction
@@ -461,10 +463,11 @@ public class OcppWebSocketServer extends WebSocketServer {
                 return;
             }
 
-            // Extract current energy value
-            BigDecimal currentKwh = extractEnergyFromMeterValues(payload);
+            // Extract current energy value (This is the Absolute Meter Reading e.g.,
+            // 10500.5 kWh)
+            BigDecimal currentAbsKwh = extractEnergyFromMeterValues(payload);
 
-            if (currentKwh == null) {
+            if (currentAbsKwh == null) {
                 log.debug("MeterValues - no energy measurand found");
                 sendCallResult(conn, messageId, objectMapper.createObjectNode());
                 return;
@@ -483,13 +486,14 @@ public class OcppWebSocketServer extends WebSocketServer {
                 return;
             }
 
-            log.debug("MeterValues - SessionId: {}, CurrentKwh: {}, Source: {}",
-                    sessionId, currentKwh, session.getSourceType());
+            log.debug("MeterValues - SessionId: {}, CurrentAbsKwh: {}, Source: {}",
+                    sessionId, currentAbsKwh, session.getSourceType());
 
             // Handle based on session type
             if ("RFID".equals(session.getSourceType())) {
-                // RFID Flow: Incremental wallet deduction
-                Session updated = rfidChargingService.updateEnergy(sessionId, currentKwh);
+                // RFID Flow: Incremental wallet deduction (RFID service handles deltas
+                // internally)
+                Session updated = rfidChargingService.updateEnergy(sessionId, currentAbsKwh);
 
                 // If session was auto-stopped due to low balance, stop transaction
                 if ("COMPLETED".equals(updated.getStatus())) {
@@ -498,8 +502,29 @@ public class OcppWebSocketServer extends WebSocketServer {
                     sendRemoteStopTransaction(conn, transactionId);
                 }
             } else {
-                // Plan/kWh Package Flow: Check if energy limit reached
-                sessionService.checkAndStopIfReachedKwh(sessionId, currentKwh.doubleValue());
+                // ✅ FIX STARTS HERE: Plan/kWh Package Flow
+
+                // 1. Get the meter reading from when the session started (stored in Wh, convert
+                // to kWh)
+                Integer startMeterWh = sessionToMeterStartMap.getOrDefault(sessionId, 0);
+                double startKwh = startMeterWh / 1000.0;
+
+                // 2. Calculate actual consumption for THIS session
+                double consumedKwh = currentAbsKwh.doubleValue() - startKwh;
+
+                // Safety: handle cases where meter might reset or glitch
+                if (consumedKwh < 0) {
+                    log.warn("Negative consumption detected (Meter reset?): Current={}, Start={}. Treating as 0.",
+                            currentAbsKwh, startKwh);
+                    consumedKwh = 0;
+                }
+
+                log.info("kWh Check: SessionId={}, AbsoluteMeter={}, StartMeter={}, Consumed={}",
+                        sessionId, currentAbsKwh, startKwh, consumedKwh);
+
+                // 3. Pass the CONSUMED value (e.g. 0.5 kWh) instead of Absolute (e.g. 1000.5
+                // kWh)
+                sessionService.checkAndStopIfReachedKwh(sessionId, consumedKwh);
             }
 
             sendCallResult(conn, messageId, objectMapper.createObjectNode());
