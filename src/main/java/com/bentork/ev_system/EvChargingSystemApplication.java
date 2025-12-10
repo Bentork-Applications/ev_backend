@@ -1,17 +1,3 @@
-//package com.bentork.ev_system;
-//
-//import org.springframework.boot.SpringApplication;
-//import org.springframework.boot.autoconfigure.SpringBootApplication;
-//
-//@SpringBootApplication
-//public class EvChargingSystemApplication {
-//
-//	public static void main(String[] args) {
-//		SpringApplication.run(EvChargingSystemApplication.class, args);
-//	}
-//
-//}
-
 package com.bentork.ev_system;
 
 import org.springframework.boot.SpringApplication;
@@ -22,17 +8,27 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class EvChargingSystemApplication {
 
     public static void main(String[] args) {
-        // Load .env file before starting the app
+        // 1. Load .env file (if it exists)
+        // This configuration prevents crashing if the file is missing
         Dotenv dotenv = Dotenv.configure()
-                .directory("./") // Location of .env (root folder)
+                .directory("./")
                 .ignoreIfMalformed()
                 .ignoreIfMissing()
                 .load();
 
-        // Set them as system properties so Spring Boot can use ${...}
-        System.setProperty("GOOGLE_CLIENT_ID", dotenv.get("GOOGLE_CLIENT_ID"));
-        System.setProperty("GOOGLE_CLIENT_SECRET", dotenv.get("GOOGLE_CLIENT_SECRET"));
+        // 2. SAFE SETTING: Only set system property if the value exists in .env
+        // On AWS, these will be skipped (which is good!)
+        safeSetProperty(dotenv, "GOOGLE_CLIENT_ID");
+        safeSetProperty(dotenv, "GOOGLE_CLIENT_SECRET");
 
         SpringApplication.run(EvChargingSystemApplication.class, args);
+    }
+
+    // Helper method to stop the NullPointerException
+    private static void safeSetProperty(Dotenv dotenv, String key) {
+        String value = dotenv.get(key);
+        if (value != null && !value.isEmpty()) {
+            System.setProperty(key, value);
+        }
     }
 }
