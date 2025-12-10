@@ -9,6 +9,7 @@ import com.bentork.ev_system.repository.SessionRepository;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy; // ✅ CORRECT IMPORT
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -52,13 +53,19 @@ public class SessionService {
 	private UserNotificationService userNotificationService;
 
 	@Autowired
-    private Clock clock;
+	private Clock clock;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
+	@Autowired
+	@Lazy // ✅ FIXED: This prevents circular dependency
+	private OcppWebSocketServer ocppWebSocketServer;
+
+	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
 	/**
 	 * Start session only if receipt is already PAID.
-	 * Auto-stop logic applies for both plan and selected kWh sessions.
+	 * Sends RemoteStartTransaction to physical charger.
 	 */
 	public Session startSessionFromReceipt(Receipt receipt, String boxId) {
 		try {
@@ -71,49 +78,91 @@ public class SessionService {
 				throw new RuntimeException("Cannot start session without a paid receipt.");
 			}
 
+			// Create session in database first
 			Session session = new Session();
 			session.setUser(receipt.getUser());
 			session.setCharger(receipt.getCharger());
 			session.setBoxId(boxId);
 			session.setStartTime(LocalDateTime.now());
-			session.setStatus("active");
+			session.setStatus("INITIATED"); // Will become 'active' when charger responds
 			session.setCreatedAt(LocalDateTime.now());
-			sessionRepository.save(session);
 			session.setSourceType("SESSION");
+			sessionRepository.save(session);
 
+			// Link receipt to session
 			receipt.setSession(session);
 			receiptRepository.save(receipt);
 
-			// Auto-stop scheduling
+			log.info("Session created in DB: sessionId={}, status=INITIATED", session.getId());
+
+			// ✅ FIXED: Send RemoteStartTransaction with correct idTag format
+			String ocppId = session.getCharger().getOcppId();
+			if (ocppId != null && !ocppId.isEmpty()) {
+				try {
+					com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+					// ✅ CRITICAL: Use "SESSION_" prefix so handleStartTransaction recognizes it
+					payload.put("idTag", "SESSION_" + session.getId());
+					payload.put("connectorId", 1);
+
+					log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, connectorId=1",
+							ocppId, session.getId());
+
+					boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStartTransaction", payload);
+
+					if (sent) {
+						log.info("✅ RemoteStartTransaction sent successfully to charger: {}", ocppId);
+
+						userNotificationService.createNotification(
+								session.getUser().getId(),
+								"Charging Command Sent",
+								"Start command sent to charger. Please ensure cable is connected.",
+								"INFO");
+					} else {
+						log.error("❌ Failed to send RemoteStartTransaction: Charger {} not connected", ocppId);
+
+						userNotificationService.createNotification(
+								session.getUser().getId(),
+								"Charger Offline",
+								"Cannot start charging - charger is offline. Please try again or contact support.",
+								"WARNING");
+
+						// Optional: You might want to mark session as failed here
+						// session.setStatus("FAILED");
+						// sessionRepository.save(session);
+					}
+				} catch (Exception e) {
+					log.error("❌ Error sending RemoteStartTransaction to {}: {}", ocppId, e.getMessage(), e);
+
+					userNotificationService.createNotification(
+							session.getUser().getId(),
+							"Start Command Failed",
+							"Failed to send start command to charger. Error: " + e.getMessage(),
+							"ERROR");
+				}
+			} else {
+				log.error("❌ Cannot send RemoteStartTransaction: charger OCPP ID is null/empty");
+			}
+
+			// Schedule auto-stop
 			if (receipt.getPlan() != null) {
-				// Stop after plan duration
 				int durationMin = receipt.getPlan().getDurationMin();
 				log.info("Scheduling auto-stop for plan session: sessionId={}, durationMin={}",
 						session.getId(), durationMin);
 				scheduleAutoStop(session.getId(), durationMin);
 			} else if (receipt.getSelectedKwh() != null) {
-				// Approximation: minutes required = selectedKwh / 0.075
 				double minutesRequired = receipt.getSelectedKwh().doubleValue() / 0.075;
 				log.info("Scheduling auto-stop for kWh session: sessionId={}, selectedKwh={}, estimatedMinutes={}",
 						session.getId(), receipt.getSelectedKwh(), minutesRequired);
 				scheduleAutoStop(session.getId(), (int) Math.ceil(minutesRequired));
 			}
 
-			log.info("Session started successfully: sessionId={}, userId={}, chargerId={}, boxId={}",
-					session.getId(), session.getUser().getId(), session.getCharger().getId(), boxId);
-
 			adminNotificationService.createSystemNotification(
-					"User '" + session.getUser().getName() + "' started a session on charger '" +
+					"User '" + session.getUser().getName() + "' initiated session on charger '" +
 							session.getCharger().getOcppId() + "'",
-					"SESSION_STARTED");
-
-			userNotificationService.createNotification(
-					session.getUser().getId(),
-					"Charging Started",
-					"Your charging session has started successfully.",
-					"INFO");
+					"SESSION_INITIATED");
 
 			return session;
+
 		} catch (Exception e) {
 			log.error("Failed to start session from receipt: receiptId={}: {}",
 					receipt.getId(), e.getMessage(), e);
@@ -122,7 +171,7 @@ public class SessionService {
 	}
 
 	/**
-	 * Manual stop (by user).
+	 * Manual stop (by user) - Also sends RemoteStopTransaction to charger
 	 */
 	public Map<String, Object> stopSession(Long userId, SessionDTO request) {
 		try {
@@ -143,7 +192,28 @@ public class SessionService {
 				return buildAlreadyCompletedResponse(session);
 			}
 
+			// ✅ NEW: Send RemoteStopTransaction to physical charger
+			try {
+				String ocppId = session.getCharger().getOcppId();
+				int transactionId = session.getId().intValue();
+
+				com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+				payload.put("transactionId", transactionId);
+
+				boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
+
+				if (sent) {
+					log.info("✅ RemoteStopTransaction sent to charger: {}, txId: {}", ocppId, transactionId);
+				} else {
+					log.warn("⚠️ Failed to send RemoteStopTransaction, but continuing with session finalization");
+				}
+			} catch (Exception e) {
+				log.error("Error sending RemoteStopTransaction: {}", e.getMessage());
+				// Continue with session finalization even if remote stop fails
+			}
+
 			return finalizeSession(session, "Manual Stop");
+
 		} catch (Exception e) {
 			log.error("Failed to stop session: sessionId={}, userId={}: {}",
 					request.getSessionId(), userId, e.getMessage(), e);
@@ -162,6 +232,20 @@ public class SessionService {
 					.orElseThrow(() -> new RuntimeException("Session not found"));
 
 			if ("active".equalsIgnoreCase(session.getStatus())) {
+				// ✅ NEW: Send RemoteStopTransaction for auto-stop too
+				try {
+					String ocppId = session.getCharger().getOcppId();
+					int transactionId = session.getId().intValue();
+
+					com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+					payload.put("transactionId", transactionId);
+
+					ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
+					log.info("✅ RemoteStopTransaction sent for auto-stop: sessionId={}", sessionId);
+				} catch (Exception e) {
+					log.error("Error sending RemoteStopTransaction for auto-stop: {}", e.getMessage());
+				}
+
 				finalizeSession(session, "Auto Stop");
 			} else {
 				log.info("Session already inactive, skipping auto-stop: sessionId={}, status={}",
@@ -175,7 +259,6 @@ public class SessionService {
 
 	/**
 	 * Real-time check for selectedKwh session — stop when limit reached.
-	 * Call this periodically when you get meter updates from charger.
 	 */
 	public void checkAndStopIfReachedKwh(Long sessionId, double currentKwh) {
 		try {
@@ -195,6 +278,17 @@ public class SessionService {
 				if (currentKwh >= targetKwh) {
 					log.info("kWh limit reached, stopping session: sessionId={}, currentKwh={}, targetKwh={}",
 							sessionId, currentKwh, targetKwh);
+
+					// Send remote stop
+					try {
+						String ocppId = session.getCharger().getOcppId();
+						com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+						payload.put("transactionId", session.getId().intValue());
+						ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
+					} catch (Exception e) {
+						log.error("Error sending RemoteStopTransaction for kWh limit: {}", e.getMessage());
+					}
+
 					finalizeSession(session, "AUTO_STOP_KWH_REACHED");
 				}
 			}
@@ -227,7 +321,6 @@ public class SessionService {
 			boolean extraDebited = false;
 
 			if (receipt != null && receipt.getSelectedKwh() != null) {
-				// Prepaid selected kWh session → always use selectedKwh
 				energyUsed = receipt.getSelectedKwh().doubleValue();
 				finalCostBD = BigDecimal.valueOf(energyUsed)
 						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
@@ -236,7 +329,6 @@ public class SessionService {
 				log.info("Using prepaid kWh: sessionId={}, selectedKwh={}, finalCost={}",
 						session.getId(), energyUsed, finalCostBD);
 			} else {
-				// Plan session → calculate actual energy used
 				energyUsed = calculateEnergyUsed(session);
 				finalCostBD = BigDecimal.valueOf(energyUsed)
 						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
@@ -349,17 +441,16 @@ public class SessionService {
 		}, durationMin, TimeUnit.MINUTES);
 	}
 
-	// Count total completed sessions
+	// ... rest of your methods (getTotalSessions, etc.) remain the same ...
+
 	public long getTotalSessions() {
 		try {
 			long total = sessionRepository.findAll().stream()
 					.filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
 					.count();
-
 			if (log.isDebugEnabled()) {
 				log.debug("Total completed sessions: {}", total);
 			}
-
 			return total;
 		} catch (Exception e) {
 			log.error("Failed to get total sessions: {}", e.getMessage(), e);
@@ -367,18 +458,15 @@ public class SessionService {
 		}
 	}
 
-	// Sum total energy consumed (kWh)
 	public double getTotalEnergyConsumed() {
 		try {
 			double totalEnergy = sessionRepository.findAll().stream()
 					.filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
 					.mapToDouble(Session::getEnergyKwh)
 					.sum();
-
 			if (log.isDebugEnabled()) {
 				log.debug("Total energy consumed: {} kWh", totalEnergy);
 			}
-
 			return totalEnergy;
 		} catch (Exception e) {
 			log.error("Failed to get total energy consumed: {}", e.getMessage(), e);
@@ -386,17 +474,14 @@ public class SessionService {
 		}
 	}
 
-	// Active Sessions - Sessions that are currently in progress
 	public Long getActiveSessions() {
 		try {
 			Long activeCount = sessionRepository.findAll().stream()
 					.filter(session -> "active".equalsIgnoreCase(session.getStatus()))
 					.count();
-
 			if (log.isDebugEnabled()) {
 				log.debug("Active sessions count: {}", activeCount);
 			}
-
 			return activeCount;
 		} catch (Exception e) {
 			log.error("Failed to get active sessions: {}", e.getMessage(), e);
@@ -404,26 +489,20 @@ public class SessionService {
 		}
 	}
 
-	// Average Uptime - Based on successful vs total sessions
 	public Double getAverageUptime() {
 		try {
 			long totalSessions = sessionRepository.count();
-
 			if (totalSessions == 0) {
 				log.warn("No sessions found for uptime calculation");
 				return 0.0;
 			}
-
 			long completedSessions = sessionRepository.findAll().stream()
 					.filter(session -> "completed".equalsIgnoreCase(session.getStatus()))
 					.count();
-
 			double uptime = (completedSessions * 100.0) / totalSessions;
 			double roundedUptime = Math.round(uptime * 100.0) / 100.0;
-
 			log.info("Average uptime calculated: {}% (completed={}, total={})",
 					roundedUptime, completedSessions, totalSessions);
-
 			return roundedUptime;
 		} catch (Exception e) {
 			log.error("Failed to calculate average uptime: {}", e.getMessage(), e);
@@ -431,9 +510,6 @@ public class SessionService {
 		}
 	}
 
-	/**
-	 * Get session by ID (used by OCPP WebSocket)
-	 */
 	public Session getSessionById(Long sessionId) {
 		if (log.isDebugEnabled()) {
 			log.debug("Fetching session by ID: sessionId={}", sessionId);
@@ -441,9 +517,6 @@ public class SessionService {
 		return sessionRepository.findById(sessionId).orElse(null);
 	}
 
-	/**
-	 * Find any active session (fallback for OCPP)
-	 */
 	public Optional<Session> findLastActiveSession() {
 		if (log.isDebugEnabled()) {
 			log.debug("Finding last active session");
@@ -451,46 +524,41 @@ public class SessionService {
 		return sessionRepository.findFirstByStatusOrderByStartTimeDesc("active");
 	}
 
-	// Total error today count
-    public Long getTodaysErrorCount() {
-        try {
-            LocalDate today = LocalDate.now(clock);
-            LocalDateTime startOfDay = today.atStartOfDay();
-            LocalDateTime endOfDay = today.atTime(23, 59, 59, 999999999);
+	public Long getTodaysErrorCount() {
+		try {
+			LocalDate today = LocalDate.now(clock);
+			LocalDateTime startOfDay = today.atStartOfDay();
+			LocalDateTime endOfDay = today.atTime(23, 59, 59, 999999999);
+			log.debug("Getting all session to count todays errors");
+			List<Session> allSessions = sessionRepository.findAll();
+			return allSessions.stream()
+					.filter(session -> session.getCreatedAt() != null
+							&& (session.getCreatedAt().isEqual(startOfDay)
+									|| (session.getCreatedAt().isAfter(startOfDay)
+											&& session.getCreatedAt().isBefore(endOfDay))))
+					.filter(session -> session.getStatus() != null
+							&& session.getStatus().toLowerCase().contains("error"))
+					.count();
+		} catch (DataAccessException e) {
+			log.error("Error while accessing data: {}", e);
+			throw e;
+		} catch (Exception e) {
+			log.error("Unexpected error in getTodaysErrorCount ", e);
+			throw new RuntimeException("Failed to calculate today's error count", e);
+		}
+	}
 
-            log.debug("Getting all session to count todays errors");
-            List<Session> allSessions = sessionRepository.findAll();
-
-            return allSessions.stream()
-                    .filter(session -> session.getCreatedAt() != null
-                    && (session.getCreatedAt().isEqual(startOfDay)
-                    || (session.getCreatedAt().isAfter(startOfDay)
-                    && session.getCreatedAt().isBefore(endOfDay))))
-                    .filter(session -> session.getStatus() != null
-                    && session.getStatus().toLowerCase().contains("error"))
-                    .count();
-
-        } catch (DataAccessException e) {
-            log.error("Error while accessing data: {}", e);
-            throw e;
-        } catch (Exception e) {
-            log.error("Unexpected error in getTodaysErrorCount ", e);
-            throw new RuntimeException("Failed to calculate today's error count", e);
-        }
-    }
-
-    //All session records
-    public List<Session> getallSessionRecords() {
-        try {
-            log.debug("Getting all session records");
-            List<Session> allRecords = sessionRepository.findAll();
-            return allRecords;
-        } catch (DataAccessException e) {
-            log.error("Error while accessing data: {}", e);
-            throw e;
-        } catch (Exception e) {
-            log.error("Unexpected error ", e);
-            throw e;
-        }
-    }
+	public List<Session> getallSessionRecords() {
+		try {
+			log.debug("Getting all session records");
+			List<Session> allRecords = sessionRepository.findAll();
+			return allRecords;
+		} catch (DataAccessException e) {
+			log.error("Error while accessing data: {}", e);
+			throw e;
+		} catch (Exception e) {
+			log.error("Unexpected error ", e);
+			throw e;
+		}
+	}
 }
