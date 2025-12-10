@@ -95,7 +95,7 @@ public class SessionService {
 
 			log.info("Session created in DB: sessionId={}, status=INITIATED", session.getId());
 
-			// ✅ FIXED: Send RemoteStartTransaction with correct idTag format
+			// FIXED: Send RemoteStartTransaction with correct idTag format
 			String ocppId = session.getCharger().getOcppId();
 			if (ocppId != null && !ocppId.isEmpty()) {
 				try {

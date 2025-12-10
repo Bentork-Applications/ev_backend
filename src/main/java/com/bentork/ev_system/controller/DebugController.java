@@ -259,7 +259,7 @@ public class DebugController {
             }
 
         } catch (Exception e) {
-            log.error("Error checking connection for {}", ocppId, e);
+            log.error("Error checking connections for {}", ocppId, e);
             return ResponseEntity.status(500).body(Map.of(
                     "error", e.getMessage()));
         }
