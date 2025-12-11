@@ -14,7 +14,8 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173") // React frontend (Vite)
+                        .allowedOrigins("http://ev-user-webpage.s3-website.eu-north-1.amazonaws.com") // React frontend
+                                                                                                      // (Vite)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
