@@ -31,6 +31,12 @@ public class Session {
     @Column(name = "source_type")
     private String sourceType; // values: "RFID" or "SESSION"
 
+    @Column(name = "start_meter_reading")
+    private Double startMeterReading;
+
+    @Column(name = "last_meter_reading")
+    private Double lastMeterReading;
+
     // Getters and Setters
 
     public Long getId() {
@@ -121,4 +127,19 @@ public class Session {
         this.sourceType = sourceType;
     }
 
+    public Double getStartMeterReading() {
+        return startMeterReading;
+    }
+
+    public void setStartMeterReading(Double startMeterReading) {
+        this.startMeterReading = startMeterReading;
+    }
+
+    public Double getLastMeterReading() {
+        return lastMeterReading;
+    }
+
+    public void setLastMeterReading(Double lastMeterReading) {
+        this.lastMeterReading = lastMeterReading;
+    }
 }

@@ -290,7 +290,13 @@ public class OcppWebSocketServer extends WebSocketServer {
                 throw new RuntimeException("No valid payment method found. Please use RFID card or prepay via app.");
             }
 
-            // Store meter start value
+            // Store meter start value in DB (Persistence)
+            double startKwh = meterStart / 1000.0;
+            session.setStartMeterReading(startKwh);
+            session.setLastMeterReading(startKwh);
+            sessionRepository.save(session);
+
+            // Keep map for fallback/legacy but DB is primary
             sessionToMeterStartMap.put(session.getId(), meterStart);
 
             // Map transaction to session
@@ -359,11 +365,19 @@ public class OcppWebSocketServer extends WebSocketServer {
             }
 
             // Calculate actual energy used (Wh to kWh)
-            Integer meterStart = sessionToMeterStartMap.getOrDefault(sessionId, 0);
-            double energyKwh = (meterStop - meterStart) / 1000.0;
+            // Use DB stored start meter reading for robustness
+            Double startKwh = session.getStartMeterReading();
+            if (startKwh == null) {
+                // Fallback to in-memory if DB is null (legacy sessions)
+                Integer meterStart = sessionToMeterStartMap.getOrDefault(sessionId, 0);
+                startKwh = meterStart / 1000.0;
+            }
 
-            log.info("Energy calculation: MeterStart={}, MeterStop={}, Energy={} kWh",
-                    meterStart, meterStop, energyKwh);
+            double stopKwh = meterStop / 1000.0;
+            double energyKwh = stopKwh - startKwh;
+
+            log.info("Energy calculation: MeterStart (kWh)={}, MeterStop (kWh)={}, Energy={} kWh",
+                    startKwh, stopKwh, energyKwh);
 
             // Update session energy before stopping
             session.setEnergyKwh(energyKwh);
@@ -504,12 +518,16 @@ public class OcppWebSocketServer extends WebSocketServer {
             } else {
                 // ✅ FIX STARTS HERE: Plan/kWh Package Flow
 
-                // 1. Get the meter reading from when the session started (stored in Wh, convert
-                // to kWh)
-                Integer startMeterWh = sessionToMeterStartMap.getOrDefault(sessionId, 0);
-                double startKwh = startMeterWh / 1000.0;
+                // 1. Get the meter reading from when the session started
+                Double startKwh = session.getStartMeterReading();
+                if (startKwh == null) {
+                    // Fallback using map
+                    Integer startMeterWh = sessionToMeterStartMap.getOrDefault(sessionId, 0);
+                    startKwh = startMeterWh / 1000.0;
+                }
 
                 // 2. Calculate actual consumption for THIS session
+                // currentAbsKwh is already in kWh from helper method
                 double consumedKwh = currentAbsKwh.doubleValue() - startKwh;
 
                 // Safety: handle cases where meter might reset or glitch
@@ -522,8 +540,11 @@ public class OcppWebSocketServer extends WebSocketServer {
                 log.info("kWh Check: SessionId={}, AbsoluteMeter={}, StartMeter={}, Consumed={}",
                         sessionId, currentAbsKwh, startKwh, consumedKwh);
 
-                // 3. Pass the CONSUMED value (e.g. 0.5 kWh) instead of Absolute (e.g. 1000.5
-                // kWh)
+                // Update last known meter reading
+                session.setLastMeterReading(currentAbsKwh.doubleValue());
+                sessionRepository.save(session);
+
+                // 3. Pass the CONSUMED value
                 sessionService.checkAndStopIfReachedKwh(sessionId, consumedKwh);
             }
 
