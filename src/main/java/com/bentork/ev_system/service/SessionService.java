@@ -436,7 +436,20 @@ public class SessionService {
 	private double calculateEnergyUsed(Session session) {
 		Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
 		long minutes = duration.toMinutes();
-		return minutes * 0.075;
+
+		// Use dynamic charger speed if available, otherwise default to 4.5kW (0.075 per
+		// min)
+		Double chargerSpeedKw = session.getCharger().getKwOutput();
+		if (chargerSpeedKw == null || chargerSpeedKw <= 0) {
+			log.warn("Charger {} has no kwOutput set, defaulting to 4.5kW", session.getCharger().getId());
+			return minutes * 0.075;
+		}
+
+		double hours = minutes / 60.0;
+		double energy = hours * chargerSpeedKw;
+
+		// Round to 3 decimal places for precision
+		return Math.round(energy * 1000.0) / 1000.0;
 	}
 
 	private void scheduleAutoStop(Long sessionId, int durationMin) {

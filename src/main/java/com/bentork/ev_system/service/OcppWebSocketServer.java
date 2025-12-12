@@ -528,7 +528,9 @@ public class OcppWebSocketServer extends WebSocketServer {
 
                 // 2. Calculate actual consumption for THIS session
                 // currentAbsKwh is already in kWh from helper method
-                double consumedKwh = currentAbsKwh.doubleValue() - startKwh;
+                double rawConsumed = currentAbsKwh.doubleValue() - startKwh;
+                // Round to 3 decimal places
+                double consumedKwh = Math.round(rawConsumed * 1000.0) / 1000.0;
 
                 // Safety: handle cases where meter might reset or glitch
                 if (consumedKwh < 0) {
