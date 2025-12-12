@@ -542,8 +542,9 @@ public class OcppWebSocketServer extends WebSocketServer {
                 log.info("kWh Check: SessionId={}, AbsoluteMeter={}, StartMeter={}, Consumed={}",
                         sessionId, currentAbsKwh, startKwh, consumedKwh);
 
-                // Update last known meter reading
+                // Update last known meter reading AND current energy usage to DB
                 session.setLastMeterReading(currentAbsKwh.doubleValue());
+                session.setEnergyKwh(consumedKwh); // ✅ SAVING ENERGY TO DB
                 sessionRepository.save(session);
 
                 // 3. Pass the CONSUMED value
@@ -726,6 +727,32 @@ public class OcppWebSocketServer extends WebSocketServer {
         String ocppId = connectionToOcppIdMap.remove(conn);
         if (ocppId != null) {
             ocppIdToConnectionMap.remove(ocppId);
+
+            log.warn("Charger {} disconnected. Checking for active sessions to stop...", ocppId);
+            try {
+                Charger charger = chargerRepository.findByOcppId(ocppId).orElse(null);
+                if (charger != null) {
+                    charger.setAvailability(false);
+                    charger.setOccupied(false);
+                    chargerRepository.save(charger);
+
+                    // Find active or initiated session
+                    Session session = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
+                            charger, java.util.Arrays.asList("active", "INITIATED"))
+                            .orElse(null);
+
+                    if (session != null) {
+                        log.info("Stopping active session {} due to charger disconnection", session.getId());
+                        if ("RFID".equalsIgnoreCase(session.getSourceType())) {
+                            rfidChargingService.stopCharging(session.getId());
+                        } else {
+                            sessionService.stopSessionBySystem(session.getId());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error stopping session on close: {}", e.getMessage());
+            }
         }
         log.info("Charger disconnected: {} (OCPP ID: {}, Code: {}, Reason: {})",
                 conn.getRemoteSocketAddress(), ocppId, code, reason);

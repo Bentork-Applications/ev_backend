@@ -121,12 +121,7 @@ public class SessionService {
 								"INFO");
 					} else {
 						log.error("❌ Failed to send RemoteStartTransaction: Charger {} not connected", ocppId);
-
-						userNotificationService.createNotification(
-								session.getUser().getId(),
-								"Charger Offline",
-								"Cannot start charging - charger is offline. Please try again or contact support.",
-								"WARNING");
+						handleOfflineSession(session, receipt);
 					}
 				} catch (Exception e) {
 					log.error("❌ Error sending RemoteStartTransaction to {}: {}", ocppId, e.getMessage(), e);
@@ -139,6 +134,7 @@ public class SessionService {
 				}
 			} else {
 				log.error("❌ Cannot send RemoteStartTransaction: charger OCPP ID is null/empty");
+				handleOfflineSession(session, receipt);
 			}
 
 			// Schedule auto-stop
@@ -460,6 +456,33 @@ public class SessionService {
 				log.error("Auto-stop scheduler error: sessionId={}: {}", sessionId, e.getMessage(), e);
 			}
 		}, durationMin, TimeUnit.MINUTES);
+	}
+
+	private void handleOfflineSession(Session session, Receipt receipt) {
+		log.warn("Handling offline session failure for sessionId={}", session.getId());
+
+		// Refund logic
+		if (receipt.getAmount() != null && receipt.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+			walletTransactionService.credit(
+					session.getUser().getId(),
+					session.getId(),
+					receipt.getAmount(),
+					"Refund: Charger Offline");
+			log.info("Refunded {} to user {} due to offline charger",
+					receipt.getAmount(), session.getUser().getId());
+		}
+
+		userNotificationService.createNotification(
+				session.getUser().getId(),
+				"Charger Offline",
+				"Cannot start charging - charger is offline. Amount refunded.",
+				"ERROR");
+
+		session.setStatus("FAILED");
+		session.setEndTime(LocalDateTime.now());
+		sessionRepository.save(session);
+
+		throw new RuntimeException("Charger is offline. Session failed and amount refunded.");
 	}
 
 	// ... rest of your methods (getTotalSessions, etc.) remain the same ...
