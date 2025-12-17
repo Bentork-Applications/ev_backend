@@ -343,12 +343,22 @@ public class SessionService {
 				log.info("Using prepaid kWh: sessionId={}, selectedKwh={}, finalCost={}",
 						session.getId(), energyUsed, finalCostBD);
 			} else {
-				energyUsed = calculateEnergyUsed(session);
+				// 1. Prioritize actual meter reading from OCPP if available
+				if (session.getEnergyKwh() > 0.001) {
+					energyUsed = session.getEnergyKwh();
+					log.info("Using actual meter reading: sessionId={}, energyUsed={}", session.getId(), energyUsed);
+				} else {
+					// 2. Fallback to calculation if no meter values
+					energyUsed = calculateEnergyUsed(session);
+					log.info("Calculated energy used (fallback): sessionId={}, energyUsed={}",
+							session.getId(), energyUsed);
+				}
+
 				finalCostBD = BigDecimal.valueOf(energyUsed)
 						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
 						.setScale(2, RoundingMode.HALF_UP);
 
-				log.info("Calculated energy used: sessionId={}, energyUsed={}, finalCost={}",
+				log.info("Final cost calculation: sessionId={}, energyUsed={}, finalCost={}",
 						session.getId(), energyUsed, finalCostBD);
 
 				if (receipt != null) {
@@ -443,12 +453,14 @@ public class SessionService {
 		Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
 		long minutes = duration.toMinutes();
 
-		// Use dynamic charger speed if available, otherwise default to 4.5kW (0.075 per
-		// min)
+		// FIX: Enforce configuration. Do not fallback to hardcoded values.
 		Double chargerSpeedKw = session.getCharger().getKwOutput();
 		if (chargerSpeedKw == null || chargerSpeedKw <= 0) {
-			log.warn("Charger {} has no kwOutput set, defaulting to 4.5kW", session.getCharger().getId());
-			return minutes * 0.075;
+			String errorMsg = String.format(
+					"CRITICAL CONFIG ERROR: Charger %s (ID: %d) has NO kwOutput configured. Cannot calculate energy.",
+					session.getCharger().getOcppId(), session.getCharger().getId());
+			log.error(errorMsg);
+			throw new IllegalStateException(errorMsg);
 		}
 
 		double hours = minutes / 60.0;
