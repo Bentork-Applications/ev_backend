@@ -80,6 +80,16 @@ public class SessionService {
 				throw new RuntimeException("Cannot start session without a paid receipt.");
 			}
 
+			// Check if charger is already in use
+			List<String> activeStatuses = List.of("active", "INITIATED");
+			Optional<Session> busySession = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
+					receipt.getCharger(), activeStatuses);
+
+			if (busySession.isPresent()) {
+				log.warn("Charger {} is busy with session {}", receipt.getCharger().getId(), busySession.get().getId());
+				throw new RuntimeException("Charger is currently in use. Please wait.");
+			}
+
 			// Create session in database first
 			Session session = new Session();
 			session.setUser(receipt.getUser());
@@ -387,7 +397,7 @@ public class SessionService {
 			Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
 			log.info(
 					"Session completed: sessionId={}, userId={}, energyUsed={}, finalCost={}, duration={} minutes, stopReason={}",
-					session.getId(), session.getUser().getId(), energyUsed, finalCostBD,
+					session.getId(), session.getUser().getId(), String.format("%.3f", energyUsed), finalCostBD,
 					duration.toMinutes(), stopReason);
 
 			adminNotificationService.createSystemNotification(
