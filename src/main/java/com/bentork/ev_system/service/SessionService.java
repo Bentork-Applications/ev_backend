@@ -81,7 +81,8 @@ public class SessionService {
 			}
 
 			// Check if charger is already in use
-			List<String> activeStatuses = List.of("active", "INITIATED");
+			// Check if charger is already in use
+			List<String> activeStatuses = List.of("active");
 			Optional<Session> busySession = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
 					receipt.getCharger(), activeStatuses);
 
