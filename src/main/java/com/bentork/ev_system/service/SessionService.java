@@ -336,13 +336,73 @@ public class SessionService {
 			boolean extraDebited = false;
 
 			if (receipt != null && receipt.getSelectedKwh() != null) {
-				energyUsed = receipt.getSelectedKwh().doubleValue();
+				// For selectedKwh sessions, use actual meter reading if available
+				double selectedKwh = receipt.getSelectedKwh().doubleValue();
+
+				// 1. Prioritize actual meter reading from OCPP if available
+				if (session.getEnergyKwh() > 0.001) {
+					energyUsed = session.getEnergyKwh();
+					log.info("Using actual meter reading for kWh session: sessionId={}, energyUsed={}",
+							session.getId(), energyUsed);
+				} else {
+					// 2. Fallback to calculation if no meter values
+					energyUsed = calculateEnergyUsed(session);
+					log.info("Calculated energy used (fallback) for kWh session: sessionId={}, energyUsed={}",
+							session.getId(), energyUsed);
+				}
+
+				// Calculate final cost based on actual energy used
 				finalCostBD = BigDecimal.valueOf(energyUsed)
 						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
 						.setScale(2, RoundingMode.HALF_UP);
 
-				log.info("Using prepaid kWh: sessionId={}, selectedKwh={}, finalCost={}",
-						session.getId(), energyUsed, finalCostBD);
+				// Calculate prepaid amount (selectedKwh * rate)
+				BigDecimal prepaidAmount = BigDecimal.valueOf(selectedKwh)
+						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
+						.setScale(2, RoundingMode.HALF_UP);
+
+				log.info(
+						"kWh session finalization: sessionId={}, selectedKwh={}, actualKwh={}, prepaidAmount={}, finalCost={}",
+						session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD);
+
+				// Refund/Extra debit logic for selectedKwh sessions
+				if (finalCostBD.compareTo(prepaidAmount) < 0) {
+					// User used less than selected - issue refund
+					BigDecimal refund = prepaidAmount.subtract(finalCostBD);
+					walletTransactionService.credit(session.getUser().getId(), session.getId(),
+							refund, "kWh session refund - unused energy");
+					refundIssued = true;
+
+					log.info(
+							"Refund issued for kWh session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, refund={}",
+							session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD, refund);
+
+					userNotificationService.createNotification(
+							session.getUser().getId(),
+							"Refund Issued",
+							"Unused energy refund: ₹" + refund + " has been credited to your wallet. (Used " +
+									String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh)
+									+ " kWh selected)",
+							"REFUND");
+				} else if (finalCostBD.compareTo(prepaidAmount) > 0) {
+					// User used more than selected - extra debit
+					BigDecimal extra = finalCostBD.subtract(prepaidAmount);
+					walletTransactionService.debit(session.getUser().getId(), session.getId(),
+							extra, "kWh Session Extra Debit - exceeded selected energy");
+					extraDebited = true;
+
+					log.info(
+							"Extra debit for kWh session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, extra={}",
+							session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD, extra);
+
+					userNotificationService.createNotification(
+							session.getUser().getId(),
+							"Extra Debit",
+							"Extra amount ₹" + extra + " has been deducted. (Used " +
+									String.format("%.2f", energyUsed) + " kWh, exceeded "
+									+ String.format("%.2f", selectedKwh) + " kWh selected)",
+							"Debit");
+				}
 			} else {
 				// 1. Prioritize actual meter reading from OCPP if available
 				if (session.getEnergyKwh() > 0.001) {

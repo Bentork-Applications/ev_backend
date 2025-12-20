@@ -1,8 +1,11 @@
 package com.bentork.ev_system;
 
+import java.util.TimeZone;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import io.github.cdimascio.dotenv.Dotenv;
+import jakarta.annotation.PostConstruct;
 
 @SpringBootApplication
 public class EvChargingSystemApplication {
@@ -20,6 +23,8 @@ public class EvChargingSystemApplication {
         // On AWS, these will be skipped (which is good!)
         safeSetProperty(dotenv, "GOOGLE_CLIENT_ID");
         safeSetProperty(dotenv, "GOOGLE_CLIENT_SECRET");
+        safeSetProperty(dotenv, "RAZORPAY_KEY_ID");
+        safeSetProperty(dotenv, "RAZORPAY_KEY_SECRET");
 
         SpringApplication.run(EvChargingSystemApplication.class, args);
     }
@@ -30,5 +35,12 @@ public class EvChargingSystemApplication {
         if (value != null && !value.isEmpty()) {
             System.setProperty(key, value);
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        // Setting Spring Boot SetTimeZone
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
+        System.out.println("Application running in IST timezone :" + new java.util.Date());
     }
 }
