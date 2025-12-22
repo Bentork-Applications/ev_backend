@@ -62,7 +62,7 @@ public class OcppWebSocketServer extends WebSocketServer {
     private final Map<Integer, Long> transactionToSessionMap = new ConcurrentHashMap<>();
     private final Map<WebSocket, String> connectionToOcppIdMap = new ConcurrentHashMap<>();
     private final Map<String, WebSocket> ocppIdToConnectionMap = new ConcurrentHashMap<>();
-    private final Map<Long, Integer> sessionToMeterStartMap = new ConcurrentHashMap<>();
+    private final Map<Long, Double> sessionToMeterStartMap = new ConcurrentHashMap<>();
 
     public OcppWebSocketServer(@Value("${ocpp.server.port:8887}") int port) {
         super(new InetSocketAddress(port));
@@ -212,7 +212,7 @@ public class OcppWebSocketServer extends WebSocketServer {
             String idTag = payload.has("idTag") ? payload.get("idTag").asText() : null;
             int connectorId = payload.has("connectorId") ? payload.get("connectorId").asInt() : 1;
             String ocppId = connectionToOcppIdMap.getOrDefault(conn, "UNKNOWN");
-            int meterStart = payload.has("meterStart") ? payload.get("meterStart").asInt() : 0;
+            double meterStart = payload.has("meterStart") ? payload.get("meterStart").asDouble() : 0.0;
 
             log.info("StartTransaction - OCPP_ID: {}, IdTag: {}, ConnectorId: {}, MeterStart: {}",
                     ocppId, idTag, connectorId, meterStart);
@@ -337,7 +337,7 @@ public class OcppWebSocketServer extends WebSocketServer {
     private void handleStopTransaction(WebSocket conn, String messageId, JsonNode payload) {
         try {
             int transactionId = payload.has("transactionId") ? payload.get("transactionId").asInt() : -1;
-            int meterStop = payload.has("meterStop") ? payload.get("meterStop").asInt() : 0;
+            double meterStop = payload.has("meterStop") ? payload.get("meterStop").asDouble() : 0.0;
             String reason = payload.has("reason") ? payload.get("reason").asText() : "Local";
 
             log.info("StopTransaction - TransactionId: {}, MeterStop: {}, Reason: {}",
@@ -370,8 +370,8 @@ public class OcppWebSocketServer extends WebSocketServer {
             Double startKwh = session.getStartMeterReading();
             if (startKwh == null) {
                 // Fallback to in-memory if DB is null (legacy sessions)
-                Integer meterStart = sessionToMeterStartMap.getOrDefault(sessionId, 0);
-                startKwh = meterStart / 1000.0;
+                Double meterStartWh = sessionToMeterStartMap.getOrDefault(sessionId, 0.0);
+                startKwh = meterStartWh / 1000.0;
             }
 
             double stopKwh = meterStop / 1000.0;
@@ -523,7 +523,7 @@ public class OcppWebSocketServer extends WebSocketServer {
                 Double startKwh = session.getStartMeterReading();
                 if (startKwh == null) {
                     // Fallback using map
-                    Integer startMeterWh = sessionToMeterStartMap.getOrDefault(sessionId, 0);
+                    Double startMeterWh = sessionToMeterStartMap.getOrDefault(sessionId, 0.0);
                     startKwh = startMeterWh / 1000.0;
                 }
 
