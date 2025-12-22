@@ -13,6 +13,7 @@ import com.bentork.ev_system.model.Revenue;
 import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.WalletTransaction;
+import com.bentork.ev_system.enums.SessionStatus;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.RFIDCardRepository;
 import com.bentork.ev_system.repository.RevenueRepository;
@@ -67,7 +68,7 @@ public class RFIDChargingService {
             Session session = new Session();
             session.setUser(user);
             session.setCharger(charger);
-            session.setStatus("active");
+            session.setStatus(SessionStatus.ACTIVE.getValue());
             session.setStartTime(LocalDateTime.now());
             session.setEnergyKwh(0.0);
             session.setCost(0.0);
@@ -109,7 +110,7 @@ public class RFIDChargingService {
             Session session = sessionRepo.findById(sessionId)
                     .orElseThrow(() -> new RuntimeException("Session not found"));
 
-            if (!"active".equals(session.getStatus()))
+            if (!SessionStatus.ACTIVE.matches(session.getStatus()))
                 return session;
 
             BigDecimal previous = BigDecimal.valueOf(session.getEnergyKwh());
@@ -166,13 +167,13 @@ public class RFIDChargingService {
             Session session = sessionRepo.findById(sessionId)
                     .orElseThrow(() -> new RuntimeException("Session not found"));
 
-            if (!"active".equals(session.getStatus())) {
+            if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
                 log.warn("Session is not active, cannot stop: sessionId={}, status={}",
                         sessionId, session.getStatus());
                 return session;
             }
 
-            session.setStatus("Completed");
+            session.setStatus(SessionStatus.COMPLETED.getValue());
             session.setEndTime(LocalDateTime.now());
 
             System.out.println(" Relay OFF → Charger " + session.getCharger().getId());

@@ -3,6 +3,7 @@ package com.bentork.ev_system.service;
 import com.bentork.ev_system.dto.request.SessionDTO;
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
+import com.bentork.ev_system.enums.SessionStatus;
 import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 
@@ -82,7 +83,7 @@ public class SessionService {
 
 			// Check if charger is already in use
 			// Check if charger is already in use
-			List<String> activeStatuses = List.of("active");
+			List<String> activeStatuses = List.of(SessionStatus.ACTIVE.getValue());
 			Optional<Session> busySession = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
 					receipt.getCharger(), activeStatuses);
 
@@ -97,7 +98,7 @@ public class SessionService {
 			session.setCharger(receipt.getCharger());
 			session.setBoxId(boxId);
 			session.setStartTime(LocalDateTime.now());
-			session.setStatus("INITIATED"); // Will become 'active' when charger responds
+			session.setStatus(SessionStatus.INITIATED.getValue()); // Will become 'active' when charger responds
 			session.setCreatedAt(LocalDateTime.now());
 			session.setSourceType("SESSION");
 			sessionRepository.save(session);
@@ -201,7 +202,7 @@ public class SessionService {
 				throw new RuntimeException("Unauthorized to stop this session");
 			}
 
-			if (!"active".equalsIgnoreCase(session.getStatus())) {
+			if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
 				log.info("Session already completed: sessionId={}, status={}",
 						request.getSessionId(), session.getStatus());
 				return buildAlreadyCompletedResponse(session);
@@ -246,7 +247,7 @@ public class SessionService {
 			Session session = sessionRepository.findById(sessionId)
 					.orElseThrow(() -> new RuntimeException("Session not found"));
 
-			if ("active".equalsIgnoreCase(session.getStatus())) {
+			if (SessionStatus.ACTIVE.matches(session.getStatus())) {
 				// ✅ NEW: Send RemoteStopTransaction for auto-stop too
 				try {
 					String ocppId = session.getCharger().getOcppId();
@@ -282,7 +283,7 @@ public class SessionService {
 
 			Receipt receipt = receiptRepository.findBySession(session).orElse(null);
 			if (receipt != null && receipt.getSelectedKwh() != null &&
-					"active".equalsIgnoreCase(session.getStatus())) {
+					SessionStatus.ACTIVE.matches(session.getStatus())) {
 				double targetKwh = receipt.getSelectedKwh().doubleValue();
 
 				if (log.isDebugEnabled()) {
@@ -321,12 +322,12 @@ public class SessionService {
 		try {
 			log.info("Finalizing session: sessionId={}, stopReason={}", session.getId(), stopReason);
 
-			if (!"active".equalsIgnoreCase(session.getStatus())) {
+			if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
 				return buildAlreadyCompletedResponse(session);
 			}
 
 			session.setEndTime(LocalDateTime.now());
-			session.setStatus("completed");
+			session.setStatus(SessionStatus.COMPLETED.getValue());
 
 			Receipt receipt = receiptRepository.findBySession(session).orElse(null);
 
@@ -561,7 +562,7 @@ public class SessionService {
 				"Cannot start charging - charger is offline. Amount refunded.",
 				"ERROR");
 
-		session.setStatus("FAILED");
+		session.setStatus(SessionStatus.FAILED.getValue());
 		session.setEndTime(LocalDateTime.now());
 		sessionRepository.save(session);
 
@@ -573,7 +574,7 @@ public class SessionService {
 	public long getTotalSessions() {
 		try {
 			long total = sessionRepository.findAll().stream()
-					.filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
+					.filter(s -> SessionStatus.COMPLETED.matches(s.getStatus()))
 					.count();
 			if (log.isDebugEnabled()) {
 				log.debug("Total completed sessions: {}", total);
@@ -588,7 +589,7 @@ public class SessionService {
 	public double getTotalEnergyConsumed() {
 		try {
 			double totalEnergy = sessionRepository.findAll().stream()
-					.filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
+					.filter(s -> SessionStatus.COMPLETED.matches(s.getStatus()))
 					.mapToDouble(Session::getEnergyKwh)
 					.sum();
 			if (log.isDebugEnabled()) {
@@ -604,7 +605,7 @@ public class SessionService {
 	public Long getActiveSessions() {
 		try {
 			Long activeCount = sessionRepository.findAll().stream()
-					.filter(session -> "active".equalsIgnoreCase(session.getStatus()))
+					.filter(session -> SessionStatus.ACTIVE.matches(session.getStatus()))
 					.count();
 			if (log.isDebugEnabled()) {
 				log.debug("Active sessions count: {}", activeCount);
@@ -624,7 +625,7 @@ public class SessionService {
 				return 0.0;
 			}
 			long completedSessions = sessionRepository.findAll().stream()
-					.filter(session -> "completed".equalsIgnoreCase(session.getStatus()))
+					.filter(session -> SessionStatus.COMPLETED.matches(session.getStatus()))
 					.count();
 			double uptime = (completedSessions * 100.0) / totalSessions;
 			double roundedUptime = Math.round(uptime * 100.0) / 100.0;
@@ -648,7 +649,7 @@ public class SessionService {
 		if (log.isDebugEnabled()) {
 			log.debug("Finding last active session");
 		}
-		return sessionRepository.findFirstByStatusOrderByStartTimeDesc("active");
+		return sessionRepository.findFirstByStatusOrderByStartTimeDesc(SessionStatus.ACTIVE.getValue());
 	}
 
 	public Long getTodaysErrorCount() {
@@ -663,8 +664,7 @@ public class SessionService {
 							&& (session.getCreatedAt().isEqual(startOfDay)
 									|| (session.getCreatedAt().isAfter(startOfDay)
 											&& session.getCreatedAt().isBefore(endOfDay))))
-					.filter(session -> session.getStatus() != null
-							&& session.getStatus().toLowerCase().contains("error"))
+					.filter(session -> SessionStatus.FAILED.matches(session.getStatus()))
 					.count();
 		} catch (DataAccessException e) {
 			log.error("Error while accessing data: {}", e);

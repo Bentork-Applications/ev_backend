@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Receipt;
+import com.bentork.ev_system.enums.SessionStatus;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
@@ -244,13 +245,14 @@ public class OcppWebSocketServer extends WebSocketServer {
                     session = sessionRepository
                             .findFirstByChargerAndStatusInOrderByCreatedAtDesc(
                                     charger,
-                                    java.util.Arrays.asList("INITIATED", "active"))
+                                    java.util.Arrays.asList(SessionStatus.INITIATED.getValue(),
+                                            SessionStatus.ACTIVE.getValue()))
                             .orElse(null);
 
                     if (session != null) {
                         // Activate the session if it's INITIATED
-                        if ("INITIATED".equals(session.getStatus())) {
-                            session.setStatus("active");
+                        if (SessionStatus.INITIATED.matches(session.getStatus())) {
+                            session.setStatus(SessionStatus.ACTIVE.getValue());
                             session.setStartTime(java.time.LocalDateTime.now());
                             sessionRepository.save(session);
                         }
@@ -511,7 +513,7 @@ public class OcppWebSocketServer extends WebSocketServer {
                 Session updated = rfidChargingService.updateEnergy(sessionId, currentAbsKwh);
 
                 // If session was auto-stopped due to low balance, stop transaction
-                if ("COMPLETED".equals(updated.getStatus())) {
+                if (SessionStatus.COMPLETED.matches(updated.getStatus())) {
                     log.warn("RFID session {} auto-stopped due to low balance", sessionId);
                     transactionToSessionMap.remove(transactionId);
                     sendRemoteStopTransaction(conn, transactionId);
@@ -739,7 +741,9 @@ public class OcppWebSocketServer extends WebSocketServer {
 
                     // Find active or initiated session
                     Session session = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
-                            charger, java.util.Arrays.asList("active", "INITIATED"))
+                            charger,
+                            java.util.Arrays.asList(SessionStatus.ACTIVE.getValue(),
+                                    SessionStatus.INITIATED.getValue()))
                             .orElse(null);
 
                     if (session != null) {
