@@ -16,6 +16,7 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.enums.SessionStatus;
+import com.bentork.ev_system.enums.ChargerStatus;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
@@ -155,6 +156,19 @@ public class OcppWebSocketServer extends WebSocketServer {
     private void handleBootNotification(WebSocket conn, String messageId, JsonNode payload) {
         String ocppId = connectionToOcppIdMap.get(conn);
         log.info("BootNotification received from {}: {}", ocppId, payload);
+
+        // Set charger status to AVAILABLE when it boots
+        try {
+            Charger charger = chargerRepository.findByOcppId(ocppId).orElse(null);
+            if (charger != null) {
+                charger.setStatus(ChargerStatus.AVAILABLE.getValue());
+                charger.setAvailability(true);
+                chargerRepository.save(charger);
+                log.info("Charger {} status set to AVAILABLE", ocppId);
+            }
+        } catch (Exception e) {
+            log.error("Error updating charger status on boot: {}", e.getMessage());
+        }
 
         ObjectNode response = objectMapper.createObjectNode();
         response.put("status", "Accepted");
@@ -312,6 +326,7 @@ public class OcppWebSocketServer extends WebSocketServer {
             // Update charger status
             charger.setOccupied(true);
             charger.setAvailability(false);
+            charger.setStatus(ChargerStatus.BUSY.getValue());
             chargerRepository.save(charger);
 
             // Send success response
@@ -408,6 +423,7 @@ public class OcppWebSocketServer extends WebSocketServer {
             Charger charger = session.getCharger();
             charger.setOccupied(false);
             charger.setAvailability(true);
+            charger.setStatus(ChargerStatus.AVAILABLE.getValue());
             chargerRepository.save(charger);
 
             log.info("Session stopped successfully: {} (Energy: {} kWh, Source: {})",
@@ -737,7 +753,9 @@ public class OcppWebSocketServer extends WebSocketServer {
                 if (charger != null) {
                     charger.setAvailability(false);
                     charger.setOccupied(false);
+                    charger.setStatus(ChargerStatus.OFFLINE.getValue());
                     chargerRepository.save(charger);
+                    log.info("Charger {} status set to OFFLINE", ocppId);
 
                     // Find active or initiated session
                     Session session = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(

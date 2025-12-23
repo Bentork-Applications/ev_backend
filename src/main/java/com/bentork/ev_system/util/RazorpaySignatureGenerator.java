@@ -12,7 +12,7 @@ public class RazorpaySignatureGenerator {
         String secret = dotenv.get("RAZORPAY_KEY_SECRET");
 
         // Test data
-        String orderId = "order_RfZtJUjkUSf6Rc"; // Replace with actual order_id
+        String orderId = "order_RqgFaBmYctGreM"; // Replace with actual order_id
         String paymentId = "pay_TESTabc123xyz"; // Replace with test payment_id
 
         // Create payload: order_id|payment_id

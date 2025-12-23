@@ -17,6 +17,7 @@ public class ChargerMapper {
         dto.setOccupied(charger.isOccupied());
         dto.setAvailability(charger.isAvailability());
         dto.setCreatedAt(charger.getCreatedAt());
+        dto.setStatus(charger.getStatus());
         return dto;
     }
 

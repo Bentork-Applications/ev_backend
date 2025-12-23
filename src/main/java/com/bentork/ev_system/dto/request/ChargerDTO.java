@@ -13,19 +13,20 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ChargerDTO {
 
-    private Long id;                
-    private Long stationId;         
-    private String stationName;     
+	private Long id;
+	private Long stationId;
+	private String stationName;
 
-    private String ocppId;
-    private String connectorType;
-    private String chargerType;     // AC or DC
-    private Double rate;
+	private String ocppId;
+	private String connectorType;
+	private String chargerType; // AC or DC
+	private Double rate;
 
-    private boolean isOccupied;
-    private boolean availability;
+	private boolean isOccupied;
+	private boolean availability;
 
-    private LocalDateTime createdAt; // Optional for response
+	private LocalDateTime createdAt; // Optional for response
+	private String status; // busy, available, offline
 
 	public Long getId() {
 		return id;
@@ -106,5 +107,13 @@ public class ChargerDTO {
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
 	}
-   
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
 }
