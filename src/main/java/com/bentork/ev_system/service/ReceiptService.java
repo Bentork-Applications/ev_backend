@@ -85,14 +85,15 @@ public class ReceiptService {
         receipt.setSession(session);
         walletTransactionService.updateSessionIdForUser(userId, amount, session.getId());
 
+        // NOTE: If session fails, handleOfflineSession() in SessionService already
+        // issues
+        // the refund and throws an exception. We only update receipt status here if
+        // somehow
+        // a failed session returns without exception.
         if ("failed".equalsIgnoreCase(session.getStatus())) {
-            userNotificationService.createNotification(
-                    userId,
-                    "Charging Failed",
-                    "Your charging session could not start. You have been refunded ₹" + amount,
-                    "Charger Error");
-            walletTransactionService.credit(userId, session.getId(), amount, "Charger Refund");
             receipt.setStatus("Refunded");
+            // Refund is already handled by SessionService.handleOfflineSession() - no
+            // duplicate refund needed
         }
 
         return receiptRepository.save(receipt);
