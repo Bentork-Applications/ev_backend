@@ -52,7 +52,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         String token = jwtUtil.generateToken(userDetails);
 
-        String redirectUrl = "http://bentork.in/login?token=" + token;
+        String redirectUrl = "https://dev.bentork.in/login?token=" + token;
 
         String ocppId = (String) request.getSession().getAttribute("ocppId");
         if (ocppId != null) {
