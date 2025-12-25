@@ -352,8 +352,12 @@ public class OcppWebSocketServer extends WebSocketServer {
      * SessionService
      */
     private void handleStopTransaction(WebSocket conn, String messageId, JsonNode payload) {
+        Session session = null;
+        int transactionId = -1;
+        Long sessionId = null;
+
         try {
-            int transactionId = payload.has("transactionId") ? payload.get("transactionId").asInt() : -1;
+            transactionId = payload.has("transactionId") ? payload.get("transactionId").asInt() : -1;
             double meterStop = payload.has("meterStop") ? payload.get("meterStop").asDouble() : 0.0;
             String reason = payload.has("reason") ? payload.get("reason").asText() : "Local";
 
@@ -366,7 +370,7 @@ public class OcppWebSocketServer extends WebSocketServer {
             }
 
             // Look up session from transaction map
-            Long sessionId = transactionToSessionMap.get(transactionId);
+            sessionId = transactionToSessionMap.get(transactionId);
 
             if (sessionId == null) {
                 log.warn("No mapping found for TxId: {}, assuming TxId == SessionId", transactionId);
@@ -374,7 +378,7 @@ public class OcppWebSocketServer extends WebSocketServer {
             }
 
             // Get session
-            Session session = sessionService.getSessionById(sessionId);
+            session = sessionService.getSessionById(sessionId);
 
             if (session == null) {
                 log.error("Session not found for ID: {}", sessionId);
@@ -415,17 +419,6 @@ public class OcppWebSocketServer extends WebSocketServer {
                 sessionService.stopSessionBySystem(sessionId);
             }
 
-            // Clean up
-            transactionToSessionMap.remove(transactionId);
-            sessionToMeterStartMap.remove(sessionId);
-
-            // Update charger availability
-            Charger charger = session.getCharger();
-            charger.setOccupied(false);
-            charger.setAvailability(true);
-            charger.setStatus(ChargerStatus.AVAILABLE.getValue());
-            chargerRepository.save(charger);
-
             log.info("Session stopped successfully: {} (Energy: {} kWh, Source: {})",
                     session.getId(), energyKwh, session.getSourceType());
 
@@ -442,6 +435,33 @@ public class OcppWebSocketServer extends WebSocketServer {
             log.error("Error stopping transaction: {}", e.getMessage(), e);
             sendErrorResponse(conn, messageId, "InternalError",
                     "Failed to stop transaction: " + e.getMessage());
+        } finally {
+            // CRITICAL: Always clean up and reset charger status, even if session
+            // finalization fails
+            // This prevents chargers from getting stuck in 'busy' status
+
+            // Clean up transaction maps
+            if (transactionId != -1) {
+                transactionToSessionMap.remove(transactionId);
+            }
+            if (sessionId != null) {
+                sessionToMeterStartMap.remove(sessionId);
+            }
+
+            // Reset charger status to available
+            if (session != null && session.getCharger() != null) {
+                try {
+                    Charger charger = session.getCharger();
+                    charger.setOccupied(false);
+                    charger.setAvailability(true);
+                    charger.setStatus(ChargerStatus.AVAILABLE.getValue());
+                    chargerRepository.save(charger);
+                    log.info("Charger {} status reset to AVAILABLE", charger.getOcppId());
+                } catch (Exception chargerEx) {
+                    log.error("Failed to reset charger {} status: {}",
+                            session.getCharger().getOcppId(), chargerEx.getMessage());
+                }
+            }
         }
     }
 

@@ -498,6 +498,17 @@ public class SessionService {
 		} catch (Exception e) {
 			log.error("Failed to finalize session: sessionId={}, stopReason={}: {}",
 					session.getId(), stopReason, e.getMessage(), e);
+			// CRITICAL: Even on error, mark session as failed and save
+			// This ensures sessions don't remain stuck in 'active' status
+			try {
+				session.setStatus(SessionStatus.FAILED.getValue());
+				session.setEndTime(LocalDateTime.now());
+				sessionRepository.save(session);
+				log.info("Session {} marked as FAILED due to finalization error", session.getId());
+			} catch (Exception saveEx) {
+				log.error("CRITICAL: Failed to save session failure status for session {}: {}",
+						session.getId(), saveEx.getMessage());
+			}
 			throw e;
 		}
 	}
@@ -515,14 +526,15 @@ public class SessionService {
 		Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
 		long minutes = duration.toMinutes();
 
-		// FIX: Enforce configuration. Do not fallback to hardcoded values.
+		// Check charger kwOutput configuration
 		Double chargerSpeedKw = session.getCharger().getKwOutput();
-		if (chargerSpeedKw == null || chargerSpeedKw <= 0.0001) {
-			String errorMsg = String.format(
-					"CRITICAL CONFIG ERROR: Charger %s (ID: %d) has NO kwOutput configured. Cannot calculate energy.",
+		if (chargerSpeedKw == null || chargerSpeedKw <= 0) {
+			// GRACEFUL HANDLING: Return 0 instead of throwing exception
+			// This ensures session finalization completes even with misconfigured chargers
+			log.warn("CRITICAL CONFIG WARNING: Charger {} (ID: {}) has NO kwOutput configured. " +
+					"Using 0 kWh for energy calculation. Please configure charger kwOutput.",
 					session.getCharger().getOcppId(), session.getCharger().getId());
-			log.error(errorMsg);
-			throw new IllegalStateException(errorMsg);
+			return 0.0;
 		}
 
 		double hours = minutes / 60.0;
