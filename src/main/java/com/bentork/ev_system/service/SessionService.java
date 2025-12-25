@@ -517,7 +517,7 @@ public class SessionService {
 
 		// FIX: Enforce configuration. Do not fallback to hardcoded values.
 		Double chargerSpeedKw = session.getCharger().getKwOutput();
-		if (chargerSpeedKw == null || chargerSpeedKw <= 0) {
+		if (chargerSpeedKw == null || chargerSpeedKw <= 0.0001) {
 			String errorMsg = String.format(
 					"CRITICAL CONFIG ERROR: Charger %s (ID: %d) has NO kwOutput configured. Cannot calculate energy.",
 					session.getCharger().getOcppId(), session.getCharger().getId());
