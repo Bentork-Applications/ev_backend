@@ -25,6 +25,7 @@ public class User {
     private String password; // null or blank if using only Google login
     private BigDecimal walletBalance = BigDecimal.ZERO;
     private LocalDateTime createdAt = LocalDateTime.now();
+    private String imageUrl;
 
     // === Getters and Setters ===
 
@@ -68,7 +69,6 @@ public class User {
         this.password = password;
     }
 
-
     public BigDecimal getWalletBalance() {
         return walletBalance;
     }
@@ -83,5 +83,13 @@ public class User {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

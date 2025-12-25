@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.AdminLoginRequest;
 import com.bentork.ev_system.dto.request.AdminSignupRequest;
+import com.bentork.ev_system.dto.request.GoogleLoginResponse;
 import com.bentork.ev_system.dto.request.JwtResponse;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
 import com.bentork.ev_system.dto.request.UserSignupRequest;
@@ -94,12 +95,14 @@ public class AuthController {
 
     // user details from email - authentication using token (admin, user)
     @GetMapping("/user/byemail/{email}")
-    public ResponseEntity<User> getUserDetailsByEmail(@RequestHeader("Authorization") String authHeader, @PathVariable String email) throws UserPrincipalNotFoundException {
-        User user = userRepo.findByEmail(email).orElseThrow(() -> new UserPrincipalNotFoundException("User with email '" + email + "' not found."));
+    public ResponseEntity<User> getUserDetailsByEmail(@RequestHeader("Authorization") String authHeader,
+            @PathVariable String email) throws UserPrincipalNotFoundException {
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new UserPrincipalNotFoundException("User with email '" + email + "' not found."));
         return ResponseEntity.ok(user);
     }
 
-    //Delete user
+    // Delete user
     @DeleteMapping("/user/delete/{id}")
     public ResponseEntity<?> deleteUserById(@RequestHeader("Authorization") String authHeader, @PathVariable Long id) {
         try {
@@ -230,14 +233,20 @@ public class AuthController {
     @GetMapping("/user/google-login-success")
     public ResponseEntity<?> googleLoginSuccess(@RequestParam String email) {
         Optional<User> optionalUser = userRepo.findByEmail(email);
-       
+
         User user = optionalUser.orElseThrow();
 
         UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 user.getEmail(), "", Collections.emptyList());
 
         String token = jwtUtil.generateToken(userDetails);
-        return ResponseEntity.ok(new JwtResponse(token));
+        // return ResponseEntity.ok(new JwtResponse(token));
+        return ResponseEntity.ok(
+                new GoogleLoginResponse(
+                        token,
+                        user.getName(),
+                        user.getEmail(),
+                        user.getImageUrl()));
     }
 
 }
