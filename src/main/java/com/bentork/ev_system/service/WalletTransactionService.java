@@ -6,13 +6,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.data.domain.PageRequest;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.WalletTransaction;
 import com.bentork.ev_system.repository.UserRepository;
@@ -29,6 +28,9 @@ public class WalletTransactionService {
 
     @Autowired
     private UserRepository userRepo;
+
+    @Autowired
+    private TaxCalculationService taxService;
 
     public List<WalletTransaction> getTransactionHistory(Long userId, String type, boolean viewAll) {
         Sort sort = Sort.by("createdAt").descending();
@@ -153,41 +155,7 @@ public class WalletTransactionService {
         return repo.save(tx);
     }
 
-    /**
-     * Create and save a credit transaction (refund or top-up).
-     * 
-     * FIXED: Entire operation is transactional with pessimistic locking.
-     */
-    @Transactional
-    public WalletTransaction credit(Long userId, Long sessionId, BigDecimal amount, String method) {
-        if (amount == null)
-            throw new IllegalArgumentException("amount cannot be null");
-        if (amount.compareTo(BigDecimal.ZERO) <= 0)
-            throw new IllegalArgumentException("amount must be positive");
 
-        // Lock user row and credit atomically
-        User user = userRepo.findByIdWithLock(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
-
-        BigDecimal balance = user.getWalletBalance() != null ? user.getWalletBalance() : BigDecimal.ZERO;
-        user.setWalletBalance(balance.add(amount));
-        userRepo.save(user);
-
-        log.info("Wallet credit: userId={}, amount={}, newBalance={}, sessionId={}",
-                userId, amount, user.getWalletBalance(), sessionId);
-
-        // Create transaction record
-        WalletTransaction tx = new WalletTransaction();
-        tx.setUserId(userId);
-        tx.setSessionId(sessionId);
-        tx.setAmount(amount);
-        tx.setType("credit");
-        tx.setMethod(method != null ? method : "credit");
-        tx.setStatus("success");
-        tx.setTransactionRef((sessionId != null ? "sess-" + sessionId + "-" : "") + UUID.randomUUID().toString());
-
-        return repo.save(tx);
-    }
 
     @Transactional
     public void updateSessionIdForUser(Long userId, BigDecimal amount, Long sessionId) {
@@ -197,6 +165,40 @@ public class WalletTransactionService {
                 .orElseThrow(() -> new RuntimeException("No matching wallet transaction found to attach sessionId"));
         tx.setSessionId(sessionId);
         repo.save(tx);
+    }
+
+    @Transactional
+    public WalletTransaction credit(Long userId, Long sessionId, BigDecimal amount, String method) {
+
+        if (amount == null)
+            throw new IllegalArgumentException("amount cannot be null");
+
+        BigDecimal gst = BigDecimal.ZERO;
+        BigDecimal pst = BigDecimal.ZERO;
+        BigDecimal netAmount = amount;
+
+        // APPLY TAX ONLY FOR WALLET TOP-UP
+        if (sessionId == null && "TOPUP".equalsIgnoreCase(method)) {
+
+            gst = taxService.calculateGst(amount);
+            pst = taxService.calculatePst(amount);
+
+            netAmount = amount.subtract(gst).subtract(pst);
+        }
+
+        WalletTransaction tx = new WalletTransaction();
+        tx.setUserId(userId);
+        tx.setSessionId(sessionId);
+        tx.setGrossAmount(amount);
+        tx.setGstAmount(gst);
+        tx.setPstAmount(pst);
+        tx.setAmount(netAmount); // WALLET CREDIT
+        tx.setType("credit");
+        tx.setMethod(method);
+        tx.setStatus("success");
+        tx.setTransactionRef(UUID.randomUUID().toString());
+
+        return save(tx);
     }
 
 }

@@ -6,9 +6,11 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.bentork.ev_system.model.WalletTransaction;
 import com.bentork.ev_system.service.RazorpayService;
 import com.bentork.ev_system.service.WalletTransactionService;
 
@@ -39,7 +41,7 @@ public class RazorpayController {
             String orderId = payload.get("order_id");
             String paymentId = payload.get("payment_id");
             String signature = payload.get("signature");
-            String userIdStr = payload.get("user_id");
+            Long userId = Long.parseLong(payload.get("user_id"));
 
             boolean valid = razorpayService.verifySignature(orderId, paymentId, signature);
 
@@ -47,27 +49,30 @@ public class RazorpayController {
                 return ResponseEntity.badRequest().body("Invalid signature.");
             }
 
-            // Fetch actual amount from Razorpay order object
+            // 1️⃣ Fetch amount from Razorpay (in rupees)
             com.razorpay.Order razorOrder = razorpayService.fetchOrder(orderId);
             BigDecimal amount = new BigDecimal(razorOrder.get("amount").toString())
-                    .divide(BigDecimal.valueOf(100)); // Convert paise to rupees
+                    .divide(BigDecimal.valueOf(100));
 
-            WalletTransaction tx = new WalletTransaction();
-            tx.setUserId(Long.parseLong(userIdStr));
-            tx.setAmount(amount);
-            tx.setType("credit");
-            tx.setMethod("Razorpay");
-            tx.setStatus("success");
-            tx.setTransactionRef(paymentId);
+            // 2️⃣ CREDIT WALLET (GST + PST APPLIED HERE)
+            walletService.credit(
+                    userId,
+                    null,
+                    amount,
+                    "TOPUP" // 🔴 MUST BE "TOPUP"
+            );
 
-            walletService.save(tx);
+            // 3️⃣ Fetch UPDATED wallet balance (NET)
+            BigDecimal walletBalance = walletService.getBalance(userId);
 
             return ResponseEntity.ok(Map.of(
                     "message", "Payment successful and wallet updated.",
-                    "walletAmount", amount));
+                    "walletAmount", walletBalance));
 
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error verifying payment: " + e.getMessage());
+            return ResponseEntity.status(500)
+                    .body("Error verifying payment: " + e.getMessage());
         }
     }
+
 }

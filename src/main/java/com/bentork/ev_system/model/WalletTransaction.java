@@ -30,7 +30,37 @@ public class WalletTransaction {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    private Long sessionId; // ✅ NEW - link to Session if applicable
+    private Long sessionId; // NEW - link to Session if applicable
+
+    // New fields for tax breakdown
+    private BigDecimal grossAmount;
+    private BigDecimal gstAmount;
+    private BigDecimal pstAmount;
+
+    // Getters and setters for grossAmount, gstAmount, pstAmount
+    public BigDecimal getGrossAmount() {
+        return grossAmount;
+    }
+
+    public void setGrossAmount(BigDecimal grossAmount) {
+        this.grossAmount = grossAmount;
+    }
+
+    public BigDecimal getGstAmount() {
+        return gstAmount;
+    }
+
+    public void setGstAmount(BigDecimal gstAmount) {
+        this.gstAmount = gstAmount;
+    }
+
+    public BigDecimal getPstAmount() {
+        return pstAmount;
+    }
+
+    public void setPstAmount(BigDecimal pstAmount) {
+        this.pstAmount = pstAmount;
+    }
 
     // Getters and setters
     public Long getId() {
