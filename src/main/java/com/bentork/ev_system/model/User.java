@@ -25,6 +25,7 @@ public class User {
     private String password; // null or blank if using only Google login
     private BigDecimal walletBalance = BigDecimal.ZERO;
     private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(length = 500)
     private String imageUrl;
 
     // === Getters and Setters ===

@@ -50,6 +50,15 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             }
         });
 
+        // Update profile picture if user exists but image changed
+        if (optionalUser.isPresent() && imageUrl != null) {
+            User existingUser = optionalUser.get();
+            if (!imageUrl.equals(existingUser.getImageUrl())) {
+                existingUser.setImageUrl(imageUrl);
+                user = userRepo.save(existingUser);
+            }
+        }
+
         UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 user.getEmail(), "", Collections.emptyList());
 
