@@ -13,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -72,7 +71,7 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepo.save(user);
 
-        // 🔔 Admin notification: User Registered
+        // Admin notification: User Registered
         adminNotificationService.notifyNewUserRegistration(user.getName());
 
         return ResponseEntity.ok("User registered successfully");
