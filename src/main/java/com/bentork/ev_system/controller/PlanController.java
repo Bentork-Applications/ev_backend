@@ -133,9 +133,12 @@ public class PlanController {
         log.info("DELETE /api/plans/delete/{} - Request received", id);
 
         try {
-            if (planRepository.existsById(id)) {
-                planRepository.deleteById(id);
-                log.info("DELETE /api/plans/delete/{} - Success", id);
+            Optional<Plan> optionalPlan = planRepository.findById(id);
+            if (optionalPlan.isPresent()) {
+                Plan plan = optionalPlan.get();
+                plan.setIsActive(false);
+                planRepository.save(plan);
+                log.info("DELETE /api/plans/delete/{} - Soft deleted successfully", id);
                 return ResponseEntity.ok("Plan Deleted");
             } else {
                 log.warn("DELETE /api/plans/delete/{} - Plan not found", id);
