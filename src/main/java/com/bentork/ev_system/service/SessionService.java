@@ -406,7 +406,7 @@ public class SessionService {
 				}
 			} else {
 				// 1. Prioritize actual meter reading from OCPP if available
-				if (session.getEnergyKwh() > 0.001) {
+				if (session.getEnergyKwh() > 0.000) {
 					energyUsed = session.getEnergyKwh();
 					log.info("Using actual meter reading: sessionId={}, energyUsed={}", session.getId(), energyUsed);
 				} else {
