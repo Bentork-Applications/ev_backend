@@ -3,32 +3,31 @@ package com.bentork.ev_system.model;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
-
 @Entity
 @Table(name = "plans")
 public class Plan {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String planName;
+	private String planName;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+	@Column(columnDefinition = "TEXT")
+	private String description;
 
-    private Integer durationMin;
+	private Integer durationMin;
 
-    private BigDecimal walletDeduction;
+	private BigDecimal walletDeduction;
 
-    private String chargerType; // AC or DC
+	private String chargerType; // AC or DC
 
-    private BigDecimal rate;
+	private BigDecimal rate;
+	private Boolean isActive = true;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private Admin createdBy;
-
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "created_by")
+	private Admin createdBy;
 
 	public Long getId() {
 		return id;
@@ -93,5 +92,13 @@ public class Plan {
 	public void setCreatedBy(Admin createdBy) {
 		this.createdBy = createdBy;
 	}
-    
+
+	public Boolean getIsActive() {
+		return isActive;
+	}
+
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
+
 }

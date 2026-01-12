@@ -49,13 +49,13 @@ public class PlanService {
 
     public List<PlanDTO> getAllPlans() {
         try {
-            List<PlanDTO> plans = planRepository.findAll()
+            List<PlanDTO> plans = planRepository.findByIsActiveTrue()
                     .stream()
                     .map(PlanMapper::toDTO)
                     .collect(Collectors.toList());
 
             if (log.isDebugEnabled()) {
-                log.debug("Retrieved {} plans", plans.size());
+                log.debug("Retrieved {} active plans", plans.size());
             }
 
             return plans;
@@ -111,11 +111,12 @@ public class PlanService {
 
     public void deletePlan(Long id) {
         try {
-            if (!planRepository.existsById(id)) {
-                throw new EntityNotFoundException("Plan not found");
-            }
-            planRepository.deleteById(id);
-            log.info("Plan deleted: id={}", id);
+            Plan plan = planRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Plan not found"));
+
+            plan.setIsActive(false);
+            planRepository.save(plan);
+            log.info("Plan soft-deleted: id={}", id);
         } catch (EntityNotFoundException e) {
             log.warn("Failed to delete plan - Plan not found: id={}", id);
             throw e;
