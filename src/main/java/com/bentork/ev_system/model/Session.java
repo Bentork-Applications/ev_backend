@@ -37,6 +37,9 @@ public class Session {
     @Column(name = "last_meter_reading")
     private Double lastMeterReading;
 
+    @Column(name = "charging_duration_seconds")
+    private Long chargingDurationSeconds;
+
     // Getters and Setters
 
     public Long getId() {
@@ -141,5 +144,13 @@ public class Session {
 
     public void setLastMeterReading(Double lastMeterReading) {
         this.lastMeterReading = lastMeterReading;
+    }
+
+    public Long getChargingDurationSeconds() {
+        return chargingDurationSeconds;
+    }
+
+    public void setChargingDurationSeconds(Long chargingDurationSeconds) {
+        this.chargingDurationSeconds = chargingDurationSeconds;
     }
 }

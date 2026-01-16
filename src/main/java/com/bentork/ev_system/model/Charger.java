@@ -52,7 +52,7 @@ public class Charger {
 
 	@Column(nullable = false)
 	@Builder.Default
-	private String status = ChargerStatus.OFFLINE.getValue(); // busy, available, offline
+	private String status = ChargerStatus.OFFLINE.getValue(); // busy, available, offline, faulted
 
 	private LocalDateTime createdAt = LocalDateTime.now();
 

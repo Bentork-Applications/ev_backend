@@ -305,7 +305,7 @@ public class SessionService {
 						log.error("Error sending RemoteStopTransaction for kWh limit: {}", e.getMessage());
 					}
 
-					finalizeSession(session, "AUTO_STOP_KWH_REACHED");
+					finalizeSession(session, "Auto stop kwh reached");
 				}
 			}
 		} catch (Exception e) {
@@ -371,11 +371,11 @@ public class SessionService {
 					// User used less than selected - issue refund
 					BigDecimal refund = prepaidAmount.subtract(finalCostBD);
 					walletTransactionService.credit(session.getUser().getId(), session.getId(),
-							refund, "kWh session refund - unused energy");
+							refund, "power session refund - unused energy");
 					refundIssued = true;
 
 					log.info(
-							"Refund issued for kWh session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, refund={}",
+							"Refund issued for power session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, refund={}",
 							session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD, refund);
 
 					userNotificationService.createNotification(

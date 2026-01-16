@@ -548,6 +548,14 @@ public class OcppWebSocketServer extends WebSocketServer {
                 // internally)
                 Session updated = rfidChargingService.updateEnergy(sessionId, currentAbsKwh);
 
+                // ✅ Extract and save charging duration for RFID sessions too
+                Long durationSeconds = extractDurationFromMeterValues(payload);
+                if (durationSeconds != null) {
+                    updated.setChargingDurationSeconds(durationSeconds);
+                    sessionRepository.save(updated);
+                    log.info("RFID Duration Update: SessionId={}, DurationSeconds={}", sessionId, durationSeconds);
+                }
+
                 // If session was auto-stopped due to low balance, stop transaction
                 if (SessionStatus.COMPLETED.matches(updated.getStatus())) {
                     log.warn("RFID session {} auto-stopped due to low balance", sessionId);
@@ -584,6 +592,14 @@ public class OcppWebSocketServer extends WebSocketServer {
                 // Update last known meter reading AND current energy usage to DB
                 session.setLastMeterReading(currentAbsKwh.doubleValue());
                 session.setEnergyKwh(consumedKwh); // ✅ SAVING ENERGY TO DB
+
+                // ✅ Extract and save charging duration from MeterValues
+                Long durationSeconds = extractDurationFromMeterValues(payload);
+                if (durationSeconds != null) {
+                    session.setChargingDurationSeconds(durationSeconds);
+                    log.info("Duration Update: SessionId={}, DurationSeconds={}", sessionId, durationSeconds);
+                }
+
                 sessionRepository.save(session);
 
                 // 3. Pass the CONSUMED value
@@ -651,6 +667,50 @@ public class OcppWebSocketServer extends WebSocketServer {
             log.error("Error parsing meter values: {}", e.getMessage());
         }
         return null; // Return null if no valid energy value was found
+    }
+
+    /**
+     * Extract transaction duration from OCPP MeterValues payload
+     * Looks for the 'Transaction.Duration' measurand (reported in seconds)
+     */
+    private Long extractDurationFromMeterValues(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue"))
+                return null;
+
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray())
+                return null;
+
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue"))
+                    continue;
+
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray())
+                    continue;
+
+                for (JsonNode sample : sampledValues) {
+                    if (!sample.has("measurand")) {
+                        continue;
+                    }
+
+                    String measurand = sample.get("measurand").asText();
+
+                    // Transaction.Duration is reported in seconds
+                    if ("Transaction.Duration".equals(measurand)) {
+                        String valueStr = sample.get("value").asText();
+                        Long durationSeconds = Long.parseLong(valueStr);
+
+                        log.debug("Extracted charging duration: {} seconds", durationSeconds);
+                        return durationSeconds;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing duration from meter values: {}", e.getMessage());
+        }
+        return null; // Return null if no duration value was found
     }
 
     /**
