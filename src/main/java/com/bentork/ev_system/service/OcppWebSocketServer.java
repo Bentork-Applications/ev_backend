@@ -516,6 +516,10 @@ public class OcppWebSocketServer extends WebSocketServer {
                 return;
             }
 
+            // ✅ DEBUG: Log all measurands the charger sends
+            log.info("MeterValues received - Raw payload: {}", payload.toString());
+            logAllMeasurands(payload);
+
             // Extract current energy value (This is the Absolute Meter Reading e.g.,
             // 10500.5 kWh)
             BigDecimal currentAbsKwh = extractEnergyFromMeterValues(payload);
@@ -711,6 +715,41 @@ public class OcppWebSocketServer extends WebSocketServer {
             log.error("Error parsing duration from meter values: {}", e.getMessage());
         }
         return null; // Return null if no duration value was found
+    }
+
+    /**
+     * Debug helper: Log all measurands the charger sends in MeterValues
+     * This helps identify what data is available from the charger
+     */
+    private void logAllMeasurands(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue"))
+                return;
+
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray())
+                return;
+
+            StringBuilder sb = new StringBuilder("Available measurands: ");
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue"))
+                    continue;
+
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray())
+                    continue;
+
+                for (JsonNode sample : sampledValues) {
+                    String measurand = sample.has("measurand") ? sample.get("measurand").asText() : "DEFAULT";
+                    String value = sample.has("value") ? sample.get("value").asText() : "N/A";
+                    String unit = sample.has("unit") ? sample.get("unit").asText() : "N/A";
+                    sb.append(String.format("[%s=%s %s] ", measurand, value, unit));
+                }
+            }
+            log.info(sb.toString());
+        } catch (Exception e) {
+            log.error("Error logging measurands: {}", e.getMessage());
+        }
     }
 
     /**
