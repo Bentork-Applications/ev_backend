@@ -466,30 +466,42 @@ public class OcppWebSocketServer extends WebSocketServer {
     }
 
     /**
-     * Handle StatusNotification - Update charger availability
+     * Handle StatusNotification - Update charger status from OCPP
+     * Handles all OCPP 1.6 statuses including Faulted (emergency button, non-earth
+     * switch)
      */
     private void handleStatusNotification(WebSocket conn, String messageId, JsonNode payload) {
         String ocppId = connectionToOcppIdMap.get(conn);
         int connectorId = payload.has("connectorId") ? payload.get("connectorId").asInt() : 0;
         String status = payload.has("status") ? payload.get("status").asText() : "Unknown";
+        String errorCode = payload.has("errorCode") ? payload.get("errorCode").asText() : "NoError";
+        String vendorErrorCode = payload.has("vendorErrorCode") ? payload.get("vendorErrorCode").asText() : "";
 
-        log.info("StatusNotification - OCPP_ID: {}, Connector: {}, Status: {}",
-                ocppId, connectorId, status);
+        log.info("StatusNotification - OCPP_ID: {}, Connector: {}, Status: {}, ErrorCode: {}",
+                ocppId, connectorId, status, errorCode);
 
-        // Update charger availability in database
+        // Update charger status in database
         try {
             Charger charger = chargerRepository.findByOcppId(ocppId).orElse(null);
             if (charger != null) {
-                boolean isAvailable = "Available".equalsIgnoreCase(status);
-                boolean isOccupied = "Occupied".equalsIgnoreCase(status) ||
-                        "Charging".equalsIgnoreCase(status);
+                // Map OCPP status to ChargerStatus enum
+                ChargerStatus chargerStatus = ChargerStatus.fromString(status);
 
-                charger.setAvailability(isAvailable);
-                charger.setOccupied(isOccupied);
+                // Update charger status from OCPP
+                charger.setStatus(chargerStatus.getValue());
+                charger.setAvailability(chargerStatus == ChargerStatus.AVAILABLE);
+                charger.setOccupied(chargerStatus == ChargerStatus.BUSY);
                 chargerRepository.save(charger);
 
-                log.debug("Updated charger {}: available={}, occupied={}",
-                        charger.getId(), isAvailable, isOccupied);
+                log.info("Charger {} status updated to: {} (from OCPP: {})",
+                        ocppId, chargerStatus.getValue(), status);
+
+                // Log warning for faulted chargers
+                if (chargerStatus == ChargerStatus.FAULTED) {
+                    log.warn("ALERT: Charger {} is FAULTED! ErrorCode: {}, VendorErrorCode: {}. " +
+                            "Possible causes: non-earth switch, emergency button pressed.",
+                            ocppId, errorCode, vendorErrorCode);
+                }
             }
         } catch (Exception e) {
             log.error("Error updating charger status: {}", e.getMessage());

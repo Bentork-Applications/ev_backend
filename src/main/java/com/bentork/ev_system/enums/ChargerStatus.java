@@ -37,12 +37,19 @@ public enum ChargerStatus {
         String normalized = status.toLowerCase().trim();
 
         switch (normalized) {
+            // OCPP statuses that indicate charger is in use
             case "busy":
             case "occupied":
             case "charging":
+            case "preparing":
+            case "suspendedevse":
+            case "suspendedev":
+            case "finishing":
+            case "reserved":
                 return BUSY;
             case "available":
                 return AVAILABLE;
+            // Faulted status from OCPP (emergency button, non-earth switch, etc.)
             case "faulted":
             case "error":
                 return FAULTED;
