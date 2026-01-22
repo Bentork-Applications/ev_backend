@@ -1,6 +1,9 @@
 package com.bentork.ev_system.config;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,15 +11,13 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.spec.SecretKeySpec;
-import java.security.Key;
+import javax.crypto.SecretKey;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtUtil {
@@ -29,12 +30,20 @@ public class JwtUtil {
     @Value("${app.jwt.expiration-ms:86400000}")
     private long expirationMs; // Default 24 hours
 
-    private Key key;
+    // Changed from Key to SecretKey for JJWT 0.12.x compatibility
+    private SecretKey key;
 
     @PostConstruct
     public void init() {
         log.info("Initializing JWT utility with expiration time: {} ms", expirationMs);
-        this.key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), SignatureAlgorithm.HS256.getJcaName());
+
+        // Ensure the key is generated correctly for HMAC-SHA
+        // If your secret is a raw string, we convert it to bytes.
+        // For production, ensure the secret string is Base64 encoded and at least 256
+        // bits (32 chars).
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
+
         log.debug("JWT signing key initialized successfully");
     }
 
@@ -48,11 +57,11 @@ public class JwtUtil {
         log.debug("User authorities: {}", roles);
 
         String token = Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .subject(userDetails.getUsername()) // 'setSubject' is now 'subject'
                 .claim("authorities", roles)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .issuedAt(new Date()) // 'setIssuedAt' is now 'issuedAt'
+                .expiration(new Date(System.currentTimeMillis() + expirationMs)) // 'setExpiration' is now 'expiration'
+                .signWith(key, Jwts.SIG.HS256) // updated signing method
                 .compact();
 
         log.info("JWT token generated successfully for user: {}", userDetails.getUsername());
@@ -61,11 +70,11 @@ public class JwtUtil {
 
     public String extractUsername(String token) {
         try {
-            String username = Jwts.parserBuilder()
-                    .setSigningKey(key)
+            String username = Jwts.parser()
+                    .verifyWith(key) // 'setSigningKey' is now 'verifyWith'
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody()
+                    .parseSignedClaims(token) // 'parseClaimsJws' is now 'parseSignedClaims'
+                    .getPayload() // 'getBody' is now 'getPayload'
                     .getSubject();
 
             log.debug("Extracted username from token: {}", username);
@@ -135,11 +144,11 @@ public class JwtUtil {
     private Claims extractAllClaims(String token) {
         try {
             log.trace("Parsing JWT token claims");
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
+            return Jwts.parser()
+                    .verifyWith(key) // 'setSigningKey' -> 'verifyWith'
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token) // 'parseClaimsJws' -> 'parseSignedClaims'
+                    .getPayload(); // 'getBody' -> 'getPayload'
         } catch (JwtException e) {
             log.error("Failed to extract claims from token: {}", e.getMessage());
             throw e;

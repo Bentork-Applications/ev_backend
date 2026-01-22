@@ -36,3 +36,8 @@ build/
 bin/
 
 Note.txt
+
+
+# Firebase credentials
+src/main/resources/firebase-service-account.json
+**/firebase-service-account.json

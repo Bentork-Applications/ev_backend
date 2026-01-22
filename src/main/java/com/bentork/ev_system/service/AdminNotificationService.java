@@ -6,7 +6,8 @@ import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.model.AdminNotification;
 import com.bentork.ev_system.repository.AdminNotificationRepository;
 import com.bentork.ev_system.repository.AdminRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,15 +17,23 @@ import java.util.stream.Collectors;
 @Service
 public class AdminNotificationService {
 
-    @Autowired
-    private AdminNotificationRepository notificationRepository;
+    private static final Logger log = LoggerFactory.getLogger(AdminNotificationService.class);
 
-    @Autowired
-    private AdminRepository adminRepository;
+    private final AdminNotificationRepository notificationRepository;
+    private final AdminRepository adminRepository;
+    private final PushNotificationService pushService;
+
+    // specific constructor injection is best practice
+    public AdminNotificationService(AdminNotificationRepository notificationRepository,
+            AdminRepository adminRepository,
+            PushNotificationService pushService) {
+        this.notificationRepository = notificationRepository;
+        this.adminRepository = adminRepository;
+        this.pushService = pushService;
+    }
 
     // 🔔 CREATE notification for new user registration
     public void notifyNewUserRegistration(String userName) {
-        // You can improve this by looping through all admins (if multiple)
         List<Admin> admins = adminRepository.findAll();
 
         for (Admin admin : admins) {
@@ -33,7 +42,12 @@ public class AdminNotificationService {
             notification.setType("NEW_USER");
             notification.setMessage("New user registered: " + userName);
             notification.setRead(false);
+            notification.setCreatedAt(LocalDateTime.now()); // Ensure timestamp is set
+
             notificationRepository.save(notification);
+
+            // Trigger Push Notification
+            sendPushSafely(admin, "New Registration", "New user registered: " + userName);
         }
     }
 
@@ -64,8 +78,29 @@ public class AdminNotificationService {
             notification.setType(type);
             notification.setCreatedAt(LocalDateTime.now());
             notification.setRead(false);
+
             notificationRepository.save(notification);
+
+            // Trigger Push Notification
+            String title = "System Alert: " + type;
+            sendPushSafely(admin, title, message);
         }
     }
 
+    /**
+     * Helper method to send push notifications without blocking or crashing the
+     * flow.
+     */
+    private void sendPushSafely(Admin admin, String title, String body) {
+        try {
+            String token = admin.getFcmToken();
+            if (token != null && !token.trim().isEmpty()) {
+                pushService.sendNotification(token, title, body);
+                log.debug("Push sent to admin: {}", admin.getId());
+            }
+        } catch (Exception e) {
+            // Log error only; do not throw exception to preserve DB transaction
+            log.error("Failed to send push to admin {}: {}", admin.getId(), e.getMessage());
+        }
+    }
 }

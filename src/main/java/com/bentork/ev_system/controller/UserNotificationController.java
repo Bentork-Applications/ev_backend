@@ -8,7 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.bentork.ev_system.dto.request.FcmTokenDTO;
+import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.UserNotification;
+import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.UserNotificationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +22,42 @@ import lombok.extern.slf4j.Slf4j;
 public class UserNotificationController {
 
     private final UserNotificationService service;
+    private final UserRepository userRepository; // 1. Added Repository
 
-    public UserNotificationController(UserNotificationService service) {
+    // 2. Updated Constructor
+    public UserNotificationController(UserNotificationService service, UserRepository userRepository) {
         this.service = service;
+        this.userRepository = userRepository;
     }
+
+    // --- NEW ENDPOINT: Register FCM Token ---
+    @PostMapping("/user/{userId}/fcm-token")
+    public ResponseEntity<?> registerFcmToken(
+            @PathVariable Long userId,
+            @RequestBody FcmTokenDTO tokenDto) {
+
+        log.info("POST /api/notifications/user/{}/fcm-token - Registering token", userId);
+
+        try {
+            if (tokenDto.getFcmToken() == null || tokenDto.getFcmToken().isEmpty()) {
+                return ResponseEntity.badRequest().body("Token cannot be empty");
+            }
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setFcmToken(tokenDto.getFcmToken());
+            userRepository.save(user);
+
+            log.info("POST /api/notifications/user/{}/fcm-token - Success", userId);
+            return ResponseEntity.ok("FCM Token registered successfully");
+        } catch (Exception e) {
+            log.error("POST /api/notifications/user/{}/fcm-token - Failed: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error registering token");
+        }
+    }
+
+    // --- EXISTING ENDPOINTS BELOW ---
 
     // Get all notifications for a user
     @GetMapping("/user/{userId}")

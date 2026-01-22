@@ -2,6 +2,7 @@ package com.bentork.ev_system.model;
 
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,6 +21,9 @@ public class Admin {
     private String password;
     private String role;
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "fcm_token", length = 500)
+    private String fcmToken;
 
     // Getters and Setters
 
@@ -78,4 +82,13 @@ public class Admin {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public String getFcmToken() {
+        return fcmToken;
+    }
+
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+
 }

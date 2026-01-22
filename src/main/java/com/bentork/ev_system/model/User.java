@@ -28,6 +28,9 @@ public class User {
     @Column(length = 500)
     private String imageUrl;
 
+    @Column(name = "fcm_token", length = 500)
+    private String fcmToken;
+
     // === Getters and Setters ===
 
     public Long getId() {
@@ -93,4 +96,13 @@ public class User {
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
     }
+
+    public String getFcmToken() {
+        return fcmToken;
+    }
+
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+
 }

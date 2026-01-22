@@ -17,6 +17,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      
+      - name: Create Firebase Service Account File
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" | base64 -d > src/main/resources/firebase-service-account.json
+
       - name: Build JAR
         run: |
           # UPDATED: Removed "cd backend" since pom.xml is in the root
