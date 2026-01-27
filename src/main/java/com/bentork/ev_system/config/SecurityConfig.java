@@ -85,6 +85,12 @@ public class SecurityConfig {
                                                                 "/api/revenue/**")
                                                 .hasAuthority("ADMIN")
 
+                                                // Dealer station management (Admin only)
+                                                .requestMatchers("/api/dealer-stations/**").hasAuthority("ADMIN")
+
+                                                // Dealer endpoints (Dealer can access their own data)
+                                                .requestMatchers("/api/dealer/**").hasAuthority("DEALER")
+
                                                 .requestMatchers("/api/user-plan-selection/**").permitAll()
 
                                                 // Add this line to allow authenticated users to access sessions

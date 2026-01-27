@@ -34,7 +34,8 @@ public class ChargerController {
 
     @PostMapping("/add")
     public ResponseEntity<String> createCharger(@RequestBody ChargerDTO dto) {
-        log.info("POST /api/chargers/add - Creating charger, ocppId={}, stationId={}", dto.getOcppId(), dto.getStationId());
+        log.info("POST /api/chargers/add - Creating charger, ocppId={}, stationId={}", dto.getOcppId(),
+                dto.getStationId());
 
         try {
             chargerService.createCharger(dto);
@@ -44,12 +45,12 @@ public class ChargerController {
             log.warn("POST /api/chargers/add - Station not found: stationId={}", dto.getStationId());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-        
+
         catch (Exception e) {
             log.error("POST /api/chargers/add - Failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create charger");
         }
-        
+
     }
 
     @GetMapping("/all")
@@ -61,7 +62,7 @@ public class ChargerController {
             List<ChargerDTO> chargers = chargerService.getAllChargers();
             log.info("GET /api/chargers/all - Success, returned {} chargers", chargers.size());
             return ResponseEntity.ok(chargers);
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.error("GET /api/chargers/all - Failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -81,12 +82,13 @@ public class ChargerController {
             log.error("GET /api/chargers/{} - Failed: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-       
+
     }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<String> updateCharger(@PathVariable Long id, @RequestBody ChargerDTO dto) {
-        log.info("PUT /api/charges/update/{} - Updating charger, occppId={}, type={}", id, dto.getOcppId(), dto.getChargerType());
+        log.info("PUT /api/charges/update/{} - Updating charger, occppId={}, type={}", id, dto.getOcppId(),
+                dto.getChargerType());
         try {
             chargerService.updateCharger(id, dto);
             log.info("PUT /api/charges/update/{} - Success", id);

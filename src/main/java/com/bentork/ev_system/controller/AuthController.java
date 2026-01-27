@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -162,6 +163,25 @@ public class AuthController {
             return ResponseEntity.ok(admins);
         } catch (DataAccessException e) {
             throw new RuntimeException("Database error while fetching admins", e);
+        }
+    }
+
+    // Update admin role (ADMIN to DEALER or DEALER to ADMIN) - admin only
+    @PutMapping("/admin/update-role")
+    public ResponseEntity<?> updateAdminRole(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody com.bentork.ev_system.dto.request.UpdateRoleRequest request) {
+        try {
+            Admin admin = adminRepo.findById(request.getAdminId())
+                    .orElseThrow(() -> new RuntimeException("Admin not found with ID: " + request.getAdminId()));
+
+            String oldRole = admin.getRole();
+            admin.setRole(request.getRole());
+            adminRepo.save(admin);
+
+            return ResponseEntity.ok("Role updated successfully from " + oldRole + " to " + request.getRole());
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Database error while updating role", e);
         }
     }
 
