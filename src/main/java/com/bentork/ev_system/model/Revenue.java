@@ -12,24 +12,24 @@ public class Revenue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // FK → sessions.id
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "session_id", nullable = false)
+    // FK → sessions.id (optional to handle orphan data)
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
     private Session session;
 
-    // FK → users.id
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    // FK → users.id (optional to handle orphan data)
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    // FK → chargers.id
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "charger_id", nullable = false)
+    // FK → chargers.id (optional to handle orphan data)
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "charger_id")
     private Charger charger;
 
-    // FK → stations.id (explicit column as requested)
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "station_id", nullable = false)
+    // FK → stations.id (optional to handle orphan data)
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "station_id")
     private Station station;
 
     // keep double to match project style (Session.cost is double)
@@ -50,7 +50,8 @@ public class Revenue {
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null)
+            createdAt = LocalDateTime.now();
     }
 
     // getters/setters
@@ -135,4 +136,3 @@ public class Revenue {
         this.createdAt = createdAt;
     }
 }
-
