@@ -107,12 +107,27 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/location/**")
                                                 .hasAuthority("ADMIN")
 
-                                                // Admin-only endpoints
-                                                .requestMatchers(
-                                                                "/api/plans/**",
-                                                                "/api/emergency-contacts/**",
-                                                                "/api/revenue/**")
+                                                // Allow authenticated users to READ plans
+                                                .requestMatchers(HttpMethod.GET, "/api/plans/**").authenticated()
+                                                // Only ADMIN can create/update/delete plans
+                                                .requestMatchers(HttpMethod.POST, "/api/plans/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/plans/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/plans/**")
                                                 .hasAuthority("ADMIN")
+
+                                                // Allow authenticated users to READ emergency contacts
+                                                .requestMatchers(HttpMethod.GET, "/api/emergency-contacts/**")
+                                                .authenticated()
+                                                // Only ADMIN can create/update/delete emergency contacts
+                                                .requestMatchers(HttpMethod.POST, "/api/emergency-contacts/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/emergency-contacts/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/emergency-contacts/**")
+                                                .hasAuthority("ADMIN")
+
+                                                // Admin-only endpoints
+                                                .requestMatchers("/api/revenue/**").hasAuthority("ADMIN")
 
                                                 // Dealer station management (Admin only)
                                                 .requestMatchers("/api/dealer-stations/**").hasAuthority("ADMIN")

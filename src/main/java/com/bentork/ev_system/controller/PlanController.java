@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestController
 @RequestMapping("/api/plans")
-@PreAuthorize("hasAuthority('ADMIN')")
 public class PlanController {
 
     @Autowired
@@ -30,6 +29,7 @@ public class PlanController {
     @Autowired
     private AdminRepository adminRepository;
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<?> addPlan(@RequestBody PlanDTO dto, Authentication authentication) {
         String adminEmail = authentication.getName();
@@ -96,6 +96,7 @@ public class PlanController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updatePlan(@PathVariable Long id, @RequestBody PlanDTO updatedDto,
             Authentication authentication) {
@@ -128,6 +129,7 @@ public class PlanController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deletePlan(@PathVariable Long id) {
         log.info("DELETE /api/plans/delete/{} - Request received", id);

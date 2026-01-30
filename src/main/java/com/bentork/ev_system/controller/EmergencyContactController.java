@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class EmergencyContactController {
     @Autowired
     private EmergencyContactService contactService;
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<String> create(@RequestBody EmergencyContactDTO dto) {
         log.info("POST /api/emergency-contacts/add - Creating emergency contact, name={}, stationId={}",
@@ -71,6 +73,7 @@ public class EmergencyContactController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<String> update(@PathVariable Long id, @RequestBody EmergencyContactDTO dto) {
         log.info("PUT /api/emergency-contacts/update/{} - Updating contact, name={}", id, dto.getName());
@@ -90,6 +93,7 @@ public class EmergencyContactController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         log.info("DELETE /api/emergency-contacts/delete/{} - Request received", id);
