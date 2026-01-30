@@ -23,7 +23,6 @@ import com.bentork.ev_system.service.StationService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
-@PreAuthorize("hasAuthority('ADMIN')")
 @RestController
 @RequestMapping("/api/stations")
 @Slf4j
@@ -32,6 +31,7 @@ public class StationController {
     @Autowired
     private StationService stationService;
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<String> createStation(@RequestBody StationDTO dto) {
         log.info("POST /api/stations/add - Creating station, name={}, locationId={}",
@@ -83,6 +83,7 @@ public class StationController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<String> updateStation(@PathVariable Long id, @RequestBody StationDTO dto) {
         log.info("PUT /api/stations/update/{} - Updating station, name={}, status={}",
@@ -102,6 +103,7 @@ public class StationController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteStation(@PathVariable Long id) {
         log.info("DELETE /api/stations/delete/{} - Request received", id);
@@ -162,7 +164,7 @@ public class StationController {
         }
     }
 
-    //ERROR TODAY
+    // ERROR TODAY
     @GetMapping("/error/today")
     public ResponseEntity<Long> getTodaysError(@RequestHeader("Authorization") String authHeader) {
         try {

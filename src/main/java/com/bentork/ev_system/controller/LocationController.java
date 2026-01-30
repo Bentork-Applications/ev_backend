@@ -32,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/api/location")
-@PreAuthorize("hasAuthority('ADMIN')")
 public class LocationController {
 
     @Autowired
@@ -44,6 +43,7 @@ public class LocationController {
     @Autowired
     private LocationService locationService;
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<?> addLocation(@RequestBody LocationDTO dto, Authentication authentication) {
         String adminEmail = authentication.getName();
@@ -109,6 +109,7 @@ public class LocationController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateLocation(@PathVariable Long id, @RequestBody LocationDTO updatedDto,
             Authentication authentication) {
@@ -143,6 +144,7 @@ public class LocationController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteLocation(@PathVariable Long id) {
         log.info("DELETE /api/location/delete/{} - Request received", id);

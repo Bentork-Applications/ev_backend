@@ -97,9 +97,18 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/chargers/**")
                                                 .hasAuthority("ADMIN")
 
+                                                // Allow authenticated users to READ locations
+                                                .requestMatchers(HttpMethod.GET, "/api/location/**").authenticated()
+                                                // Only ADMIN can create/update/delete locations
+                                                .requestMatchers(HttpMethod.POST, "/api/location/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/location/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/location/**")
+                                                .hasAuthority("ADMIN")
+
                                                 // Admin-only endpoints
                                                 .requestMatchers(
-                                                                "/api/location/**",
                                                                 "/api/plans/**",
                                                                 "/api/emergency-contacts/**",
                                                                 "/api/revenue/**")

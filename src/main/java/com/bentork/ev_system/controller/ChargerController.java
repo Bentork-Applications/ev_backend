@@ -20,7 +20,6 @@ import com.bentork.ev_system.service.ChargerService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
-@PreAuthorize("hasAuthority('ADMIN')")
 @RestController
 @RequestMapping("/api/chargers")
 @Slf4j
@@ -32,6 +31,7 @@ public class ChargerController {
         this.chargerService = chargerService;
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<String> createCharger(@RequestBody ChargerDTO dto) {
         log.info("POST /api/chargers/add - Creating charger, ocppId={}, stationId={}", dto.getOcppId(),
@@ -85,6 +85,7 @@ public class ChargerController {
 
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<String> updateCharger(@PathVariable Long id, @RequestBody ChargerDTO dto) {
         log.info("PUT /api/charges/update/{} - Updating charger, occppId={}, type={}", id, dto.getOcppId(),
@@ -102,6 +103,7 @@ public class ChargerController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteCharger(@PathVariable Long id) {
         log.info("DELETE /api/charges/delete/{} - Request recieved", id);
