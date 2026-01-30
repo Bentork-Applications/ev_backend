@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
@@ -76,10 +77,29 @@ public class SecurityConfig {
                                                                 "/error",
                                                                 "/favicon.ico")
                                                 .permitAll()
+                                                // Allow authenticated users to READ stations
+                                                .requestMatchers(HttpMethod.GET, "/api/stations/**").authenticated()
+                                                // Only ADMIN can create/update/delete stations
+                                                .requestMatchers(HttpMethod.POST, "/api/stations/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/stations/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/stations/**")
+                                                .hasAuthority("ADMIN")
+
+                                                // Allow authenticated users to READ chargers
+                                                .requestMatchers(HttpMethod.GET, "/api/chargers/**").authenticated()
+                                                // Only ADMIN can create/update/delete chargers
+                                                .requestMatchers(HttpMethod.POST, "/api/chargers/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/chargers/**")
+                                                .hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/chargers/**")
+                                                .hasAuthority("ADMIN")
+
+                                                // Admin-only endpoints
                                                 .requestMatchers(
                                                                 "/api/location/**",
-                                                                "/api/stations/**",
-                                                                "/api/chargers/**",
                                                                 "/api/plans/**",
                                                                 "/api/emergency-contacts/**",
                                                                 "/api/revenue/**")
