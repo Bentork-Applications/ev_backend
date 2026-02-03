@@ -113,6 +113,33 @@ public class AuthController {
         }
     }
 
+    // Delete account - clears email, password, and imageUrl but preserves other
+    // data
+    @DeleteMapping("/user/delete-account")
+    public ResponseEntity<?> deleteAccount(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // Extract token from Authorization header
+            String token = authHeader.replace("Bearer ", "");
+            String email = jwtUtil.extractUsername(token);
+
+            // Find user by email
+            User user = userRepo.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+
+            // Clear sensitive data while preserving other information
+            String deletedPlaceholder = "DELETED_" + user.getId() + "_" + System.currentTimeMillis();
+            user.setEmail(deletedPlaceholder);
+            user.setPassword(null);
+            user.setImageUrl(null);
+
+            userRepo.save(user);
+
+            return ResponseEntity.ok("Account credentials deleted successfully. User data preserved.");
+        } catch (DataAccessException e) {
+            throw new RuntimeException("Database error while deleting account", e);
+        }
+    }
+
     @PostMapping("/admin/signup")
     public ResponseEntity<?> registerAdmin(@RequestBody AdminSignupRequest request) {
         if (adminRepo.existsByEmail(request.getEmail())) {

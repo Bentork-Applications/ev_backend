@@ -19,7 +19,7 @@ public class User {
 
     private String name;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     private String email;
     private String mobile;
     private String password; // null or blank if using only Google login
