@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PessimisticLockException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -180,6 +181,20 @@ public class GlobalExceptionHandler {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.INTERNAL_SERVER_ERROR,
                 ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // -------- SESSION LOCKING ----------
+    @ExceptionHandler(ChargerBusyException.class)
+    public ResponseEntity<ErrorResponse> chargerBusy(ChargerBusyException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.CONFLICT, ex.getMessage()), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(PessimisticLockException.class)
+    public ResponseEntity<ErrorResponse> lockTimeout(PessimisticLockException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.CONFLICT,
+                "Charger is being accessed by another user. Please try again."), HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(RuntimeException.class)

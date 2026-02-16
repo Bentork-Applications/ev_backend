@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Plan;
@@ -33,6 +34,7 @@ public class ReceiptService {
     /**
      * Creates a new receipt (PENDING) for either a plan or a kWh package/custom.
      */
+    @Transactional
     public Receipt createReceipt(User user, Plan plan, Charger charger, BigDecimal selectedKwh) {
         Receipt receipt = new Receipt();
         receipt.setUser(user);
@@ -56,7 +58,11 @@ public class ReceiptService {
     /**
      * Debits wallet, marks receipt PAID, and starts session.
      * If charger fails to start → refund & notify user.
+     *
+     * @Transactional ensures wallet debit + session creation are atomic.
+     *                If session creation fails, the wallet debit is rolled back.
      */
+    @Transactional
     public Receipt payReceipt(Long receiptId, String boxId) {
         Receipt receipt = receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new RuntimeException("Receipt not found"));

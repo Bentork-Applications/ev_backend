@@ -251,31 +251,17 @@ public class OcppWebSocketServer extends WebSocketServer {
             }
 
             // Strategy 2: Prepaid Flow (Plan/kWh Package)
-            // Check for session that's already been paid (status=INITIATED or active)
+            // Uses pessimistic locking to safely activate the session
             if (session == null) {
                 try {
-                    // Option A: Look for INITIATED session (created by /api/sessions/start but
-                    // waiting for OCPP)
-                    session = sessionRepository
-                            .findFirstByChargerAndStatusInOrderByCreatedAtDesc(
-                                    charger,
-                                    java.util.Arrays.asList(SessionStatus.INITIATED.getValue(),
-                                            SessionStatus.ACTIVE.getValue()))
-                            .orElse(null);
+                    session = sessionService.activateOrRejectSession(ocppId);
 
                     if (session != null) {
-                        // Activate the session if it's INITIATED
-                        if (SessionStatus.INITIATED.matches(session.getStatus())) {
-                            session.setStatus(SessionStatus.ACTIVE.getValue());
-                            session.setStartTime(java.time.LocalDateTime.now());
-                            sessionRepository.save(session);
-                        }
-
                         Receipt linkedReceipt = receiptRepository.findBySession(session).orElse(null);
                         sessionType = linkedReceipt != null && linkedReceipt.getPlan() != null
                                 ? "PLAN"
                                 : "KWH_PACKAGE";
-                        log.info("{} session activated (sessionId: {})", sessionType, session.getId());
+                        log.info("{} session activated under lock (sessionId: {})", sessionType, session.getId());
                     }
                 } catch (Exception ex) {
                     log.debug("No active/initiated session found: {}", ex.getMessage());

@@ -1,18 +1,22 @@
 package com.bentork.ev_system.service;
 
 import com.bentork.ev_system.dto.request.SessionDTO;
+import com.bentork.ev_system.exception.ChargerBusyException;
+import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.enums.SessionStatus;
+import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy; // ✅ CORRECT IMPORT
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,6 +41,9 @@ public class SessionService {
 
 	@Autowired
 	private ReceiptRepository receiptRepository;
+
+	@Autowired
+	private ChargerRepository chargerRepository;
 
 	@Autowired
 	private ReceiptService receiptService;
@@ -64,12 +71,15 @@ public class SessionService {
 
 	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
-	// REPLACE YOUR EXISTING startSessionFromReceipt METHOD WITH THIS ONE
-
 	/**
 	 * Start session only if receipt is already PAID.
 	 * Sends RemoteStartTransaction to physical charger.
+	 *
+	 * Uses pessimistic locking (SELECT ... FOR UPDATE) on the charger row
+	 * to prevent race conditions when multiple users try to start a session
+	 * on the same charger simultaneously.
 	 */
+	@Transactional
 	public Session startSessionFromReceipt(Receipt receipt, String boxId) {
 		try {
 			log.info("Starting session from receipt: receiptId={}, userId={}, chargerId={}",
@@ -81,24 +91,31 @@ public class SessionService {
 				throw new RuntimeException("Cannot start session without a paid receipt.");
 			}
 
-			// Check if charger is already in use
-			// Check if charger is already in use
-			List<String> activeStatuses = List.of(SessionStatus.ACTIVE.getValue());
+			// ★ LOCK: Acquire pessimistic lock on charger row
+			// This BLOCKS if another transaction already holds the lock on this charger
+			Charger lockedCharger = chargerRepository.findByIdForUpdate(receipt.getCharger().getId())
+					.orElseThrow(() -> new RuntimeException("Charger not found"));
+
+			// Check if charger already has an active or initiated session
+			// (now safe — we hold the database lock, no other TX can slip through)
+			List<String> activeStatuses = List.of(
+					SessionStatus.ACTIVE.getValue(),
+					SessionStatus.INITIATED.getValue());
 			Optional<Session> busySession = sessionRepository.findFirstByChargerAndStatusInOrderByCreatedAtDesc(
-					receipt.getCharger(), activeStatuses);
+					lockedCharger, activeStatuses);
 
 			if (busySession.isPresent()) {
-				log.warn("Charger {} is busy with session {}", receipt.getCharger().getId(), busySession.get().getId());
-				throw new RuntimeException("Charger is currently in use. Please wait.");
+				log.warn("Charger {} is busy with session {}", lockedCharger.getId(), busySession.get().getId());
+				throw new ChargerBusyException(lockedCharger.getId());
 			}
 
-			// Create session in database first
+			// Now safe to create session — no other TX can get past the lock
 			Session session = new Session();
 			session.setUser(receipt.getUser());
-			session.setCharger(receipt.getCharger());
+			session.setCharger(lockedCharger);
 			session.setBoxId(boxId);
 			session.setStartTime(LocalDateTime.now());
-			session.setStatus(SessionStatus.INITIATED.getValue()); // Will become 'active' when charger responds
+			session.setStatus(SessionStatus.INITIATED.getValue());
 			session.setCreatedAt(LocalDateTime.now());
 			session.setSourceType("SESSION");
 			sessionRepository.save(session);
@@ -579,6 +596,47 @@ public class SessionService {
 		sessionRepository.save(session);
 
 		throw new RuntimeException("Charger is offline. Session failed and amount refunded.");
+	}
+
+	/**
+	 * Activate an existing INITIATED session under a pessimistic lock.
+	 * Used by the OCPP WebSocket path when a charger sends StartTransaction.
+	 *
+	 * This method acquires a database lock on the charger row to ensure
+	 * only one session can be activated at a time for a given charger.
+	 *
+	 * @param ocppId The OCPP identifier of the charger
+	 * @return The activated Session, or null if no matching session found
+	 */
+	@Transactional
+	public Session activateOrRejectSession(String ocppId) {
+		try {
+			// Acquire pessimistic lock on charger row
+			Charger lockedCharger = chargerRepository.findByOcppIdForUpdate(ocppId)
+					.orElseThrow(() -> new RuntimeException("Charger not found: " + ocppId));
+
+			// Find existing INITIATED or ACTIVE session for this charger
+			List<String> activeStatuses = List.of(
+					SessionStatus.INITIATED.getValue(),
+					SessionStatus.ACTIVE.getValue());
+
+			Session session = sessionRepository
+					.findFirstByChargerAndStatusInOrderByCreatedAtDesc(lockedCharger, activeStatuses)
+					.orElse(null);
+
+			if (session != null && SessionStatus.INITIATED.matches(session.getStatus())) {
+				// Activate the session
+				session.setStatus(SessionStatus.ACTIVE.getValue());
+				session.setStartTime(LocalDateTime.now());
+				sessionRepository.save(session);
+				log.info("Session {} activated under lock for charger {}", session.getId(), ocppId);
+			}
+
+			return session;
+		} catch (Exception e) {
+			log.error("Error in activateOrRejectSession for charger {}: {}", ocppId, e.getMessage(), e);
+			throw e;
+		}
 	}
 
 	// ... rest of your methods (getTotalSessions, etc.) remain the same ...
