@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,12 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     // Find sessions by charger ID
     List<Session> findByChargerId(Long chargerId);
+
+    // Find stale sessions stuck in a given status created before the cutoff time
+    @Query("SELECT s FROM Session s WHERE s.status = :status AND s.createdAt < :cutoff")
+    List<Session> findByStatusAndCreatedAtBefore(
+            @Param("status") String status,
+            @Param("cutoff") LocalDateTime cutoff);
 
     // Find sessions by station ID (through charger)
     @Query("SELECT s FROM Session s WHERE s.charger.station.id = :stationId")
