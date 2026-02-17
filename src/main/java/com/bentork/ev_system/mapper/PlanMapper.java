@@ -41,7 +41,7 @@ public class PlanMapper {
         existing.setWalletDeduction(dto.getWalletDeduction());
         existing.setChargerType(dto.getChargerType());
         existing.setRate(dto.getRate());
-        existing.setCreatedBy(admin);  // Optional: only if updated by a new admin
+        existing.setCreatedBy(admin); // Optional: only if updated by a new admin
         return existing;
     }
 
@@ -55,6 +55,7 @@ public class PlanMapper {
         dto.setWalletDeduction(plan.getWalletDeduction());
         dto.setChargerType(plan.getChargerType());
         dto.setRate(plan.getRate());
+        dto.setIsActive(plan.getIsActive());
 
         if (plan.getCreatedBy() != null) {
             dto.setCreatedBy(plan.getCreatedBy().getId());
