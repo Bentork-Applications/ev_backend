@@ -761,9 +761,9 @@ public class SessionService {
 
 	/**
 	 * Get list of all active sessions (status = 'active' or 'initiated')
-	 * with details like userId, sessionId, status, etc.
+	 * with details: userId, sessionId, and status.
 	 */
-	public List<com.bentork.ev_system.dto.response.SessionDTO> getActiveSessionDetails() {
+	public List<Map<String, Object>> getActiveSessionDetails() {
 		try {
 			log.info("Fetching active session details");
 			List<String> activeStatuses = List.of(
@@ -772,32 +772,18 @@ public class SessionService {
 
 			List<Session> activeSessions = sessionRepository.findByStatusInOrderByCreatedAtDesc(activeStatuses);
 
-			List<com.bentork.ev_system.dto.response.SessionDTO> dtoList = activeSessions.stream()
-					.map(session -> com.bentork.ev_system.dto.response.SessionDTO.builder()
-							.id(session.getId())
-							.userId(session.getUser() != null ? session.getUser().getId() : null)
-							.userName(session.getUser() != null ? session.getUser().getName() : null)
-							.chargerId(session.getCharger() != null ? session.getCharger().getId() : null)
-							.chargerName(session.getCharger() != null ? session.getCharger().getOcppId() : null)
-							.stationId(session.getCharger() != null && session.getCharger().getStation() != null
-									? session.getCharger().getStation().getId()
-									: null)
-							.stationName(session.getCharger() != null && session.getCharger().getStation() != null
-									? session.getCharger().getStation().getName()
-									: null)
-							.status(session.getStatus())
-							.startTime(session.getStartTime())
-							.endTime(session.getEndTime())
-							.energyKwh(session.getEnergyKwh())
-							.cost(session.getCost())
-							.sourceType(session.getSourceType())
-							.chargingDurationSeconds(session.getChargingDurationSeconds())
-							.createdAt(session.getCreatedAt())
-							.build())
+			List<Map<String, Object>> result = activeSessions.stream()
+					.map(session -> {
+						Map<String, Object> map = new HashMap<>();
+						map.put("sessionId", session.getId());
+						map.put("userId", session.getUser() != null ? session.getUser().getId() : null);
+						map.put("status", session.getStatus());
+						return map;
+					})
 					.toList();
 
-			log.info("Found {} active sessions", dtoList.size());
-			return dtoList;
+			log.info("Found {} active sessions", result.size());
+			return result;
 		} catch (DataAccessException e) {
 			log.error("Error fetching active session details: {}", e.getMessage(), e);
 			throw e;

@@ -183,14 +183,13 @@ public class SessionController {
 		}
 	}
 
-	// Active Sessions with Details (userId, sessionId, status, etc.)
+	// Active Sessions with Details (userId, sessionId, status)
 	@GetMapping("/active/details")
 	public ResponseEntity<?> getActiveSessionDetails(@RequestHeader("Authorization") String authHeader) {
 		log.info("GET /api/sessions/active/details - Request received");
 
 		try {
-			List<com.bentork.ev_system.dto.response.SessionDTO> activeSessions = sessionService
-					.getActiveSessionDetails();
+			List<Map<String, Object>> activeSessions = sessionService.getActiveSessionDetails();
 			log.info("GET /api/sessions/active/details - Success, count={}", activeSessions.size());
 			return ResponseEntity.ok(activeSessions);
 		} catch (Exception e) {
