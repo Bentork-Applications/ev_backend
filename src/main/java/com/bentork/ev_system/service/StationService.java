@@ -18,6 +18,7 @@ import com.bentork.ev_system.model.Station;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.LocationRepository;
 import com.bentork.ev_system.repository.StationRepository;
+import com.bentork.ev_system.repository.StationReviewRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,9 @@ public class StationService {
 
     @Autowired
     private ChargerRepository chargerRepository;
+
+    @Autowired
+    private StationReviewRepository reviewRepository;
 
     @Autowired
     private Clock clock;
@@ -65,7 +69,11 @@ public class StationService {
     public List<StationDTO> getAllStations() {
         try {
             List<StationDTO> stations = stationRepository.findAll().stream()
-                    .map(StationMapper::toDTO)
+                    .map(station -> {
+                        StationDTO dto = StationMapper.toDTO(station);
+                        enrichWithRatingData(dto, station.getId());
+                        return dto;
+                    })
                     .collect(Collectors.toList());
 
             if (log.isDebugEnabled()) {
@@ -88,13 +96,32 @@ public class StationService {
                 log.debug("Retrieved station: id={}, name={}", id, station.getName());
             }
 
-            return StationMapper.toDTO(station);
+            StationDTO dto = StationMapper.toDTO(station);
+            enrichWithRatingData(dto, id);
+            return dto;
         } catch (EntityNotFoundException e) {
             log.warn("Station not found: id={}", id);
             throw e;
         } catch (Exception e) {
             log.error("Failed to retrieve station: id={}: {}", id, e.getMessage(), e);
             throw e;
+        }
+    }
+
+    /**
+     * Enriches a StationDTO with average rating and total reviews from the reviews
+     * table.
+     */
+    private void enrichWithRatingData(StationDTO dto, Long stationId) {
+        try {
+            Double avgRating = reviewRepository.findAverageRatingByStationId(stationId);
+            Long totalReviews = reviewRepository.countByStationId(stationId);
+            dto.setAverageRating(avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0);
+            dto.setTotalReviews(totalReviews != null ? totalReviews : 0L);
+        } catch (Exception e) {
+            log.warn("Failed to enrich station {} with rating data: {}", stationId, e.getMessage());
+            dto.setAverageRating(0.0);
+            dto.setTotalReviews(0L);
         }
     }
 
@@ -216,8 +243,8 @@ public class StationService {
         }
     }
 
-    //Error Today
-    public Long getTodaysErrorCount(){
+    // Error Today
+    public Long getTodaysErrorCount() {
         try {
             LocalDate today = LocalDate.now(clock);
             LocalDateTime startOfDay = today.atStartOfDay();
@@ -228,11 +255,11 @@ public class StationService {
 
             return allStations.stream()
                     .filter(station -> station.getCreatedAt() != null
-                    && (station.getCreatedAt().isEqual(startOfDay)
-                    || (station.getCreatedAt().isAfter(startOfDay)
-                    && station.getCreatedAt().isBefore(endOfDay))))
+                            && (station.getCreatedAt().isEqual(startOfDay)
+                                    || (station.getCreatedAt().isAfter(startOfDay)
+                                            && station.getCreatedAt().isBefore(endOfDay))))
                     .filter(station -> station.getStatus() != null
-                    && station.getStatus().toLowerCase().contains("error"))
+                            && station.getStatus().toLowerCase().contains("error"))
                     .count();
 
         } catch (DataAccessException e) {

@@ -142,6 +142,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/user/charger/**").authenticated()
                                                 .requestMatchers("/api/user/plans/**").authenticated()
                                                 .requestMatchers("/api/wallet/**").authenticated()
+
+                                                // Station Reviews - All authenticated users can read and write reviews
+                                                .requestMatchers("/api/station-reviews/**").authenticated()
+
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
