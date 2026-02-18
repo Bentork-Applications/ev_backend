@@ -168,7 +168,7 @@ public class SessionController {
 		}
 	}
 
-	// Active Sessions
+	// Active Sessions Count
 	@GetMapping("/active")
 	public ResponseEntity<Long> getActiveSessions(@RequestHeader("Authorization") String authHeader) {
 		log.info("GET /api/sessions/active - Request received");
@@ -180,6 +180,23 @@ public class SessionController {
 		} catch (Exception e) {
 			log.error("GET /api/sessions/active - Failed: {}", e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	// Active Sessions with Details (userId, sessionId, status, etc.)
+	@GetMapping("/active/details")
+	public ResponseEntity<?> getActiveSessionDetails(@RequestHeader("Authorization") String authHeader) {
+		log.info("GET /api/sessions/active/details - Request received");
+
+		try {
+			List<com.bentork.ev_system.dto.response.SessionDTO> activeSessions = sessionService
+					.getActiveSessionDetails();
+			log.info("GET /api/sessions/active/details - Success, count={}", activeSessions.size());
+			return ResponseEntity.ok(activeSessions);
+		} catch (Exception e) {
+			log.error("GET /api/sessions/active/details - Failed: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("error", "Failed to fetch active session details"));
 		}
 	}
 
@@ -255,36 +272,36 @@ public class SessionController {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching status");
 		}
 	}
-    
-	//ERROR TODAY
-    @GetMapping("/error/today")
-    public ResponseEntity<Long> getTodaysError(@RequestHeader("Authorization") String authHeader) {
-        try {
-            log.info("Calling session service to get todays total errors");
-            Long count = sessionService.getTodaysErrorCount();
-            return ResponseEntity.ok(count);
-        } catch (DataAccessException e) {
-            log.error("Error while accessing data: {}", e);
-            return ResponseEntity.internalServerError().build();
-        } catch (Exception e) {
-            log.error("Global error: {}", e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
+
+	// ERROR TODAY
+	@GetMapping("/error/today")
+	public ResponseEntity<Long> getTodaysError(@RequestHeader("Authorization") String authHeader) {
+		try {
+			log.info("Calling session service to get todays total errors");
+			Long count = sessionService.getTodaysErrorCount();
+			return ResponseEntity.ok(count);
+		} catch (DataAccessException e) {
+			log.error("Error while accessing data: {}", e);
+			return ResponseEntity.internalServerError().build();
+		} catch (Exception e) {
+			log.error("Global error: {}", e);
+			return ResponseEntity.internalServerError().build();
+		}
+	}
 
 	// list of session
-    @GetMapping("/all/records")
-    public ResponseEntity<List<Session>> getAllSessionRecords(@RequestHeader("Authorization") String authHeader) {
-        try {
-            log.info("Calling session service to get all session records");
-            List<Session> allRecords = sessionService.getallSessionRecords();
-            return ResponseEntity.ok(allRecords);
-        } catch (DataAccessException e) {
-            log.error("Error while accessing data: {}", e);
-            return ResponseEntity.internalServerError().build();
-        } catch (Exception e) {
-            log.error("Global error: {}", e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
+	@GetMapping("/all/records")
+	public ResponseEntity<List<Session>> getAllSessionRecords(@RequestHeader("Authorization") String authHeader) {
+		try {
+			log.info("Calling session service to get all session records");
+			List<Session> allRecords = sessionService.getallSessionRecords();
+			return ResponseEntity.ok(allRecords);
+		} catch (DataAccessException e) {
+			log.error("Error while accessing data: {}", e);
+			return ResponseEntity.internalServerError().build();
+		} catch (Exception e) {
+			log.error("Global error: {}", e);
+			return ResponseEntity.internalServerError().build();
+		}
+	}
 }

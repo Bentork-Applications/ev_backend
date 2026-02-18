@@ -758,4 +758,52 @@ public class SessionService {
 			throw e;
 		}
 	}
+
+	/**
+	 * Get list of all active sessions (status = 'active' or 'initiated')
+	 * with details like userId, sessionId, status, etc.
+	 */
+	public List<com.bentork.ev_system.dto.response.SessionDTO> getActiveSessionDetails() {
+		try {
+			log.info("Fetching active session details");
+			List<String> activeStatuses = List.of(
+					SessionStatus.ACTIVE.getValue(),
+					SessionStatus.INITIATED.getValue());
+
+			List<Session> activeSessions = sessionRepository.findByStatusInOrderByCreatedAtDesc(activeStatuses);
+
+			List<com.bentork.ev_system.dto.response.SessionDTO> dtoList = activeSessions.stream()
+					.map(session -> com.bentork.ev_system.dto.response.SessionDTO.builder()
+							.id(session.getId())
+							.userId(session.getUser() != null ? session.getUser().getId() : null)
+							.userName(session.getUser() != null ? session.getUser().getName() : null)
+							.chargerId(session.getCharger() != null ? session.getCharger().getId() : null)
+							.chargerName(session.getCharger() != null ? session.getCharger().getOcppId() : null)
+							.stationId(session.getCharger() != null && session.getCharger().getStation() != null
+									? session.getCharger().getStation().getId()
+									: null)
+							.stationName(session.getCharger() != null && session.getCharger().getStation() != null
+									? session.getCharger().getStation().getName()
+									: null)
+							.status(session.getStatus())
+							.startTime(session.getStartTime())
+							.endTime(session.getEndTime())
+							.energyKwh(session.getEnergyKwh())
+							.cost(session.getCost())
+							.sourceType(session.getSourceType())
+							.chargingDurationSeconds(session.getChargingDurationSeconds())
+							.createdAt(session.getCreatedAt())
+							.build())
+					.toList();
+
+			log.info("Found {} active sessions", dtoList.size());
+			return dtoList;
+		} catch (DataAccessException e) {
+			log.error("Error fetching active session details: {}", e.getMessage(), e);
+			throw e;
+		} catch (Exception e) {
+			log.error("Unexpected error fetching active session details: {}", e.getMessage(), e);
+			throw e;
+		}
+	}
 }
