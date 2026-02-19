@@ -1,0 +1,199 @@
+package com.bentork.ev_system.service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bentork.ev_system.dto.request.SlotDTO;
+import com.bentork.ev_system.mapper.SlotMapper;
+import com.bentork.ev_system.model.Charger;
+import com.bentork.ev_system.model.Slot;
+import com.bentork.ev_system.repository.ChargerRepository;
+import com.bentork.ev_system.repository.SlotRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+public class SlotService {
+
+    @Autowired
+    private SlotRepository slotRepository;
+
+    @Autowired
+    private ChargerRepository chargerRepository;
+
+    /**
+     * Create a single slot for a charger.
+     * Validates time range and checks for overlapping slots.
+     */
+    @Transactional
+    public SlotDTO createSlot(SlotDTO dto) {
+        log.info("Creating slot for chargerId={}, startTime={}, endTime={}",
+                dto.getChargerId(), dto.getStartTime(), dto.getEndTime());
+
+        // Validate charger exists
+        Charger charger = chargerRepository.findById(dto.getChargerId())
+                .orElseThrow(() -> new RuntimeException("Charger not found with id: " + dto.getChargerId()));
+
+        // Validate time range
+        if (dto.getStartTime() == null || dto.getEndTime() == null) {
+            throw new IllegalArgumentException("Start time and end time are required");
+        }
+        if (!dto.getEndTime().isAfter(dto.getStartTime())) {
+            throw new IllegalArgumentException("End time must be after start time");
+        }
+
+        // Check for overlapping slots on the same charger
+        List<Slot> overlapping = slotRepository.findOverlappingSlots(
+                dto.getChargerId(), dto.getStartTime(), dto.getEndTime());
+        if (!overlapping.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Slot overlaps with an existing slot on this charger. Overlapping slot ID: "
+                            + overlapping.get(0).getId());
+        }
+
+        Slot slot = SlotMapper.toEntity(dto, charger);
+        Slot saved = slotRepository.save(slot);
+
+        log.info("Slot created successfully: slotId={}, chargerId={}", saved.getId(), charger.getId());
+        return SlotMapper.toDTO(saved);
+    }
+
+    /**
+     * Auto-generate slots for an entire day for a specific charger.
+     * 
+     * @param chargerId       the charger to create slots for
+     * @param date            the date (e.g., "2026-02-20")
+     * @param durationMinutes slot duration in minutes (e.g., 30 or 60)
+     * @return list of created slots
+     */
+    @Transactional
+    public List<SlotDTO> createBulkSlots(Long chargerId, String date, int durationMinutes) {
+        log.info("Creating bulk slots for chargerId={}, date={}, durationMinutes={}",
+                chargerId, date, durationMinutes);
+
+        // Validate charger exists
+        Charger charger = chargerRepository.findById(chargerId)
+                .orElseThrow(() -> new RuntimeException("Charger not found with id: " + chargerId));
+
+        // Validate duration
+        if (durationMinutes <= 0 || durationMinutes > 1440) {
+            throw new IllegalArgumentException("Duration must be between 1 and 1440 minutes");
+        }
+
+        // Parse the date
+        LocalDate localDate;
+        try {
+            localDate = LocalDate.parse(date);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date format. Use yyyy-MM-dd (e.g., 2026-02-20)");
+        }
+
+        // Check if slots already exist for this charger on this date
+        LocalDateTime dayStart = localDate.atStartOfDay();
+        LocalDateTime dayEnd = localDate.atTime(LocalTime.MAX);
+        List<Slot> existingSlots = slotRepository.findByChargerIdAndDate(chargerId, dayStart, dayEnd);
+        if (!existingSlots.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Slots already exist for this charger on " + date
+                            + ". Delete existing slots first or choose another date.");
+        }
+
+        // Generate slots for the entire day (00:00 to 24:00)
+        List<Slot> slots = new ArrayList<>();
+        LocalDateTime slotStart = dayStart;
+        LocalDateTime endOfDay = localDate.plusDays(1).atStartOfDay();
+
+        while (slotStart.plusMinutes(durationMinutes).compareTo(endOfDay) <= 0) {
+            LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
+
+            Slot slot = new Slot();
+            slot.setCharger(charger);
+            slot.setStartTime(slotStart);
+            slot.setEndTime(slotEnd);
+            slot.setBooked(false);
+
+            slots.add(slot);
+            slotStart = slotEnd;
+        }
+
+        List<Slot> savedSlots = slotRepository.saveAll(slots);
+
+        log.info("Bulk slots created: {} slots for chargerId={} on {}",
+                savedSlots.size(), chargerId, date);
+
+        return savedSlots.stream()
+                .map(SlotMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all available (unbooked) future slots for a charger.
+     */
+    public List<SlotDTO> getAvailableSlots(Long chargerId) {
+        log.info("Fetching available slots for chargerId={}", chargerId);
+
+        // Validate charger exists
+        chargerRepository.findById(chargerId)
+                .orElseThrow(() -> new RuntimeException("Charger not found with id: " + chargerId));
+
+        List<Slot> slots = slotRepository.findByChargerIdAndIsBookedFalseAndStartTimeAfter(
+                chargerId, LocalDateTime.now());
+
+        return slots.stream()
+                .map(SlotMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all slots for a charger (admin view — includes booked and past slots).
+     */
+    public List<SlotDTO> getSlotsByCharger(Long chargerId) {
+        log.info("Fetching all slots for chargerId={}", chargerId);
+
+        // Validate charger exists
+        chargerRepository.findById(chargerId)
+                .orElseThrow(() -> new RuntimeException("Charger not found with id: " + chargerId));
+
+        List<Slot> slots = slotRepository.findByChargerId(chargerId);
+
+        return slots.stream()
+                .map(SlotMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get a slot by ID.
+     */
+    public Slot getSlotById(Long slotId) {
+        return slotRepository.findById(slotId)
+                .orElseThrow(() -> new RuntimeException("Slot not found with id: " + slotId));
+    }
+
+    /**
+     * Delete an unbooked slot (admin only).
+     */
+    @Transactional
+    public void deleteSlot(Long slotId) {
+        log.info("Deleting slot: slotId={}", slotId);
+
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new RuntimeException("Slot not found with id: " + slotId));
+
+        if (slot.isBooked()) {
+            throw new IllegalStateException(
+                    "Cannot delete slot " + slotId + " because it has an active booking. Cancel the booking first.");
+        }
+
+        slotRepository.delete(slot);
+        log.info("Slot deleted successfully: slotId={}", slotId);
+    }
+}
