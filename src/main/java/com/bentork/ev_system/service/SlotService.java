@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -196,8 +195,10 @@ public class SlotService {
                                 .orElseThrow(() -> new RuntimeException("Slot not found with id: " + slotId));
 
                 // Check if there's an active booking for this slot
-                Optional<SlotBooking> activeBooking = slotBookingRepository.findBySlotId(slotId);
-                if (activeBooking.isPresent() && "booked".equalsIgnoreCase(activeBooking.get().getStatus())) {
+                List<SlotBooking> bookings = slotBookingRepository.findBySlotId(slotId);
+                boolean hasActiveBooking = bookings.stream()
+                                .anyMatch(b -> "booked".equalsIgnoreCase(b.getStatus()));
+                if (hasActiveBooking) {
                         throw new IllegalStateException(
                                         "Cannot delete slot " + slotId
                                                         + " because it has an active booking. Cancel the booking first.");

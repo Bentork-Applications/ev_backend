@@ -24,8 +24,8 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
         // Find all bookings by charger
         List<SlotBooking> findByChargerId(Long chargerId);
 
-        // Find booking by slot
-        Optional<SlotBooking> findBySlotId(Long slotId);
+        // Find bookings by slot
+        List<SlotBooking> findBySlotId(Long slotId);
 
         // Check if user already has an active booking for a charger
         @Query("SELECT COUNT(sb) > 0 FROM SlotBooking sb " +
