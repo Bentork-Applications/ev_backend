@@ -146,6 +146,9 @@ public class SecurityConfig {
                                                 // Station Reviews - All authenticated users can read and write reviews
                                                 .requestMatchers("/api/station-reviews/**").authenticated()
 
+                                                // Cafes - All authenticated users can search nearby cafes
+                                                .requestMatchers(HttpMethod.GET, "/api/cafes/**").authenticated()
+
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

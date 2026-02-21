@@ -37,6 +37,24 @@ jobs:
           target: "/home/ubuntu/app"
           strip_components: 1           # UPDATED: Changed to 1 to strip just "target/"
 
+      - name: Set Environment Variables on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GOOGLE_MAPS_API_KEY
+          script: |
+            ENV_FILE="/home/ubuntu/app/.env"
+            # Add GOOGLE_MAPS_API_KEY if not present, or update if exists
+            if grep -q "^GOOGLE_MAPS_API_KEY=" "$ENV_FILE" 2>/dev/null; then
+              sed -i "s|^GOOGLE_MAPS_API_KEY=.*|GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}|" "$ENV_FILE"
+            else
+              echo "GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}" >> "$ENV_FILE"
+            fi
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+
       - name: Restart Service
         uses: appleboy/ssh-action@master
         with:
