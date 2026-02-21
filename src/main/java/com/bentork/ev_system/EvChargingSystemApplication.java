@@ -27,6 +27,7 @@ public class EvChargingSystemApplication {
         safeSetProperty(dotenv, "GOOGLE_CLIENT_SECRET");
         safeSetProperty(dotenv, "RAZORPAY_KEY_ID");
         safeSetProperty(dotenv, "RAZORPAY_KEY_SECRET");
+        safeSetProperty(dotenv, "GOOGLE_MAPS_API_KEY");
 
         SpringApplication.run(EvChargingSystemApplication.class, args);
     }
