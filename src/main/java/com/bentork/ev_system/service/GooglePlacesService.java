@@ -26,7 +26,7 @@ public class GooglePlacesService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${google.maps.api.key}")
+    @Value("${google.maps.api.key:}")
     private String apiKey;
 
     public GooglePlacesService(RestTemplate restTemplate) {
@@ -45,6 +45,11 @@ public class GooglePlacesService {
     public List<CafeResponseDTO> findNearbyCafes(double latitude, double longitude, double radius) {
         log.info("GooglePlacesService - Finding nearby cafes: lat={}, lng={}, radius={}m",
                 latitude, longitude, radius);
+
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("GooglePlacesService - GOOGLE_MAPS_API_KEY is not configured!");
+            throw new RuntimeException("Google Maps API key is not configured. Please set GOOGLE_MAPS_API_KEY.");
+        }
 
         List<CafeResponseDTO> cafes = new ArrayList<>();
 
