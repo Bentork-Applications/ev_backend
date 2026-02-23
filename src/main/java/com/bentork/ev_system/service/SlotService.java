@@ -114,24 +114,26 @@ public class SlotService {
                                                 "All-day slots already exist for this charger. Delete existing all-day slots first.");
                         }
 
-                        // Use a fixed reference date (2000-01-01) for all-day slots
-                        // Only the TIME portion matters; the date is just a placeholder
-                        LocalDate referenceDate = LocalDate.of(2000, 1, 1);
-                        LocalDateTime slotStart = referenceDate.atStartOfDay();
-                        LocalDateTime endOfDay = referenceDate.plusDays(1).atStartOfDay();
+                        // Generate time-only slots for the entire day (00:00 to 24:00)
+                        LocalTime slotStart = LocalTime.MIDNIGHT; // 00:00
+                        int totalMinutesInDay = 24 * 60; // 1440
+                        int currentMinute = 0;
 
-                        while (slotStart.plusMinutes(durationMinutes).compareTo(endOfDay) <= 0) {
-                                LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
+                        while (currentMinute + durationMinutes <= totalMinutesInDay) {
+                                LocalTime slotEnd = slotStart.plusMinutes(durationMinutes);
 
                                 Slot slot = new Slot();
                                 slot.setCharger(charger);
-                                slot.setStartTime(slotStart);
-                                slot.setEndTime(slotEnd);
+                                slot.setStartTime(null); // no date for all-day slots
+                                slot.setEndTime(null); // no date for all-day slots
+                                slot.setStartTimeOnly(slotStart); // only time
+                                slot.setEndTimeOnly(slotEnd); // only time
                                 slot.setBooked(false);
                                 slot.setAllDay(true);
 
                                 slots.add(slot);
                                 slotStart = slotEnd;
+                                currentMinute += durationMinutes;
                         }
 
                         List<Slot> savedSlots = slotRepository.saveAll(slots);

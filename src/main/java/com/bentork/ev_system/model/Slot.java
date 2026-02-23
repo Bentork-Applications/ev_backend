@@ -1,6 +1,7 @@
 package com.bentork.ev_system.model;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,11 +25,20 @@ public class Slot {
     @JoinColumn(name = "charger_id", nullable = false)
     private Charger charger;
 
-    @Column(nullable = false)
+    // Used for date-specific slots (null for all-day slots)
+    @Column(nullable = true)
     private LocalDateTime startTime;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private LocalDateTime endTime;
+
+    // Used for all-day (everyday) slots — stores only TIME in database (null for
+    // date-specific slots)
+    @Column(name = "start_time_only")
+    private LocalTime startTimeOnly;
+
+    @Column(name = "end_time_only")
+    private LocalTime endTimeOnly;
 
     @Column(nullable = false)
     private boolean isBooked = false;
@@ -76,6 +86,22 @@ public class Slot {
 
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
+    }
+
+    public LocalTime getStartTimeOnly() {
+        return startTimeOnly;
+    }
+
+    public void setStartTimeOnly(LocalTime startTimeOnly) {
+        this.startTimeOnly = startTimeOnly;
+    }
+
+    public LocalTime getEndTimeOnly() {
+        return endTimeOnly;
+    }
+
+    public void setEndTimeOnly(LocalTime endTimeOnly) {
+        this.endTimeOnly = endTimeOnly;
     }
 
     public boolean isBooked() {

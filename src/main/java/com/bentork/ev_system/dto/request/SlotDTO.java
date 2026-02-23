@@ -1,6 +1,7 @@
 package com.bentork.ev_system.dto.request;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class SlotDTO {
 
@@ -11,9 +12,9 @@ public class SlotDTO {
     private boolean isBooked;
     private LocalDateTime createdAt;
 
-    // Time-only fields for all-day slots (format: "HH:mm", e.g. "09:00")
-    private String startTimeOnly;
-    private String endTimeOnly;
+    // Time-only fields for all-day slots (e.g. "09:00")
+    private LocalTime startTimeOnly;
+    private LocalTime endTimeOnly;
 
     // For bulk slot generation
     private String date; // format: "2026-02-20" (optional — omit for allDay slots)
@@ -94,19 +95,19 @@ public class SlotDTO {
         this.allDay = allDay;
     }
 
-    public String getStartTimeOnly() {
+    public LocalTime getStartTimeOnly() {
         return startTimeOnly;
     }
 
-    public void setStartTimeOnly(String startTimeOnly) {
+    public void setStartTimeOnly(LocalTime startTimeOnly) {
         this.startTimeOnly = startTimeOnly;
     }
 
-    public String getEndTimeOnly() {
+    public LocalTime getEndTimeOnly() {
         return endTimeOnly;
     }
 
-    public void setEndTimeOnly(String endTimeOnly) {
+    public void setEndTimeOnly(LocalTime endTimeOnly) {
         this.endTimeOnly = endTimeOnly;
     }
 }
