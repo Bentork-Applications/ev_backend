@@ -11,6 +11,10 @@ public class SlotDTO {
     private boolean isBooked;
     private LocalDateTime createdAt;
 
+    // Time-only fields for all-day slots (format: "HH:mm", e.g. "09:00")
+    private String startTimeOnly;
+    private String endTimeOnly;
+
     // For bulk slot generation
     private String date; // format: "2026-02-20" (optional — omit for allDay slots)
     private int durationMinutes; // e.g., 30 or 60
@@ -88,5 +92,21 @@ public class SlotDTO {
 
     public void setAllDay(boolean allDay) {
         this.allDay = allDay;
+    }
+
+    public String getStartTimeOnly() {
+        return startTimeOnly;
+    }
+
+    public void setStartTimeOnly(String startTimeOnly) {
+        this.startTimeOnly = startTimeOnly;
+    }
+
+    public String getEndTimeOnly() {
+        return endTimeOnly;
+    }
+
+    public void setEndTimeOnly(String endTimeOnly) {
+        this.endTimeOnly = endTimeOnly;
     }
 }
