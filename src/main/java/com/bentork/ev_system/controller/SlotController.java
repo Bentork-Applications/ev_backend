@@ -62,11 +62,19 @@ public class SlotController {
      * Auto-generate slots for a full day for a charger.
      * Admin only.
      * 
-     * Request body example:
+     * Request body example (all-day / everyday slots):
+     * {
+     * "chargerId": 5,
+     * "durationMinutes": 60,
+     * "allDay": true
+     * }
+     * 
+     * Request body example (date-specific slots):
      * {
      * "chargerId": 5,
      * "date": "2026-02-20",
-     * "durationMinutes": 60
+     * "durationMinutes": 60,
+     * "allDay": false
      * }
      */
     @PostMapping("/bulk")
@@ -74,16 +82,20 @@ public class SlotController {
             @RequestBody SlotDTO request,
             @RequestHeader("Authorization") String authHeader) {
 
-        log.info("POST /api/slots/bulk - Creating bulk slots for chargerId={}, date={}, duration={}min",
-                request.getChargerId(), request.getDate(), request.getDurationMinutes());
+        log.info("POST /api/slots/bulk - Creating bulk slots for chargerId={}, date={}, duration={}min, allDay={}",
+                request.getChargerId(), request.getDate(), request.getDurationMinutes(), request.isAllDay());
 
         try {
             List<SlotDTO> created = slotService.createBulkSlots(
-                    request.getChargerId(), request.getDate(), request.getDurationMinutes());
+                    request.getChargerId(), request.getDate(), request.getDurationMinutes(), request.isAllDay());
+
+            String message = request.isAllDay()
+                    ? created.size() + " all-day (everyday) slots created successfully"
+                    : created.size() + " slots created successfully for " + request.getDate();
 
             log.info("POST /api/slots/bulk - Success, {} slots created", created.size());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                    "message", created.size() + " slots created successfully",
+                    "message", message,
                     "slots", created));
         } catch (IllegalArgumentException e) {
             log.warn("POST /api/slots/bulk - Bad request: {}", e.getMessage());

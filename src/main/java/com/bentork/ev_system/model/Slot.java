@@ -33,6 +33,9 @@ public class Slot {
     @Column(nullable = false)
     private boolean isBooked = false;
 
+    @Column(nullable = false)
+    private boolean allDay = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -81,6 +84,14 @@ public class Slot {
 
     public void setBooked(boolean isBooked) {
         this.isBooked = isBooked;
+    }
+
+    public boolean isAllDay() {
+        return allDay;
+    }
+
+    public void setAllDay(boolean allDay) {
+        this.allDay = allDay;
     }
 
     public LocalDateTime getCreatedAt() {

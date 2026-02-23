@@ -12,8 +12,9 @@ public class SlotDTO {
     private LocalDateTime createdAt;
 
     // For bulk slot generation
-    private String date; // format: "2026-02-20"
+    private String date; // format: "2026-02-20" (optional — omit for allDay slots)
     private int durationMinutes; // e.g., 30 or 60
+    private boolean allDay; // if true, slots repeat every day (no specific date)
 
     // Getters and Setters
 
@@ -79,5 +80,13 @@ public class SlotDTO {
 
     public void setDurationMinutes(int durationMinutes) {
         this.durationMinutes = durationMinutes;
+    }
+
+    public boolean isAllDay() {
+        return allDay;
+    }
+
+    public void setAllDay(boolean allDay) {
+        this.allDay = allDay;
     }
 }

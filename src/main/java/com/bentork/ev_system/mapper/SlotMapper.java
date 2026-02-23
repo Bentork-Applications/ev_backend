@@ -13,6 +13,7 @@ public class SlotMapper {
         dto.setStartTime(slot.getStartTime());
         dto.setEndTime(slot.getEndTime());
         dto.setBooked(slot.isBooked());
+        dto.setAllDay(slot.isAllDay());
         dto.setCreatedAt(slot.getCreatedAt());
         return dto;
     }
@@ -23,6 +24,7 @@ public class SlotMapper {
         slot.setStartTime(dto.getStartTime());
         slot.setEndTime(dto.getEndTime());
         slot.setBooked(dto.isBooked());
+        slot.setAllDay(dto.isAllDay());
         return slot;
     }
 }

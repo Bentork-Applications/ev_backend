@@ -76,15 +76,22 @@ public class SlotService {
         /**
          * Auto-generate slots for an entire day for a specific charger.
          * 
+         * Two modes:
+         * 1. allDay=true: Creates recurring everyday slots (not date-specific).
+         * These slots show up every day. No date parameter needed.
+         * 2. allDay=false: Creates slots for a specific date (original behavior).
+         * 
          * @param chargerId       the charger to create slots for
-         * @param date            the date (e.g., "2026-02-20")
+         * @param date            the date (e.g., "2026-02-20") — required only when
+         *                        allDay=false
          * @param durationMinutes slot duration in minutes (e.g., 30 or 60)
+         * @param allDay          if true, creates recurring everyday slots
          * @return list of created slots
          */
         @Transactional
-        public List<SlotDTO> createBulkSlots(Long chargerId, String date, int durationMinutes) {
-                log.info("Creating bulk slots for chargerId={}, date={}, durationMinutes={}",
-                                chargerId, date, durationMinutes);
+        public List<SlotDTO> createBulkSlots(Long chargerId, String date, int durationMinutes, boolean allDay) {
+                log.info("Creating bulk slots for chargerId={}, date={}, durationMinutes={}, allDay={}",
+                                chargerId, date, durationMinutes, allDay);
 
                 // Validate charger exists
                 Charger charger = chargerRepository.findById(chargerId)
@@ -95,54 +102,108 @@ public class SlotService {
                         throw new IllegalArgumentException("Duration must be between 1 and 1440 minutes");
                 }
 
-                // Parse the date
-                LocalDate localDate;
-                try {
-                        localDate = LocalDate.parse(date);
-                } catch (Exception e) {
-                        throw new IllegalArgumentException("Invalid date format. Use yyyy-MM-dd (e.g., 2026-02-20)");
-                }
-
-                // Check if slots already exist for this charger on this date
-                LocalDateTime dayStart = localDate.atStartOfDay();
-                LocalDateTime dayEnd = localDate.atTime(LocalTime.MAX);
-                List<Slot> existingSlots = slotRepository.findByChargerIdAndDate(chargerId, dayStart, dayEnd);
-                if (!existingSlots.isEmpty()) {
-                        throw new IllegalArgumentException(
-                                        "Slots already exist for this charger on " + date
-                                                        + ". Delete existing slots first or choose another date.");
-                }
-
-                // Generate slots for the entire day (00:00 to 24:00)
                 List<Slot> slots = new ArrayList<>();
-                LocalDateTime slotStart = dayStart;
-                LocalDateTime endOfDay = localDate.plusDays(1).atStartOfDay();
 
-                while (slotStart.plusMinutes(durationMinutes).compareTo(endOfDay) <= 0) {
-                        LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
+                if (allDay) {
+                        // --- ALL DAY MODE: Recurring everyday slots ---
 
-                        Slot slot = new Slot();
-                        slot.setCharger(charger);
-                        slot.setStartTime(slotStart);
-                        slot.setEndTime(slotEnd);
-                        slot.setBooked(false);
+                        // Check if all-day slots already exist for this charger
+                        List<Slot> existingAllDaySlots = slotRepository.findByChargerIdAndAllDayTrue(chargerId);
+                        if (!existingAllDaySlots.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "All-day slots already exist for this charger. Delete existing all-day slots first.");
+                        }
 
-                        slots.add(slot);
-                        slotStart = slotEnd;
+                        // Use a fixed reference date (2000-01-01) for all-day slots
+                        // Only the TIME portion matters; the date is just a placeholder
+                        LocalDate referenceDate = LocalDate.of(2000, 1, 1);
+                        LocalDateTime slotStart = referenceDate.atStartOfDay();
+                        LocalDateTime endOfDay = referenceDate.plusDays(1).atStartOfDay();
+
+                        while (slotStart.plusMinutes(durationMinutes).compareTo(endOfDay) <= 0) {
+                                LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
+
+                                Slot slot = new Slot();
+                                slot.setCharger(charger);
+                                slot.setStartTime(slotStart);
+                                slot.setEndTime(slotEnd);
+                                slot.setBooked(false);
+                                slot.setAllDay(true);
+
+                                slots.add(slot);
+                                slotStart = slotEnd;
+                        }
+
+                        List<Slot> savedSlots = slotRepository.saveAll(slots);
+
+                        log.info("All-day bulk slots created: {} slots for chargerId={} (everyday recurring)",
+                                        savedSlots.size(), chargerId);
+
+                        return savedSlots.stream()
+                                        .map(SlotMapper::toDTO)
+                                        .collect(Collectors.toList());
+
+                } else {
+                        // --- DATE-SPECIFIC MODE: Original behavior ---
+
+                        if (date == null || date.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "Date is required when allDay is false. Provide date in yyyy-MM-dd format, or set allDay=true for everyday slots.");
+                        }
+
+                        // Parse the date
+                        LocalDate localDate;
+                        try {
+                                localDate = LocalDate.parse(date);
+                        } catch (Exception e) {
+                                throw new IllegalArgumentException(
+                                                "Invalid date format. Use yyyy-MM-dd (e.g., 2026-02-20)");
+                        }
+
+                        // Check if slots already exist for this charger on this date
+                        LocalDateTime dayStart = localDate.atStartOfDay();
+                        LocalDateTime dayEnd = localDate.atTime(LocalTime.MAX);
+                        List<Slot> existingSlots = slotRepository.findByChargerIdAndDate(chargerId, dayStart, dayEnd);
+                        if (!existingSlots.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "Slots already exist for this charger on " + date
+                                                                + ". Delete existing slots first or choose another date.");
+                        }
+
+                        // Generate slots for the entire day (00:00 to 24:00)
+                        LocalDateTime slotStart = dayStart;
+                        LocalDateTime endOfDay = localDate.plusDays(1).atStartOfDay();
+
+                        while (slotStart.plusMinutes(durationMinutes).compareTo(endOfDay) <= 0) {
+                                LocalDateTime slotEnd = slotStart.plusMinutes(durationMinutes);
+
+                                Slot slot = new Slot();
+                                slot.setCharger(charger);
+                                slot.setStartTime(slotStart);
+                                slot.setEndTime(slotEnd);
+                                slot.setBooked(false);
+                                slot.setAllDay(false);
+
+                                slots.add(slot);
+                                slotStart = slotEnd;
+                        }
+
+                        List<Slot> savedSlots = slotRepository.saveAll(slots);
+
+                        log.info("Bulk slots created: {} slots for chargerId={} on {}",
+                                        savedSlots.size(), chargerId, date);
+
+                        return savedSlots.stream()
+                                        .map(SlotMapper::toDTO)
+                                        .collect(Collectors.toList());
                 }
-
-                List<Slot> savedSlots = slotRepository.saveAll(slots);
-
-                log.info("Bulk slots created: {} slots for chargerId={} on {}",
-                                savedSlots.size(), chargerId, date);
-
-                return savedSlots.stream()
-                                .map(SlotMapper::toDTO)
-                                .collect(Collectors.toList());
         }
 
         /**
-         * Get all available (unbooked) future slots for a charger.
+         * Get all available (unbooked) slots for a charger.
+         * Includes:
+         * - Future date-specific slots
+         * - All-day (recurring everyday) unbooked slots
          */
         public List<SlotDTO> getAvailableSlots(Long chargerId) {
                 log.info("Fetching available slots for chargerId={}", chargerId);
@@ -151,10 +212,19 @@ public class SlotService {
                 chargerRepository.findById(chargerId)
                                 .orElseThrow(() -> new RuntimeException("Charger not found with id: " + chargerId));
 
-                List<Slot> slots = slotRepository.findByChargerIdAndIsBookedFalseAndStartTimeAfter(
+                // Get future date-specific unbooked slots
+                List<Slot> dateSpecificSlots = slotRepository.findByChargerIdAndIsBookedFalseAndStartTimeAfter(
                                 chargerId, LocalDateTime.now());
 
-                return slots.stream()
+                // Get all-day (recurring everyday) unbooked slots
+                List<Slot> allDaySlots = slotRepository.findByChargerIdAndAllDayTrueAndIsBookedFalse(chargerId);
+
+                // Combine both lists
+                List<Slot> allSlots = new ArrayList<>();
+                allSlots.addAll(allDaySlots);
+                allSlots.addAll(dateSpecificSlots);
+
+                return allSlots.stream()
                                 .map(SlotMapper::toDTO)
                                 .collect(Collectors.toList());
         }
