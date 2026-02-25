@@ -26,6 +26,8 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PessimisticLockException;
 
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -195,6 +197,14 @@ public class GlobalExceptionHandler {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.CONFLICT,
                 "Charger is being accessed by another user. Please try again."), HttpStatus.CONFLICT);
+    }
+
+    // -------- AUTH INTERNAL ERROR ----------
+    @ExceptionHandler(InternalAuthenticationServiceException.class)
+    public ResponseEntity<ErrorResponse> authInternal(InternalAuthenticationServiceException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.UNAUTHORIZED,
+                "Authentication failed: " + ex.getMessage()), HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(RuntimeException.class)

@@ -18,6 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByMobile(String mobile);
+
     /**
      * Find user by ID with PESSIMISTIC_WRITE lock.
      * This prevents race conditions during wallet balance updates.

@@ -10,9 +10,12 @@ import com.bentork.ev_system.model.Admin;
 @Repository
 public interface AdminRepository extends JpaRepository<Admin, Long> {
     Optional<Admin> findByEmailOrMobile(String email, String mobile);
+
     boolean existsByEmail(String email);
+
     Optional<Admin> findByEmail(String email);
 
     long countAdminByRole(String role);
-}
 
+    Optional<Admin> findByMobile(String mobile);
+}
