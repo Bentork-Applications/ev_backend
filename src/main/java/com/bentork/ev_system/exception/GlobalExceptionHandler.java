@@ -4,6 +4,8 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import org.springframework.dao.DataAccessException;
@@ -44,10 +46,16 @@ public class GlobalExceptionHandler {
 
     // -------- 400 ERRORS ----------
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex) {
         logLine(ex);
-        String msg = ex.getBindingResult().getFieldError().getDefaultMessage();
-        return new ResponseEntity<>(build(HttpStatus.BAD_REQUEST, msg), HttpStatus.BAD_REQUEST);
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(error -> fieldErrors.put(error.getField(), error.getDefaultMessage()));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("message", "Validation failed");
+        response.put("errors", fieldErrors);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(BindException.class)

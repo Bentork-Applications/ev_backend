@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
@@ -61,7 +63,10 @@ public class AuthController {
     private AdminNotificationService adminNotificationService;
 
     @PostMapping("/user/signup")
-    public ResponseEntity<?> registerUser(@RequestBody UserSignupRequest request) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserSignupRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body("Passwords do not match");
+        }
         if (userRepo.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email already in use");
         }
@@ -79,7 +84,7 @@ public class AuthController {
     }
 
     @PostMapping("/user/login")
-    public ResponseEntity<?> loginUser(@RequestBody UserLoginRequest request) {
+    public ResponseEntity<?> loginUser(@Valid @RequestBody UserLoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmailOrMobile(), request.getPassword()));
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -141,7 +146,10 @@ public class AuthController {
     }
 
     @PostMapping("/admin/signup")
-    public ResponseEntity<?> registerAdmin(@RequestBody AdminSignupRequest request) {
+    public ResponseEntity<?> registerAdmin(@Valid @RequestBody AdminSignupRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body("Passwords do not match");
+        }
         if (adminRepo.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Admin email already in use");
         }
@@ -156,7 +164,7 @@ public class AuthController {
     }
 
     @PostMapping("/admin/login")
-    public ResponseEntity<?> loginAdmin(@RequestBody AdminLoginRequest request) {
+    public ResponseEntity<?> loginAdmin(@Valid @RequestBody AdminLoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmailOrMobile(), request.getPassword()));
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();

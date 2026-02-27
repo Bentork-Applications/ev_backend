@@ -1,7 +1,13 @@
 package com.bentork.ev_system.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class UserLoginRequest {
+
+    @NotBlank(message = "Email or mobile number is required")
     private String emailOrMobile;
+
+    @NotBlank(message = "Password is required")
     private String password;
 
     // Getters
@@ -22,5 +28,3 @@ public class UserLoginRequest {
         this.password = password;
     }
 }
-
-
