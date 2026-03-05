@@ -1,6 +1,7 @@
 package com.bentork.ev_system.repository;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,10 +35,16 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
         boolean hasActiveBooking(@Param("userId") Long userId,
                         @Param("chargerId") Long chargerId);
 
-        // Find expired bookings that need status update
+        // Find expired date-specific bookings (slots with endTime set)
         @Query("SELECT sb FROM SlotBooking sb " +
                         "WHERE sb.status = 'booked' AND sb.slot.endTime < :now")
         List<SlotBooking> findExpiredBookings(@Param("now") LocalDateTime now);
+
+        // Find expired all-day (recurring) bookings where endTimeOnly has passed today
+        @Query("SELECT sb FROM SlotBooking sb " +
+                        "WHERE sb.status = 'booked' AND sb.slot.allDay = true " +
+                        "AND sb.slot.endTimeOnly < :currentTime")
+        List<SlotBooking> findExpiredAllDayBookings(@Param("currentTime") LocalTime currentTime);
 
         // Find active booking for a user on a specific charger at a given time
         @Query("SELECT sb FROM SlotBooking sb " +
