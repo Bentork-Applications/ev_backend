@@ -20,6 +20,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByMobile(String mobile);
 
+    Optional<User> findByReferralCode(String referralCode);
+
+    boolean existsByReferralCode(String referralCode);
+
     /**
      * Find user by ID with PESSIMISTIC_WRITE lock.
      * This prevents race conditions during wallet balance updates.

@@ -31,6 +31,12 @@ public class User {
     @Column(name = "fcm_token", length = 500)
     private String fcmToken;
 
+    @Column(unique = true, length = 8)
+    private String referralCode;
+
+    @Column(name = "coin_balance")
+    private int coinBalance = 0;
+
     // === Getters and Setters ===
 
     public Long getId() {
@@ -103,6 +109,22 @@ public class User {
 
     public void setFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
+    }
+
+    public String getReferralCode() {
+        return referralCode;
+    }
+
+    public void setReferralCode(String referralCode) {
+        this.referralCode = referralCode;
+    }
+
+    public int getCoinBalance() {
+        return coinBalance;
+    }
+
+    public void setCoinBalance(int coinBalance) {
+        this.coinBalance = coinBalance;
     }
 
 }

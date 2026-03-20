@@ -61,6 +61,12 @@ public class SessionService {
 	private UserNotificationService userNotificationService;
 
 	@Autowired
+	private CoinService coinService;
+
+	@Autowired
+	private ReferralService referralService;
+
+	@Autowired
 	private Clock clock;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
@@ -481,6 +487,19 @@ public class SessionService {
 
 			if (receipt != null) {
 				receiptService.finalizeReceipt(session, finalCostBD);
+			}
+
+			// === COIN & REFERRAL REWARDS ===
+			try {
+				// Award charging coins (5 coins per kWh)
+				coinService.awardChargingCoins(session.getUser().getId(), energyUsed, session.getId());
+
+				// Process referral bonus if this is user's first completed session
+				referralService.processFirstSessionCompletion(session.getUser().getId(), session.getId());
+			} catch (Exception coinEx) {
+				// Coin/referral errors should NOT break session finalization
+				log.error("Failed to process coin/referral rewards for sessionId={}: {}",
+						session.getId(), coinEx.getMessage(), coinEx);
 			}
 
 			Duration duration = Duration.between(session.getStartTime(), session.getEndTime());

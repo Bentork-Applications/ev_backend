@@ -149,6 +149,10 @@ public class SecurityConfig {
                                                 // Cafes - All authenticated users can search nearby cafes
                                                 .requestMatchers(HttpMethod.GET, "/api/cafes/**").authenticated()
 
+                                                // Coins & Referrals - All authenticated users
+                                                .requestMatchers("/api/coins/**").authenticated()
+                                                .requestMatchers("/api/referral/**").authenticated()
+
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
