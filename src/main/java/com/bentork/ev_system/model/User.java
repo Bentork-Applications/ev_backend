@@ -34,8 +34,8 @@ public class User {
     @Column(unique = true, length = 8)
     private String referralCode;
 
-    @Column(name = "coin_balance")
-    private int coinBalance = 0;
+    @Column(name = "coin_balance", columnDefinition = "int default 0")
+    private Integer coinBalance = 0;
 
     // === Getters and Setters ===
 
@@ -120,10 +120,10 @@ public class User {
     }
 
     public int getCoinBalance() {
-        return coinBalance;
+        return coinBalance != null ? coinBalance : 0;
     }
 
-    public void setCoinBalance(int coinBalance) {
+    public void setCoinBalance(Integer coinBalance) {
         this.coinBalance = coinBalance;
     }
 
