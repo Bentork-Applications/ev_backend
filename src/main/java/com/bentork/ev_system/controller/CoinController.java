@@ -99,7 +99,7 @@ public class CoinController {
 
             // Default rate for coin redemption (₹12 per kWh)
             // You can make this configurable via application.properties
-            double defaultRate = 12.0;
+            double defaultRate = 16.0;
 
             double kwhRedeemed = coinService.redeemCoins(user.getId(), request.getCoins(), defaultRate);
 
