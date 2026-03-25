@@ -300,7 +300,8 @@ public class AuthController {
                         token,
                         user.getName(),
                         user.getEmail(),
-                        user.getImageUrl()));
+                        user.getImageUrl(),
+                        user.getMobile()));
     }
 
 }
