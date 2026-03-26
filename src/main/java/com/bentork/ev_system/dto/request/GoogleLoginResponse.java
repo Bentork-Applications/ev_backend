@@ -6,14 +6,12 @@ public class GoogleLoginResponse {
     private String name;
     private String email;
     private String imageUrl;
-    private String mobile;
 
-    public GoogleLoginResponse(String token, String name, String email, String imageUrl, String mobile) {
+    public GoogleLoginResponse(String token, String name, String email, String imageUrl) {
         this.token = token;
         this.name = name;
         this.email = email;
         this.imageUrl = imageUrl;
-        this.mobile = mobile;
     }
 
     public String getToken() {
@@ -30,9 +28,5 @@ public class GoogleLoginResponse {
 
     public String getImageUrl() {
         return imageUrl;
-    }
-
-    public String getMobile() {
-        return mobile;
     }
 }
