@@ -55,7 +55,7 @@ public class OcppWebSocketServer extends WebSocketServer {
     private int serverPort;
 
     // json response in every 5s
-    @Value("${ocpp.heartbeat.interval:5}")
+    @Value("${ocpp.heartbeat.interval:60}")
     private int heartbeatInterval;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
