@@ -144,10 +144,6 @@ public class SessionService {
 					log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, connectorId=1",
 							ocppId, session.getId());
 
-					// Register pending remote start BEFORE sending command
-					// This prevents stray RFID reads from aborting the start sequence
-					ocppWebSocketServer.registerPendingRemoteStart(ocppId, "SESSION_" + session.getId());
-
 					boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStartTransaction", payload);
 
 					if (sent) {

@@ -65,9 +65,6 @@ public class OcppWebSocketServer extends WebSocketServer {
     private final Map<WebSocket, String> connectionToOcppIdMap = new ConcurrentHashMap<>();
     private final Map<String, WebSocket> ocppIdToConnectionMap = new ConcurrentHashMap<>();
     private final Map<Long, Double> sessionToMeterStartMap = new ConcurrentHashMap<>();
-    // Track chargers with a pending app-initiated RemoteStartTransaction
-    // Key: ocppId, Value: session idTag (e.g. "SESSION_627")
-    private final Map<String, String> pendingRemoteStartMap = new ConcurrentHashMap<>();
 
     public OcppWebSocketServer(@Value("${ocpp.server.port:8887}") int port) {
         super(new InetSocketAddress(port));
@@ -194,58 +191,30 @@ public class OcppWebSocketServer extends WebSocketServer {
     }
 
     /**
-     * Handle Authorize - Smart validation that prevents charger RFID reader
-     * from interfering with app-initiated sessions.
-     *
-     * Checks in order:
-     * 1. SESSION_ prefix → auto-accept (app-initiated session tag)
-     * 2. Pending RemoteStart → auto-accept (prevents stray RFID from aborting
-     * start)
-     * 3. Active/Initiated session exists → auto-accept (safety net during charging)
-     * 4. Normal RFID card validation (no app session active)
+     * Handle Authorize
+     * - For app-initiated sessions (idTag starts with "SESSION_"), auto-accept
+     * because the session is already paid and authorized via the app.
+     * - For RFID cards, validate against the RFID card database.
      */
     private void handleAuthorize(WebSocket conn, String messageId, JsonNode payload) {
         String idTag = payload.has("idTag") ? payload.get("idTag").asText() : null;
-        String ocppId = connectionToOcppIdMap.get(conn);
-        log.info("Authorize request for idTag: {}, charger: {}", idTag, ocppId);
+        log.info("Authorize request for idTag: {}", idTag);
 
-        // 1. Auto-accept SESSION_ prefixed tags (app-initiated sessions)
+        // App-initiated session: idTag = "SESSION_<id>" — already paid via app
         if (idTag != null && idTag.startsWith("SESSION_")) {
             log.info("Auto-accepting app session idTag: {}", idTag);
-            sendAuthorizeResponse(conn, messageId, "Accepted");
+
+            ObjectNode idTagInfo = objectMapper.createObjectNode();
+            idTagInfo.put("status", "Accepted");
+
+            ObjectNode response = objectMapper.createObjectNode();
+            response.set("idTagInfo", idTagInfo);
+
+            sendCallResult(conn, messageId, response);
             return;
         }
 
-        // 2. Auto-accept if charger has a pending RemoteStartTransaction
-        if (ocppId != null && pendingRemoteStartMap.containsKey(ocppId)) {
-            log.info("Auto-accepting Authorize for charger {} (pending RemoteStart: {}). Ignoring stray RFID tag: {}",
-                    ocppId, pendingRemoteStartMap.get(ocppId), idTag);
-            sendAuthorizeResponse(conn, messageId, "Accepted");
-            return;
-        }
-
-        // 3. Auto-accept if charger has an active/initiated session in DB
-        if (ocppId != null) {
-            try {
-                Charger charger = chargerRepository.findByOcppId(ocppId).orElse(null);
-                if (charger != null) {
-                    boolean hasActiveSession = sessionRepository
-                            .findFirstByChargerAndStatusInOrderByCreatedAtDesc(
-                                    charger, java.util.List.of("active", "initiated"))
-                            .isPresent();
-                    if (hasActiveSession) {
-                        log.info("Auto-accepting Authorize for charger {} (active session exists). Ignoring tag: {}",
-                                ocppId, idTag);
-                        sendAuthorizeResponse(conn, messageId, "Accepted");
-                        return;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Error checking active session for charger {}: {}", ocppId, e.getMessage());
-            }
-        }
-
-        // 4. Normal RFID card validation (no app session active on this charger)
+        // RFID card flow: validate card exists and is active
         boolean isValid = false;
         try {
             isValid = rfidChargingService.validateRFIDCard(idTag);
@@ -253,15 +222,8 @@ public class OcppWebSocketServer extends WebSocketServer {
             log.warn("RFID validation failed: {}", e.getMessage());
         }
 
-        sendAuthorizeResponse(conn, messageId, isValid ? "Accepted" : "Invalid");
-    }
-
-    /**
-     * Helper to send Authorize response
-     */
-    private void sendAuthorizeResponse(WebSocket conn, String messageId, String status) {
         ObjectNode idTagInfo = objectMapper.createObjectNode();
-        idTagInfo.put("status", status);
+        idTagInfo.put("status", isValid ? "Accepted" : "Invalid");
 
         ObjectNode response = objectMapper.createObjectNode();
         response.set("idTagInfo", idTagInfo);
@@ -286,9 +248,6 @@ public class OcppWebSocketServer extends WebSocketServer {
 
             log.info("StartTransaction - OCPP_ID: {}, IdTag: {}, ConnectorId: {}, MeterStart: {}",
                     ocppId, idTag, connectorId, meterStart);
-
-            // Clear pending remote start (session is now starting)
-            clearPendingRemoteStart(ocppId);
 
             // Find charger by OCPP ID
             Charger charger = chargerRepository.findByOcppId(ocppId)
@@ -965,28 +924,6 @@ public class OcppWebSocketServer extends WebSocketServer {
     @Override
     public void onStart() {
         log.info("OCPP WebSocket server ready and listening on port {}", serverPort);
-    }
-
-    /**
-     * Register a pending RemoteStartTransaction for a charger.
-     * Called by SessionService before sending RemoteStartTransaction.
-     * This ensures any stray RFID Authorize requests during the start
-     * sequence are auto-accepted instead of aborting the flow.
-     */
-    public void registerPendingRemoteStart(String ocppId, String idTag) {
-        pendingRemoteStartMap.put(ocppId, idTag);
-        log.info("Registered pending RemoteStart for charger {}: {}", ocppId, idTag);
-    }
-
-    /**
-     * Clear pending RemoteStartTransaction state for a charger.
-     * Called when StartTransaction is received (charging has begun).
-     */
-    public void clearPendingRemoteStart(String ocppId) {
-        String removed = pendingRemoteStartMap.remove(ocppId);
-        if (removed != null) {
-            log.debug("Cleared pending RemoteStart for charger {}: {}", ocppId, removed);
-        }
     }
 
     /**
