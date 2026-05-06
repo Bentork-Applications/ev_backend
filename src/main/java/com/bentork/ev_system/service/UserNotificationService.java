@@ -12,10 +12,11 @@ import com.bentork.ev_system.repository.UserNotificationRepository;
 import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
 
 @Service
 @Slf4j
-public class UserNotificationService {
+public class UserNotificationService implements IUserNotificationService {
 
     private final UserNotificationRepository repository;
     private final UserRepository userRepo;

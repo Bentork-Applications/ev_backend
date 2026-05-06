@@ -1,22 +1,24 @@
 package com.bentork.ev_system.service;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class OcppServerService {
 
-    @Autowired
-    private OcppWebSocketServer ocppWebSocketServer;
+    private final OcppWebSocketServer ocppWebSocketServer;
 
     @PostConstruct
     public void init() {
         try {
             ocppWebSocketServer.start();
-            System.out.println("🚀 OCPP 1.6 WebSocket Server initialized and listening on port 8887");
+            log.info("🚀 OCPP 1.6 WebSocket Server initialized and listening on port {}", ocppWebSocketServer.getPort());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to start OCPP WebSocket Server", e);
         }
     }
 }

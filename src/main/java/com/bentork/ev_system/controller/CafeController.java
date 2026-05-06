@@ -4,8 +4,8 @@ import com.bentork.ev_system.dto.response.CafeResponseDTO;
 import com.bentork.ev_system.service.GooglePlacesService;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,11 +15,10 @@ import java.util.List;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/cafes")
 public class CafeController {
-
-    @Autowired
-    private GooglePlacesService googlePlacesService;
+    private final GooglePlacesService googlePlacesService;
 
     /**
      * Fetch nearby cafes using Google Places API.

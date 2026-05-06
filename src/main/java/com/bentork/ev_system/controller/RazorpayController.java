@@ -1,10 +1,11 @@
 
 package com.bentork.ev_system.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import java.math.BigDecimal;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,17 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.service.RazorpayService;
-import com.bentork.ev_system.service.WalletTransactionService;
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/razorpay")
 public class RazorpayController {
-
-    @Autowired
-    private RazorpayService razorpayService;
-
-    @Autowired
-    private WalletTransactionService walletService;
+    private final RazorpayService razorpayService;
+    private final IWalletTransactionService walletService;
 
     @PostMapping("/create-order")
     public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> payload) {

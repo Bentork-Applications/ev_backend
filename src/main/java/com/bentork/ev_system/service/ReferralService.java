@@ -1,11 +1,14 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.ICoinService;
+
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,26 +20,24 @@ import com.bentork.ev_system.repository.ReferralRepository;
 import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ReferralService {
 
     private static final String REFERRAL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int REFERRAL_CODE_LENGTH = 8;
     private static final SecureRandom random = new SecureRandom();
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
 
-    @Autowired
-    private ReferralRepository referralRepo;
+    private final ReferralRepository referralRepo;
 
-    @Autowired
-    private CoinService coinService;
+    private final ICoinService coinService;
 
-    @Autowired
-    private UserNotificationService userNotificationService;
+    private final IUserNotificationService userNotificationService;
 
     /**
      * Get or generate a unique referral code for the user.

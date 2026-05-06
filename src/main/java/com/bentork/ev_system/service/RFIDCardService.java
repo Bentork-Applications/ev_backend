@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.request.RFIDCardRequest;
@@ -15,12 +15,11 @@ import com.bentork.ev_system.repository.UserRepository;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RFIDCardService {
 
-    @Autowired
-    private RFIDCardRepository cardRepo;
-    @Autowired
-    private UserRepository userRepo;
+    private final RFIDCardRepository cardRepo;
+    private final UserRepository userRepo;
 
     // Register new RFID card
     public RFIDCard registerCard(RFIDCardRequest req) {
@@ -133,14 +132,10 @@ public class RFIDCardService {
     // Active Cards
     public Long getActiveCards() {
         try {
-            Long activeCount = cardRepo.findAll().stream()
-                    .filter(RFIDCard::isActive)
-                    .count();
-
+            Long activeCount = cardRepo.countByActiveTrue();
             if (log.isDebugEnabled()) {
                 log.debug("Active RFID cards count: {}", activeCount);
             }
-
             return activeCount;
         } catch (Exception e) {
             log.error("Failed to get active RFID cards count: {}", e.getMessage(), e);
@@ -148,17 +143,12 @@ public class RFIDCardService {
         }
     }
 
-    // Inactive Cards
     public Long getInactiveCards() {
         try {
-            Long inactiveCount = cardRepo.findAll().stream()
-                    .filter(card -> !card.isActive())
-                    .count();
-
+            Long inactiveCount = cardRepo.countByActiveFalse();
             if (log.isDebugEnabled()) {
                 log.debug("Inactive RFID cards count: {}", inactiveCount);
             }
-
             return inactiveCount;
         } catch (Exception e) {
             log.error("Failed to get inactive RFID cards count: {}", e.getMessage(), e);
@@ -170,16 +160,10 @@ public class RFIDCardService {
     public Long getRecentlyAddedCards() {
         try {
             LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-
-            Long recentCount = cardRepo.findAll().stream()
-                    .filter(card -> card.getCreatedAt() != null
-                            && card.getCreatedAt().isAfter(sevenDaysAgo))
-                    .count();
-
+            Long recentCount = cardRepo.countByCreatedAtAfter(sevenDaysAgo);
             if (log.isDebugEnabled()) {
                 log.debug("Recently added RFID cards (last 7 days): {}", recentCount);
             }
-
             return recentCount;
         } catch (Exception e) {
             log.error("Failed to get recently added RFID cards count: {}", e.getMessage(), e);

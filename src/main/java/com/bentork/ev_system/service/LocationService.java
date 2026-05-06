@@ -12,17 +12,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class LocationService {
 
-    @Autowired
-    private LocationRepository locationRepo;
+    private final LocationRepository locationRepo;
 
-    @Autowired
-    private AdminRepository adminRepo;
+    private final AdminRepository adminRepo;
 
     public Location addLocation(LocationDTO dto, Admin admin) {
         Location location = LocationMapper.toEntity(dto, admin);

@@ -1,9 +1,10 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
+
 import java.math.BigDecimal;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +15,16 @@ import com.bentork.ev_system.repository.CoinTransactionRepository;
 import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+
+import com.bentork.ev_system.exception.domain.UserNotFoundException;
+
+import com.bentork.ev_system.service.interfaces.ICoinService;
 
 @Slf4j
 @Service
-public class CoinService {
+@RequiredArgsConstructor
+public class CoinService implements ICoinService {
 
     // === Constants ===
     public static final int COINS_PER_KWH = 5;
@@ -25,14 +32,11 @@ public class CoinService {
     public static final int REFERRED_BONUS = 50;
     public static final int COINS_TO_REDEEM_1_KWH = 1000;
 
-    @Autowired
-    private CoinTransactionRepository coinTransactionRepo;
+    private final CoinTransactionRepository coinTransactionRepo;
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
 
-    @Autowired
-    private WalletTransactionService walletTransactionService;
+    private final IWalletTransactionService walletTransactionService;
 
     /**
      * Award coins for charging session completion.
@@ -49,7 +53,7 @@ public class CoinService {
         int coins = kwhFloor * COINS_PER_KWH;
 
         User user = userRepo.findByIdWithLock(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         user.setCoinBalance(user.getCoinBalance() + coins);
         userRepo.save(user);
@@ -72,7 +76,7 @@ public class CoinService {
     @Transactional
     public void awardReferralBonus(Long referrerId, Long sessionId) {
         User user = userRepo.findByIdWithLock(referrerId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + referrerId));
+                .orElseThrow(() -> new UserNotFoundException(referrerId));
 
         user.setCoinBalance(user.getCoinBalance() + REFERRAL_BONUS);
         userRepo.save(user);
@@ -94,7 +98,7 @@ public class CoinService {
     @Transactional
     public void awardReferredBonus(Long referredUserId, Long sessionId) {
         User user = userRepo.findByIdWithLock(referredUserId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + referredUserId));
+                .orElseThrow(() -> new UserNotFoundException(referredUserId));
 
         user.setCoinBalance(user.getCoinBalance() + REFERRED_BONUS);
         userRepo.save(user);
@@ -166,7 +170,7 @@ public class CoinService {
      */
     public CoinBalanceResponse getCoinBalance(Long userId) {
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         int balance = user.getCoinBalance();
         double redeemableKwh = (double) balance / COINS_TO_REDEEM_1_KWH;

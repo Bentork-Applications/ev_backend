@@ -1,5 +1,11 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
+
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
+
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+
 import com.bentork.ev_system.enums.SessionStatus;
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
@@ -7,8 +13,8 @@ import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,24 +35,20 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class StaleSessionCleanupService {
 
     private static final int STALE_TIMEOUT_MINUTES = 5;
 
-    @Autowired
-    private SessionRepository sessionRepository;
+    private final SessionRepository sessionRepository;
 
-    @Autowired
-    private ReceiptRepository receiptRepository;
+    private final ReceiptRepository receiptRepository;
 
-    @Autowired
-    private WalletTransactionService walletTransactionService;
+    private final IWalletTransactionService walletTransactionService;
 
-    @Autowired
-    private UserNotificationService userNotificationService;
+    private final IUserNotificationService userNotificationService;
 
-    @Autowired
-    private AdminNotificationService adminNotificationService;
+    private final IAdminNotificationService adminNotificationService;
 
     /**
      * Runs every 60 seconds to find and fail stale "initiated" sessions.

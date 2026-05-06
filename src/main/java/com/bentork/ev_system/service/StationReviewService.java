@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,19 +21,18 @@ import com.bentork.ev_system.repository.UserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class StationReviewService {
 
-    @Autowired
-    private StationReviewRepository reviewRepository;
+    private final StationReviewRepository reviewRepository;
 
-    @Autowired
-    private StationRepository stationRepository;
+    private final StationRepository stationRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
     // ========================
     // CREATE REVIEW

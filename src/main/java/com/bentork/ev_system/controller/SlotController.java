@@ -3,7 +3,6 @@ package com.bentork.ev_system.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,14 +18,14 @@ import com.bentork.ev_system.dto.request.SlotDTO;
 import com.bentork.ev_system.service.SlotService;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/slots")
 public class SlotController {
-
-    @Autowired
-    private SlotService slotService;
+    private final SlotService slotService;
 
     /**
      * Create a single slot for a charger.
@@ -34,8 +33,7 @@ public class SlotController {
      */
     @PostMapping
     public ResponseEntity<?> createSlot(
-            @RequestBody SlotDTO request,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestBody SlotDTO request) {
 
         log.info("POST /api/slots - Creating slot for chargerId={}", request.getChargerId());
 
@@ -79,8 +77,7 @@ public class SlotController {
      */
     @PostMapping("/bulk")
     public ResponseEntity<?> createBulkSlots(
-            @RequestBody SlotDTO request,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestBody SlotDTO request) {
 
         log.info("POST /api/slots/bulk - Creating bulk slots for chargerId={}, date={}, duration={}min, allDay={}",
                 request.getChargerId(), request.getDate(), request.getDurationMinutes(), request.isAllDay());
@@ -117,8 +114,7 @@ public class SlotController {
      */
     @GetMapping("/charger/{chargerId}")
     public ResponseEntity<?> getSlotsByCharger(
-            @PathVariable Long chargerId,
-            @RequestHeader("Authorization") String authHeader) {
+            @PathVariable Long chargerId) {
 
         log.info("GET /api/slots/charger/{} - Fetching all slots", chargerId);
 
@@ -143,8 +139,7 @@ public class SlotController {
      */
     @GetMapping("/charger/{chargerId}/available")
     public ResponseEntity<?> getAvailableSlots(
-            @PathVariable Long chargerId,
-            @RequestHeader("Authorization") String authHeader) {
+            @PathVariable Long chargerId) {
 
         log.info("GET /api/slots/charger/{}/available - Fetching available slots", chargerId);
 
@@ -170,8 +165,7 @@ public class SlotController {
      */
     @DeleteMapping("/{slotId}")
     public ResponseEntity<?> deleteSlot(
-            @PathVariable Long slotId,
-            @RequestHeader("Authorization") String authHeader) {
+            @PathVariable Long slotId) {
 
         log.info("DELETE /api/slots/{} - Deleting slot", slotId);
 

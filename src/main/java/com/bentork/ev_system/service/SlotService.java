@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,19 +20,18 @@ import com.bentork.ev_system.repository.SlotBookingRepository;
 import com.bentork.ev_system.repository.SlotRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SlotService {
 
-        @Autowired
-        private SlotRepository slotRepository;
+        private final SlotRepository slotRepository;
 
-        @Autowired
-        private ChargerRepository chargerRepository;
+        private final ChargerRepository chargerRepository;
 
-        @Autowired
-        private SlotBookingRepository slotBookingRepository;
+        private final SlotBookingRepository slotBookingRepository;
 
         /**
          * Create a single slot for a charger.

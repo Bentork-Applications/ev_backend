@@ -11,6 +11,16 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
+        // Efficient count/sum queries — replace findAll().stream().filter()
+        @Query("SELECT COUNT(s) FROM Session s WHERE s.status = :status")
+        long countByStatus(@Param("status") String status);
+
+        @Query("SELECT COALESCE(SUM(s.energyKwh), 0) FROM Session s WHERE s.status = :status")
+        double sumEnergyByStatus(@Param("status") String status);
+
+        @Query("SELECT COUNT(s) FROM Session s WHERE s.status = :status AND s.createdAt BETWEEN :start AND :end")
+        long countByStatusAndCreatedAtBetween(@Param("status") String status, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
         Optional<Session> findFirstByStatusOrderByStartTimeDesc(String status);
 
         Optional<Session> findFirstByChargerAndStatusOrderByCreatedAtDesc(Charger charger, String status);

@@ -1,10 +1,10 @@
 package com.bentork.ev_system.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
-import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.RevenueDTO;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.repository.AdminRepository;
-import com.bentork.ev_system.service.RevenueService;
+import com.bentork.ev_system.service.interfaces.IRevenueService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,22 +18,20 @@ import java.util.List;
 @RequestMapping("/api/revenue")
 public class RevenueController {
 
-    private final RevenueService revenueService;
-    private final JwtUtil jwtUtil;
+    private final IRevenueService revenueService;
     private final AdminRepository adminRepository;
 
-    public RevenueController(RevenueService revenueService, JwtUtil jwtUtil, AdminRepository adminRepository) {
+    public RevenueController(IRevenueService revenueService, AdminRepository adminRepository) {
         this.revenueService = revenueService;
-        this.jwtUtil = jwtUtil;
         this.adminRepository = adminRepository;
     }
 
-    private void ensureAdmin(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Authorization failed - Missing or invalid Authorization header");
-            throw new RuntimeException("Missing/invalid Authorization header");
+    private void ensureAdmin(org.springframework.security.core.userdetails.UserDetails userDetails) {
+        if (userDetails == null) {
+            log.warn("Authorization failed - Missing or invalid UserDetails");
+            throw new RuntimeException("Missing/invalid UserDetails");
         }
-        String email = jwtUtil.extractUsername(authHeader.substring(7));
+        String email = userDetails.getUsername();
         Admin admin = adminRepository.findByEmail(email)
                 .orElseThrow(() -> {
                     log.warn("Authorization failed - Admin not found: email={}", email);
@@ -46,11 +44,11 @@ public class RevenueController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<RevenueDTO>> all(@RequestHeader("Authorization") String auth) {
+    public ResponseEntity<List<RevenueDTO>> all(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/all - Request received");
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             List<RevenueDTO> revenues = revenueService.getAllRevenue();
             log.info("GET /api/revenue/all - Success, returned {} revenue records", revenues.size());
             return ResponseEntity.ok(revenues);
@@ -65,11 +63,11 @@ public class RevenueController {
 
     @GetMapping("/{id}")
     public ResponseEntity<RevenueDTO> byId(@PathVariable Long id,
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/{} - Request received", id);
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             RevenueDTO revenue = revenueService.getById(id);
             log.info("GET /api/revenue/{} - Success, amount={}", id, revenue.getAmount());
             return ResponseEntity.ok(revenue);
@@ -88,11 +86,11 @@ public class RevenueController {
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id,
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("DELETE /api/revenue/delete/{} - Request received", id);
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             revenueService.delete(id);
             log.info("DELETE /api/revenue/delete/{} - Success", id);
             return ResponseEntity.ok("Revenue deleted");
@@ -112,11 +110,11 @@ public class RevenueController {
     // Total Revenue
     @GetMapping("/total")
     public ResponseEntity<BigDecimal> getTotalRevenue(
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/total - Request received");
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             BigDecimal total = revenueService.getTotalRevenue();
             log.info("GET /api/revenue/total - Success, total={}", total);
             return ResponseEntity.ok(total);
@@ -132,11 +130,11 @@ public class RevenueController {
     // Pending Revenue
     @GetMapping("/pending")
     public ResponseEntity<BigDecimal> getPendingRevenue(
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/pending - Request received");
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             BigDecimal pending = revenueService.getPendingRevenue();
             log.info("GET /api/revenue/pending - Success, pending={}", pending);
             return ResponseEntity.ok(pending);
@@ -152,11 +150,11 @@ public class RevenueController {
     // Total Transactions
     @GetMapping("/transactions/total")
     public ResponseEntity<Long> getTotalTransactions(
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/transactions/total - Request received");
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             Long total = revenueService.getTotalTransactions();
             log.info("GET /api/revenue/transactions/total - Success, total={}", total);
             return ResponseEntity.ok(total);
@@ -172,11 +170,11 @@ public class RevenueController {
     // Success Rate
     @GetMapping("/success-rate")
     public ResponseEntity<Double> getSuccessRate(
-            @RequestHeader("Authorization") String auth) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/revenue/success-rate - Request received");
 
         try {
-            ensureAdmin(auth);
+            ensureAdmin(userDetails);
             Double successRate = revenueService.getSuccessRate();
             log.info("GET /api/revenue/success-rate - Success, successRate={}%", successRate);
             return ResponseEntity.ok(successRate);

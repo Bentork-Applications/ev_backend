@@ -7,7 +7,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @SpringBootApplication
 @EnableScheduling
 public class EvChargingSystemApplication {
@@ -44,6 +46,6 @@ public class EvChargingSystemApplication {
     public void init() {
         // Setting Spring Boot SetTimeZone
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
-        System.out.println("Application running in IST timezone :" + new java.util.Date());
+        log.info("Application running in IST timezone: {}", new java.util.Date());
     }
 }

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,15 +14,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.model.Session;
-import com.bentork.ev_system.service.RFIDChargingService;
+import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/rfid")
 public class RFIDChargingController {
-
-    @Autowired
-    private RFIDChargingService chargingService;
+    private final IRFIDChargingService chargingService;
 
     @PostMapping("/start")
     public ResponseEntity<Session> start(@RequestBody Map<String, Object> req) {

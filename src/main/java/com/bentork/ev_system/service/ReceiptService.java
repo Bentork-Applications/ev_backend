@@ -1,9 +1,14 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
+
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+
+import com.bentork.ev_system.service.interfaces.ISessionService;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,21 +20,29 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.ReceiptRepository;
 
+import com.bentork.ev_system.exception.domain.InsufficientBalanceException;
+import com.bentork.ev_system.exception.domain.ReceiptNotFoundException;
+
+import com.bentork.ev_system.service.interfaces.IReceiptService;
+
 @Service
-public class ReceiptService {
+public class ReceiptService implements IReceiptService {
 
-    @Autowired
-    private ReceiptRepository receiptRepository;
+    private final ReceiptRepository receiptRepository;
+    private final IWalletTransactionService walletTransactionService;
+    private final IUserNotificationService userNotificationService;
+    private final ISessionService sessionService;
 
-    @Autowired
-    private WalletTransactionService walletTransactionService;
-
-    @Autowired
-    private UserNotificationService userNotificationService;
-
-    @Autowired
-    @Lazy
-    private SessionService sessionService;
+    public ReceiptService(
+            ReceiptRepository receiptRepository,
+            IWalletTransactionService walletTransactionService,
+            IUserNotificationService userNotificationService,
+            @Lazy ISessionService sessionService) {
+        this.receiptRepository = receiptRepository;
+        this.walletTransactionService = walletTransactionService;
+        this.userNotificationService = userNotificationService;
+        this.sessionService = sessionService;
+    }
 
     /**
      * Creates a new receipt (PENDING) for either a plan or a kWh package/custom.
@@ -65,7 +78,7 @@ public class ReceiptService {
     @Transactional
     public Receipt payReceipt(Long receiptId, String boxId) {
         Receipt receipt = receiptRepository.findById(receiptId)
-                .orElseThrow(() -> new RuntimeException("Receipt not found"));
+                .orElseThrow(() -> new ReceiptNotFoundException(receiptId));
 
         Long userId = receipt.getUser().getId();
         BigDecimal amount = receipt.getAmount();
@@ -77,7 +90,7 @@ public class ReceiptService {
                     "Insufficient Wallet Balance",
                     "You need ₹" + amount + " but your wallet balance is too low. Please top-up.",
                     "Wallet Error");
-            throw new RuntimeException("Insufficient wallet balance. Please top-up.");
+            throw new InsufficientBalanceException(userId, amount);
         }
 
         // Debit wallet

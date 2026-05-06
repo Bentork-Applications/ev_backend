@@ -1,9 +1,9 @@
 package com.bentork.ev_system.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,40 +13,34 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.RedeemRequest;
 import com.bentork.ev_system.dto.response.CoinBalanceResponse;
 import com.bentork.ev_system.model.CoinTransaction;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.UserRepository;
-import com.bentork.ev_system.service.CoinService;
+import com.bentork.ev_system.service.interfaces.ICoinService;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/coins")
 public class CoinController {
-
-    @Autowired
-    private CoinService coinService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
+    private final ICoinService coinService;
+        private final UserRepository userRepository;
 
     /**
      * Get user's coin balance and redeemable kWh.
      */
     @GetMapping("/balance")
-    public ResponseEntity<?> getCoinBalance(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getCoinBalance(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/coins/balance - Request received");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
             CoinBalanceResponse response = coinService.getCoinBalance(user.getId());
 
             log.info("GET /api/coins/balance - Success, userId={}, balance={}, redeemableKwh={}",
@@ -64,11 +58,11 @@ public class CoinController {
      * Get coin transaction history.
      */
     @GetMapping("/history")
-    public ResponseEntity<?> getCoinHistory(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getCoinHistory(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/coins/history - Request received");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
             List<CoinTransaction> history = coinService.getCoinTransactionHistory(user.getId());
 
             log.info("GET /api/coins/history - Success, userId={}, transactions={}",
@@ -90,12 +84,12 @@ public class CoinController {
     @PostMapping("/redeem")
     public ResponseEntity<?> redeemCoins(
             @Valid @RequestBody RedeemRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("POST /api/coins/redeem - Request received, coins={}", request.getCoins());
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
 
             // Default rate for coin redemption (₹18 per kWh)
             // You can make this configurable via application.properties
@@ -123,10 +117,5 @@ public class CoinController {
         }
     }
 
-    private User extractUser(String authHeader) {
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+    private User extractUser(org.springframework.security.core.userdetails.UserDetails userDetails) { return userRepository.findByEmail(userDetails.getUsername()).orElseThrow(() -> new RuntimeException("User not found")); }
 }

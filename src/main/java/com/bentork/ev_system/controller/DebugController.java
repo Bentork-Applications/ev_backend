@@ -6,8 +6,8 @@ import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.OcppWebSocketServer;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.java_websocket.WebSocket;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,17 +16,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/debug")
 public class DebugController {
-
-    @Autowired
-    private OcppWebSocketServer ocppWebSocketServer;
-
-    @Autowired
-    private SessionRepository sessionRepository;
-
-    @Autowired
-    private ChargerRepository chargerRepository;
+    private final OcppWebSocketServer ocppWebSocketServer;
+    private final SessionRepository sessionRepository;
+    private final ChargerRepository chargerRepository;
 
     /**
      * ✅ CHECK SYSTEM STATUS - Simple version

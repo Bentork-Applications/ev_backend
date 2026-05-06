@@ -1,0 +1,207 @@
+package com.bentork.ev_system.service.ocpp.handler;
+
+import com.bentork.ev_system.enums.SessionStatus;
+import com.bentork.ev_system.model.Session;
+import com.bentork.ev_system.repository.SessionRepository;
+import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
+import com.bentork.ev_system.service.interfaces.ISessionService;
+import com.bentork.ev_system.service.ocpp.OcppActionHandler;
+import com.bentork.ev_system.service.ocpp.OcppConnectionManager;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class MeterValuesHandler implements OcppActionHandler {
+
+    private final ISessionService sessionService;
+    private final IRFIDChargingService rfidChargingService;
+    private final SessionRepository sessionRepository;
+    private final OcppConnectionManager connectionManager;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    public String getAction() {
+        return "MeterValues";
+    }
+
+    @Override
+    public ObjectNode handle(String ocppId, JsonNode payload) {
+        try {
+            int transactionId = payload.has("transactionId") ? payload.get("transactionId").asInt() : -1;
+
+            if (transactionId == -1) {
+                log.debug("MeterValues without transactionId (heartbeat meter)");
+                return objectMapper.createObjectNode();
+            }
+
+            log.info("MeterValues received - Raw payload: {}", payload.toString());
+            logAllMeasurands(payload);
+
+            BigDecimal currentAbsKwh = extractEnergyFromMeterValues(payload);
+
+            if (currentAbsKwh == null) {
+                log.debug("MeterValues - no energy measurand found");
+                return objectMapper.createObjectNode();
+            }
+
+            Long sessionId = connectionManager.getSessionIdForTransaction(transactionId);
+            if (sessionId == null) {
+                sessionId = (long) transactionId;
+            }
+
+            Session session = sessionService.getSessionById(sessionId);
+            if (session == null) {
+                log.warn("Session {} not found for meter update", sessionId);
+                return objectMapper.createObjectNode();
+            }
+
+            log.debug("MeterValues - SessionId: {}, CurrentAbsKwh: {}, Source: {}",
+                    sessionId, currentAbsKwh, session.getSourceType());
+
+            if ("RFID".equals(session.getSourceType())) {
+                Session updated = rfidChargingService.updateEnergy(sessionId, currentAbsKwh);
+
+                Long durationSeconds = extractDurationFromMeterValues(payload);
+                if (durationSeconds != null) {
+                    updated.setChargingDurationSeconds(durationSeconds);
+                    sessionRepository.save(updated);
+                    log.info("RFID Duration Update: SessionId={}, DurationSeconds={}", sessionId, durationSeconds);
+                }
+
+                if (SessionStatus.COMPLETED.matches(updated.getStatus())) {
+                    log.warn("RFID session {} auto-stopped due to low balance", sessionId);
+                    connectionManager.removeTransaction(transactionId);
+                    // Note: RemoteStopTransaction will be sent by the caller (OcppWebSocketServer)
+                }
+            } else {
+                Double startKwh = session.getStartMeterReading();
+                if (startKwh == null) {
+                    Double startMeterWh = connectionManager.getMeterStart(sessionId);
+                    startKwh = startMeterWh / 1000.0;
+                }
+
+                double rawConsumed = currentAbsKwh.doubleValue() - startKwh;
+                double consumedKwh = Math.round(rawConsumed * 1000.0) / 1000.0;
+
+                if (consumedKwh < 0) {
+                    log.warn("Negative consumption detected (Meter reset?): Current={}, Start={}. Treating as 0.",
+                            currentAbsKwh, startKwh);
+                    consumedKwh = 0;
+                }
+
+                log.info("kWh Check: SessionId={}, AbsoluteMeter={}, StartMeter={}, Consumed={}",
+                        sessionId, currentAbsKwh, startKwh, consumedKwh);
+
+                session.setLastMeterReading(currentAbsKwh.doubleValue());
+                session.setEnergyKwh(consumedKwh);
+
+                Long durationSeconds = extractDurationFromMeterValues(payload);
+                if (durationSeconds != null) {
+                    session.setChargingDurationSeconds(durationSeconds);
+                    log.info("Duration Update: SessionId={}, DurationSeconds={}", sessionId, durationSeconds);
+                }
+
+                sessionRepository.save(session);
+                sessionService.checkAndStopIfReachedKwh(sessionId, consumedKwh);
+            }
+
+            return objectMapper.createObjectNode();
+
+        } catch (Exception e) {
+            log.error("Error handling MeterValues: {}", e.getMessage(), e);
+            return objectMapper.createObjectNode();
+        }
+    }
+
+    private BigDecimal extractEnergyFromMeterValues(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue")) return null;
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray()) return null;
+
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue")) continue;
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray()) continue;
+
+                for (JsonNode sample : sampledValues) {
+                    if (!sample.has("measurand")) continue;
+                    String measurand = sample.get("measurand").asText();
+
+                    if ("Energy.Active.Import.Register".equals(measurand)) {
+                        String valueStr = sample.get("value").asText();
+                        BigDecimal value = new BigDecimal(valueStr);
+                        String unit = sample.has("unit") ? sample.get("unit").asText() : "Wh";
+
+                        if ("kWh".equalsIgnoreCase(unit)) {
+                            return value;
+                        } else {
+                            return value.divide(BigDecimal.valueOf(1000), 4, RoundingMode.HALF_UP);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing meter values: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private Long extractDurationFromMeterValues(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue")) return null;
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray()) return null;
+
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue")) continue;
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray()) continue;
+
+                for (JsonNode sample : sampledValues) {
+                    if (!sample.has("measurand")) continue;
+                    if ("Transaction.Duration".equals(sample.get("measurand").asText())) {
+                        return Long.parseLong(sample.get("value").asText());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing duration from meter values: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void logAllMeasurands(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue")) return;
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray()) return;
+
+            StringBuilder sb = new StringBuilder("Available measurands: ");
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue")) continue;
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray()) continue;
+
+                for (JsonNode sample : sampledValues) {
+                    String measurand = sample.has("measurand") ? sample.get("measurand").asText() : "DEFAULT";
+                    String value = sample.has("value") ? sample.get("value").asText() : "N/A";
+                    String unit = sample.has("unit") ? sample.get("unit").asText() : "N/A";
+                    sb.append(String.format("[%s=%s %s] ", measurand, value, unit));
+                }
+            }
+            log.info(sb.toString());
+        } catch (Exception e) {
+            log.error("Error logging measurands: {}", e.getMessage());
+        }
+    }
+}

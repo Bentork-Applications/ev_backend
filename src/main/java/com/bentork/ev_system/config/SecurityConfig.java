@@ -3,7 +3,7 @@ package com.bentork.ev_system.config;
 import com.bentork.ev_system.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,19 +18,16 @@ import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-        @Autowired
-        private JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        @Autowired
-        private CustomUserDetailsService userDetailsService;
+        private final CustomUserDetailsService userDetailsService;
 
-        @Autowired
-        private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint; // Add this
+        private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-        @Autowired
-        private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+        private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
         @Bean
         public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {

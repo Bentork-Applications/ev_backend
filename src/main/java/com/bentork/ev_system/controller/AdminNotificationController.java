@@ -4,7 +4,7 @@ import com.bentork.ev_system.dto.request.AdminNotificationDTO;
 import com.bentork.ev_system.dto.request.FcmTokenDTO;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.repository.AdminRepository;
-import com.bentork.ev_system.service.AdminNotificationService;
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,11 +15,11 @@ import java.util.List;
 @RequestMapping("/api/admin/notifications")
 public class AdminNotificationController {
 
-    private final AdminNotificationService notificationService;
+    private final IAdminNotificationService notificationService;
     private final AdminRepository adminRepository; // 1. Added Repository
 
     // 2. Constructor Injection
-    public AdminNotificationController(AdminNotificationService notificationService,
+    public AdminNotificationController(IAdminNotificationService notificationService,
             AdminRepository adminRepository) {
         this.notificationService = notificationService;
         this.adminRepository = adminRepository;

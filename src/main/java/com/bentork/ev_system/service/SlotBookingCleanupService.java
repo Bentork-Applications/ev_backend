@@ -1,11 +1,12 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import com.bentork.ev_system.repository.SlotBookingRepository;
 import com.bentork.ev_system.repository.SlotRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Scheduled cleanup service that automatically expires slot bookings
@@ -34,16 +36,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SlotBookingCleanupService {
 
-    @Autowired
-    private SlotBookingRepository slotBookingRepository;
+    private final SlotBookingRepository slotBookingRepository;
 
-    @Autowired
-    private SlotRepository slotRepository;
+    private final SlotRepository slotRepository;
 
-    @Autowired
-    private UserNotificationService userNotificationService;
+    private final IUserNotificationService userNotificationService;
 
     /**
      * Runs every 5 minutes to find and expire overdue bookings.
