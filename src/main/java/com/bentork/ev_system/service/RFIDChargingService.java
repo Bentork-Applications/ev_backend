@@ -1,10 +1,20 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
+
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
+
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.bentork.ev_system.exception.domain.ChargerNotFoundException;
+import com.bentork.ev_system.exception.domain.InsufficientBalanceException;
+import com.bentork.ev_system.exception.domain.RFIDCardException;
+import com.bentork.ev_system.exception.domain.SessionNotFoundException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.model.Charger;
@@ -20,26 +30,21 @@ import com.bentork.ev_system.repository.RevenueRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.repository.UserRepository;
 
+import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
+
 @Slf4j
 @Service
-public class RFIDChargingService {
+@RequiredArgsConstructor
+public class RFIDChargingService implements IRFIDChargingService {
 
-    @Autowired
-    private RFIDCardRepository cardRepo;
-    @Autowired
-    private UserRepository userRepo;
-    @Autowired
-    private ChargerRepository chargerRepo;
-    @Autowired
-    private SessionRepository sessionRepo;
-    @Autowired
-    private UserNotificationService notificationService;
-    @Autowired
-    private AdminNotificationService adminNotificationService;
-    @Autowired
-    private WalletTransactionService walletTxService;
-    @Autowired
-    private RevenueRepository revenueRepo;
+    private final RFIDCardRepository cardRepo;
+    private final UserRepository userRepo;
+    private final ChargerRepository chargerRepo;
+    private final SessionRepository sessionRepo;
+    private final IUserNotificationService notificationService;
+    private final IAdminNotificationService adminNotificationService;
+    private final IWalletTransactionService walletTxService;
+    private final RevenueRepository revenueRepo;
 
     // Start charging
     public Session startCharging(String cardNumber, Long chargerId, String boxId) {
@@ -48,22 +53,22 @@ public class RFIDChargingService {
                     cardNumber, chargerId, boxId);
 
             RFIDCard card = cardRepo.findByCardNumber(cardNumber)
-                    .orElseThrow(() -> new RuntimeException("Invalid RFID card"));
+                    .orElseThrow(() -> RFIDCardException.invalid(cardNumber));
 
             if (!card.isActive()) {
                 log.warn("RFID card is not active: cardNumber={}", cardNumber);
-                throw new RuntimeException("Card is not active");
+                throw RFIDCardException.inactive(cardNumber);
             }
 
             User user = card.getUser();
             if (user.getWalletBalance().compareTo(BigDecimal.ONE) < 0) {
                 log.warn("Insufficient balance for user: userId={}, balance={}",
                         user.getId(), user.getWalletBalance());
-                throw new RuntimeException("Insufficient balance");
+                throw new InsufficientBalanceException(user.getId(), BigDecimal.ONE);
             }
 
             Charger charger = chargerRepo.findById(chargerId)
-                    .orElseThrow(() -> new RuntimeException("Charger not found"));
+                    .orElseThrow(() -> new ChargerNotFoundException(chargerId));
 
             Session session = new Session();
             session.setUser(user);
@@ -108,7 +113,7 @@ public class RFIDChargingService {
             }
 
             Session session = sessionRepo.findById(sessionId)
-                    .orElseThrow(() -> new RuntimeException("Session not found"));
+                    .orElseThrow(() -> new SessionNotFoundException(sessionId));
 
             if (!SessionStatus.ACTIVE.matches(session.getStatus()))
                 return session;
@@ -165,7 +170,7 @@ public class RFIDChargingService {
             log.info("Stopping charging session: sessionId={}", sessionId);
 
             Session session = sessionRepo.findById(sessionId)
-                    .orElseThrow(() -> new RuntimeException("Session not found"));
+                    .orElseThrow(() -> new SessionNotFoundException(sessionId));
 
             if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
                 log.warn("Session is not active, cannot stop: sessionId={}, status={}",
@@ -176,7 +181,7 @@ public class RFIDChargingService {
             session.setStatus(SessionStatus.COMPLETED.getValue());
             session.setEndTime(LocalDateTime.now());
 
-            System.out.println(" Relay OFF → Charger " + session.getCharger().getId());
+            log.info("Relay OFF → Charger {}", session.getCharger().getId());
 
             Session saved = sessionRepo.save(session);
 

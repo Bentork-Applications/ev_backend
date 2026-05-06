@@ -2,7 +2,6 @@ package com.bentork.ev_system.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,18 +18,18 @@ import com.bentork.ev_system.service.DealerStationService;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Controller for managing dealer-station assignments.
  * All endpoints are restricted to ADMIN role only.
  */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/dealer-stations")
 @Slf4j
 public class DealerStationController {
-
-    @Autowired
-    private DealerStationService dealerStationService;
+    private final DealerStationService dealerStationService;
 
     /**
      * Assign stations to a dealer

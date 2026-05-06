@@ -12,7 +12,7 @@ import com.bentork.ev_system.dto.request.FcmTokenDTO;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.UserNotification;
 import com.bentork.ev_system.repository.UserRepository;
-import com.bentork.ev_system.service.UserNotificationService;
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,11 +21,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UserNotificationController {
 
-    private final UserNotificationService service;
+    private final IUserNotificationService service;
     private final UserRepository userRepository; // 1. Added Repository
 
     // 2. Updated Constructor
-    public UserNotificationController(UserNotificationService service, UserRepository userRepository) {
+    public UserNotificationController(IUserNotificationService service, UserRepository userRepository) {
         this.service = service;
         this.userRepository = userRepository;
     }

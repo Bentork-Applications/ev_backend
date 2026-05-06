@@ -30,6 +30,16 @@ import jakarta.persistence.PessimisticLockException;
 
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 
+import com.bentork.ev_system.exception.domain.SessionNotFoundException;
+import com.bentork.ev_system.exception.domain.ChargerNotFoundException;
+import com.bentork.ev_system.exception.domain.ChargerOfflineException;
+import com.bentork.ev_system.exception.domain.UserNotFoundException;
+import com.bentork.ev_system.exception.domain.ReceiptNotFoundException;
+import com.bentork.ev_system.exception.domain.InsufficientBalanceException;
+import com.bentork.ev_system.exception.domain.InvalidReceiptStateException;
+import com.bentork.ev_system.exception.domain.UnauthorizedSessionAccessException;
+import com.bentork.ev_system.exception.domain.RFIDCardException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -213,6 +223,62 @@ public class GlobalExceptionHandler {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.UNAUTHORIZED,
                 "Authentication failed: " + ex.getMessage()), HttpStatus.UNAUTHORIZED);
+    }
+
+    // -------- DOMAIN / BUSINESS EXCEPTIONS ----------
+
+    @ExceptionHandler(SessionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> sessionNotFound(SessionNotFoundException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.NOT_FOUND, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(ChargerNotFoundException.class)
+    public ResponseEntity<ErrorResponse> chargerNotFound(ChargerNotFoundException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.NOT_FOUND, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> userNotFound(UserNotFoundException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.NOT_FOUND, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(ReceiptNotFoundException.class)
+    public ResponseEntity<ErrorResponse> receiptNotFound(ReceiptNotFoundException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.NOT_FOUND, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<ErrorResponse> insufficientBalance(InsufficientBalanceException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.PAYMENT_REQUIRED, ex.getMessage()), HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    @ExceptionHandler(InvalidReceiptStateException.class)
+    public ResponseEntity<ErrorResponse> invalidReceipt(InvalidReceiptStateException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.CONFLICT, ex.getMessage()), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(UnauthorizedSessionAccessException.class)
+    public ResponseEntity<ErrorResponse> unauthorizedSession(UnauthorizedSessionAccessException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.FORBIDDEN, ex.getMessage()), HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(ChargerOfflineException.class)
+    public ResponseEntity<ErrorResponse> chargerOffline(ChargerOfflineException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()), HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(RFIDCardException.class)
+    public ResponseEntity<ErrorResponse> rfidCard(RFIDCardException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.BAD_REQUEST, ex.getMessage()), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(RuntimeException.class)

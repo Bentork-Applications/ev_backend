@@ -1,9 +1,9 @@
 package com.bentork.ev_system.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.SlotBookingDTO;
 import com.bentork.ev_system.exception.SlotAlreadyBookedException;
 import com.bentork.ev_system.model.User;
@@ -22,20 +21,15 @@ import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.SlotBookingService;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/slot-bookings")
 public class SlotBookingController {
-
-    @Autowired
-    private SlotBookingService slotBookingService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
+    private final SlotBookingService slotBookingService;
+        private final UserRepository userRepository;
 
     /**
      * Book a slot.
@@ -44,12 +38,12 @@ public class SlotBookingController {
     @PostMapping("/book/{slotId}")
     public ResponseEntity<?> bookSlot(
             @PathVariable Long slotId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("POST /api/slot-bookings/book/{} - Booking slot", slotId);
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
 
             SlotBookingDTO booking = slotBookingService.bookSlot(user.getId(), slotId);
 
@@ -83,12 +77,12 @@ public class SlotBookingController {
     @PutMapping("/{bookingId}/cancel")
     public ResponseEntity<?> cancelBooking(
             @PathVariable Long bookingId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("PUT /api/slot-bookings/{}/cancel - Cancelling booking", bookingId);
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
 
             SlotBookingDTO cancelled = slotBookingService.cancelBooking(bookingId, user.getId());
 
@@ -116,12 +110,12 @@ public class SlotBookingController {
      */
     @GetMapping("/my-bookings")
     public ResponseEntity<?> getMyBookings(
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("GET /api/slot-bookings/my-bookings - Fetching user bookings");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
 
             List<SlotBookingDTO> bookings = slotBookingService.getBookingsByUser(user.getId());
 
@@ -141,12 +135,12 @@ public class SlotBookingController {
      */
     @GetMapping("/my-bookings/active")
     public ResponseEntity<?> getMyActiveBookings(
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("GET /api/slot-bookings/my-bookings/active - Fetching active bookings");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
 
             List<SlotBookingDTO> bookings = slotBookingService.getActiveBookingsByUser(user.getId());
 
@@ -167,7 +161,7 @@ public class SlotBookingController {
     @GetMapping("/{bookingId}")
     public ResponseEntity<?> getBookingById(
             @PathVariable Long bookingId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("GET /api/slot-bookings/{} - Fetching booking details", bookingId);
 
@@ -193,7 +187,7 @@ public class SlotBookingController {
     @GetMapping("/station/{stationId}")
     public ResponseEntity<?> getBookingsByStation(
             @PathVariable Long stationId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("GET /api/slot-bookings/station/{} - Fetching station bookings", stationId);
 
@@ -217,7 +211,7 @@ public class SlotBookingController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getBookingsByUser(
             @PathVariable Long userId,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("GET /api/slot-bookings/user/{} - Fetching user bookings", userId);
 
@@ -237,10 +231,5 @@ public class SlotBookingController {
 
     // ---- Helper ----
 
-    private User extractUser(String authHeader) {
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+    private User extractUser(org.springframework.security.core.userdetails.UserDetails userDetails) { return userRepository.findByEmail(userDetails.getUsername()).orElseThrow(() -> new RuntimeException("User not found")); }
 }

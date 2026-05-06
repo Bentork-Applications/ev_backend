@@ -8,7 +8,7 @@ import com.bentork.ev_system.repository.AdminRepository;
 import com.bentork.ev_system.repository.PlanRepository;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,14 +20,11 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/plans")
 public class PlanController {
-
-    @Autowired
-    private PlanRepository planRepository;
-
-    @Autowired
-    private AdminRepository adminRepository;
+    private final PlanRepository planRepository;
+    private final AdminRepository adminRepository;
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")

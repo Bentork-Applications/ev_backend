@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -17,20 +16,24 @@ import com.bentork.ev_system.model.WalletTransaction;
 import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.repository.WalletTransactionRepository;
 
+import com.bentork.ev_system.exception.domain.InsufficientBalanceException;
+import com.bentork.ev_system.exception.domain.UserNotFoundException;
+
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
 
 @Slf4j
 @Service
-public class WalletTransactionService {
+@RequiredArgsConstructor
+public class WalletTransactionService implements IWalletTransactionService {
 
-    @Autowired
-    private WalletTransactionRepository repo;
+    private final WalletTransactionRepository repo;
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
 
-    @Autowired
-    private TaxCalculationService taxService;
+    private final TaxCalculationService taxService;
 
     public List<WalletTransaction> getTransactionHistory(Long userId, String type, boolean viewAll) {
         Sort sort = Sort.by("createdAt").descending();
@@ -125,14 +128,14 @@ public class WalletTransactionService {
 
         // Lock user row and check balance atomically
         User user = userRepo.findByIdWithLock(userId)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         BigDecimal balance = user.getWalletBalance() != null ? user.getWalletBalance() : BigDecimal.ZERO;
 
         if (balance.compareTo(amount) < 0) {
             log.warn("Insufficient balance for debit: userId={}, balance={}, requested={}",
                     userId, balance, amount);
-            throw new RuntimeException("Insufficient wallet balance");
+            throw new InsufficientBalanceException(userId, amount);
         }
 
         // Debit directly while holding lock

@@ -3,7 +3,6 @@ package com.bentork.ev_system.service.strategy;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.bentork.ev_system.dto.request.StationDTO;
@@ -12,6 +11,7 @@ import com.bentork.ev_system.model.Station;
 import com.bentork.ev_system.repository.DealerStationRepository;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Dealer station access strategy - provides access only to assigned stations.
@@ -22,10 +22,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class DealerStationAccessStrategy implements StationAccessStrategy {
 
-    @Autowired
-    private DealerStationRepository dealerStationRepository;
+    private final DealerStationRepository dealerStationRepository;
 
     @Override
     public List<StationDTO> getAccessibleStations(String userEmail) {

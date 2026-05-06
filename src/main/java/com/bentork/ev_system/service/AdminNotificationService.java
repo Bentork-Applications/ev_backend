@@ -14,8 +14,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
+
 @Service
-public class AdminNotificationService {
+public class AdminNotificationService implements IAdminNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminNotificationService.class);
 

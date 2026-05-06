@@ -37,4 +37,8 @@ public interface ChargerRepository extends JpaRepository<Charger, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Charger c WHERE c.ocppId = :ocppId")
     Optional<Charger> findByOcppIdForUpdate(@Param("ocppId") String ocppId);
+
+    // Efficient count queries — replace findAll().stream().filter()
+    long countByChargerTypeIgnoreCase(String chargerType);
+    long countByAvailabilityTrueAndOccupiedFalse();
 }

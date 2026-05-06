@@ -3,7 +3,6 @@ package com.bentork.ev_system.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.request.ChargerDTO;
@@ -15,16 +14,18 @@ import com.bentork.ev_system.repository.StationRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+
+import com.bentork.ev_system.service.interfaces.IChargerService;
 
 @Service
 @Slf4j
-public class ChargerService {
+@RequiredArgsConstructor
+public class ChargerService implements IChargerService {
 
-   @Autowired
-    private ChargerRepository chargerRepository;
+    private final ChargerRepository chargerRepository;
 
-    @Autowired
-    private StationRepository stationRepository;
+    private final StationRepository stationRepository;
 
     public String createCharger(ChargerDTO dto) {
         try {
@@ -138,10 +139,7 @@ public class ChargerService {
     }
     public Long getAvailableChargers() {
         try {
-            Long available = chargerRepository.findAll().stream()
-                    .filter(charger -> Boolean.TRUE.equals(charger.isAvailability())
-                            && Boolean.FALSE.equals(charger.isOccupied()))
-                    .count();
+            Long available = chargerRepository.countByAvailabilityTrueAndOccupiedFalse();
             log.debug("Available chargers: {}", available);
             return available;
         } catch (Exception e) {
@@ -153,9 +151,7 @@ public class ChargerService {
     // AC Chargers
     public Long getACChargers() {
         try {
-            Long acCount = chargerRepository.findAll().stream()
-                .filter(charger -> "AC".equalsIgnoreCase(charger.getChargerType()))
-                .count();
+            Long acCount = chargerRepository.countByChargerTypeIgnoreCase("AC");
             log.debug("Total AC chargers: {}", acCount);
             return acCount;
         } catch (Exception e) {
@@ -167,9 +163,7 @@ public class ChargerService {
     // DC Chargers
     public Long getDCChargers() {
         try {
-            Long dcCount = chargerRepository.findAll().stream()
-                .filter(charger -> "DC".equalsIgnoreCase(charger.getChargerType()))
-                .count();
+            Long dcCount = chargerRepository.countByChargerTypeIgnoreCase("DC");
             log.debug("Total DC chargers: {}", dcCount);
             return dcCount;
         } catch (Exception e) {

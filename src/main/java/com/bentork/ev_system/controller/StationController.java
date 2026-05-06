@@ -2,7 +2,6 @@ package com.bentork.ev_system.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,14 +21,14 @@ import com.bentork.ev_system.service.StationService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/stations")
 @Slf4j
 public class StationController {
-
-    @Autowired
-    private StationService stationService;
+    private final StationService stationService;
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
@@ -123,7 +122,7 @@ public class StationController {
     }
 
     @GetMapping("/total")
-    public ResponseEntity<Long> getTotalStations(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getTotalStations() {
         log.info("GET /api/stations/total - Request received");
 
         try {
@@ -137,7 +136,7 @@ public class StationController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<Long> getActiveStations(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getActiveStations() {
         log.info("GET /api/stations/active - Request received");
 
         try {
@@ -151,7 +150,7 @@ public class StationController {
     }
 
     @GetMapping("/uptime")
-    public ResponseEntity<Double> getAverageUptime(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Double> getAverageUptime() {
         log.info("GET /api/stations/uptime - Request received");
 
         try {
@@ -166,7 +165,7 @@ public class StationController {
 
     // ERROR TODAY
     @GetMapping("/error/today")
-    public ResponseEntity<Long> getTodaysError(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getTodaysError() {
         try {
             log.info("Calling station service to get todays total errors");
             Long count = stationService.getTodaysErrorCount();

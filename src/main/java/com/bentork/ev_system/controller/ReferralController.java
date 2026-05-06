@@ -1,8 +1,8 @@
 package com.bentork.ev_system.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.ApplyReferralRequest;
 import com.bentork.ev_system.dto.response.ReferralInfoResponse;
 import com.bentork.ev_system.model.User;
@@ -21,30 +20,25 @@ import com.bentork.ev_system.service.ReferralService;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/referral")
 public class ReferralController {
-
-    @Autowired
-    private ReferralService referralService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private UserRepository userRepository;
+    private final ReferralService referralService;
+        private final UserRepository userRepository;
 
     /**
      * Get or generate the user's referral code.
      */
     @GetMapping("/code")
-    public ResponseEntity<?> getReferralCode(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getReferralCode(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/referral/code - Request received");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
             String code = referralService.getOrGenerateReferralCode(user.getId());
 
             log.info("GET /api/referral/code - Success, userId={}, code={}", user.getId(), code);
@@ -61,11 +55,11 @@ public class ReferralController {
      * Get referral stats (total, completed, pending referrals).
      */
     @GetMapping("/info")
-    public ResponseEntity<?> getReferralInfo(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getReferralInfo(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/referral/info - Request received");
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
             ReferralInfoResponse info = referralService.getReferralInfo(user.getId());
 
             log.info("GET /api/referral/info - Success, userId={}, total={}, completed={}",
@@ -87,12 +81,12 @@ public class ReferralController {
     @PostMapping("/apply")
     public ResponseEntity<?> applyReferralCode(
             @Valid @RequestBody ApplyReferralRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
 
         log.info("POST /api/referral/apply - Request received, code={}", request.getReferralCode());
 
         try {
-            User user = extractUser(authHeader);
+            User user = extractUser(userDetails);
             referralService.applyReferralCode(user.getId(), request.getReferralCode());
 
             log.info("POST /api/referral/apply - Success, userId={}, code={}",
@@ -113,10 +107,5 @@ public class ReferralController {
         }
     }
 
-    private User extractUser(String authHeader) {
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+    private User extractUser(org.springframework.security.core.userdetails.UserDetails userDetails) { return userRepository.findByEmail(userDetails.getUsername()).orElseThrow(() -> new RuntimeException("User not found")); }
 }
