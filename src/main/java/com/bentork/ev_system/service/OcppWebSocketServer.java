@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.java_websocket.WebSocket;
+import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.slf4j.Logger;
@@ -50,6 +51,7 @@ public class OcppWebSocketServer extends WebSocketServer {
 
     public OcppWebSocketServer(
             @Value("${ocpp.server.port:8887}") int port,
+            @Value("${ocpp.websocket.connection-lost-timeout:90}") int connectionLostTimeout,
             OcppConnectionManager connectionManager,
             OcppMessageRouter messageRouter,
             ISessionService sessionService,
@@ -63,7 +65,16 @@ public class OcppWebSocketServer extends WebSocketServer {
         this.rfidChargingService = rfidChargingService;
         this.chargerRepository = chargerRepository;
         this.sessionRepository = sessionRepository;
+
+        // Configure ping-pong keep-alive for lost connection detection.
+        // connectionLostTimeout = total time to wait for a pong response.
+        // The library automatically sends pings at (connectionLostTimeout / 2) intervals.
+        // e.g., 90s → ping every ~45s, close connection if no pong within 90s.
+        setConnectionLostTimeout(connectionLostTimeout);
+
         log.info("OCPP 1.6 WebSocket Server initialized on ws://0.0.0.0:{}", port);
+        log.info("Ping-Pong keep-alive: connectionLostTimeout={}s (ping interval: ~{}s)",
+                connectionLostTimeout, connectionLostTimeout / 2);
     }
 
     @Override
@@ -120,7 +131,9 @@ public class OcppWebSocketServer extends WebSocketServer {
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         String ocppId = connectionManager.removeConnection(conn);
         if (ocppId != null) {
-            log.warn("Charger {} disconnected. Checking for active sessions to stop...", ocppId);
+            String disconnectType = code == 1006 ? "PING-PONG TIMEOUT" : "NORMAL";
+            log.warn("Charger {} disconnected [{}]. Code: {}, Remote: {}, Reason: {}. Checking for active sessions...",
+                    ocppId, disconnectType, code, remote, reason);
             try {
                 Charger charger = chargerRepository.findByOcppId(ocppId).orElse(null);
                 if (charger != null) {
@@ -149,8 +162,8 @@ public class OcppWebSocketServer extends WebSocketServer {
                 log.error("Error stopping session on close: {}", e.getMessage());
             }
         }
-        log.info("Charger disconnected: {} (OCPP ID: {}, Code: {}, Reason: {})",
-                conn.getRemoteSocketAddress(), ocppId, code, reason);
+        log.info("Charger disconnected: {} (OCPP ID: {}, Code: {}, Remote: {}, Reason: {})",
+                conn.getRemoteSocketAddress(), ocppId, code, remote, reason);
     }
 
     @Override
@@ -162,6 +175,13 @@ public class OcppWebSocketServer extends WebSocketServer {
     @Override
     public void onStart() {
         log.info("OCPP WebSocket server ready and listening on port {}", getPort());
+    }
+
+    @Override
+    public void onWebsocketPong(WebSocket conn, Framedata f) {
+        String ocppId = connectionManager.getOcppId(conn);
+        connectionManager.updateLastPongTime(ocppId);
+        log.debug("Pong received from charger {} ({})", ocppId, conn.getRemoteSocketAddress());
     }
 
     // ===================== PUBLIC API =====================

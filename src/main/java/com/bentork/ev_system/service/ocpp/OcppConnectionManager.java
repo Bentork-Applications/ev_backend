@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,6 +20,7 @@ public class OcppConnectionManager {
 
     private final Map<WebSocket, String> connectionToOcppIdMap = new ConcurrentHashMap<>();
     private final Map<String, WebSocket> ocppIdToConnectionMap = new ConcurrentHashMap<>();
+    private final Map<String, Instant> lastPongTimeMap = new ConcurrentHashMap<>();
     private final Map<Integer, Long> transactionToSessionMap = new ConcurrentHashMap<>();
     private final Map<Long, Double> sessionToMeterStartMap = new ConcurrentHashMap<>();
 
@@ -32,6 +34,7 @@ public class OcppConnectionManager {
         String ocppId = connectionToOcppIdMap.remove(conn);
         if (ocppId != null) {
             ocppIdToConnectionMap.remove(ocppId);
+            lastPongTimeMap.remove(ocppId);
         }
         return ocppId;
     }
@@ -46,6 +49,29 @@ public class OcppConnectionManager {
 
     public Map<String, WebSocket> getConnectedChargers() {
         return Map.copyOf(ocppIdToConnectionMap);
+    }
+
+    // Ping-Pong tracking
+
+    /**
+     * Records the last time a pong was received from a charger.
+     */
+    public void updateLastPongTime(String ocppId) {
+        lastPongTimeMap.put(ocppId, Instant.now());
+    }
+
+    /**
+     * Returns the last pong timestamp for a charger, or null if never received.
+     */
+    public Instant getLastPongTime(String ocppId) {
+        return lastPongTimeMap.get(ocppId);
+    }
+
+    /**
+     * Returns a snapshot of all charger last-pong timestamps.
+     */
+    public Map<String, Instant> getAllLastPongTimes() {
+        return Map.copyOf(lastPongTimeMap);
     }
 
     // Transaction-Session mapping

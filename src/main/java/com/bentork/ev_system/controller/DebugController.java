@@ -5,12 +5,15 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.OcppWebSocketServer;
+import com.bentork.ev_system.service.ocpp.OcppConnectionManager;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.java_websocket.WebSocket;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/debug")
 public class DebugController {
     private final OcppWebSocketServer ocppWebSocketServer;
+    private final OcppConnectionManager connectionManager;
     private final SessionRepository sessionRepository;
     private final ChargerRepository chargerRepository;
 
@@ -255,6 +259,53 @@ public class DebugController {
 
         } catch (Exception e) {
             log.error("Error checking connections for {}", ocppId, e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", e.getMessage()));
+        }
+    }
+
+    /**
+     * ✅ CONNECTION HEALTH - Ping-Pong monitoring
+     * Shows last pong time and connection health for each connected charger.
+     */
+    @GetMapping("/connection-health")
+    public ResponseEntity<?> getConnectionHealth() {
+        try {
+            Map<String, WebSocket> connected = ocppWebSocketServer.getConnectedChargers();
+            List<Map<String, Object>> healthList = new ArrayList<>();
+
+            for (Map.Entry<String, WebSocket> entry : connected.entrySet()) {
+                String ocppId = entry.getKey();
+                WebSocket ws = entry.getValue();
+
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("ocppId", ocppId);
+                info.put("connected", ws.isOpen());
+                info.put("remoteAddress", ws.getRemoteSocketAddress() != null
+                        ? ws.getRemoteSocketAddress().toString() : "unknown");
+
+                Instant lastPong = connectionManager.getLastPongTime(ocppId);
+                info.put("lastPongTime", lastPong != null ? lastPong.toString() : "never");
+
+                if (lastPong != null) {
+                    long secondsAgo = Duration.between(lastPong, Instant.now()).getSeconds();
+                    info.put("secondsSinceLastPong", secondsAgo);
+                    info.put("health", secondsAgo < 120 ? "HEALTHY" : "DEGRADED");
+                } else {
+                    info.put("secondsSinceLastPong", "N/A");
+                    info.put("health", "UNKNOWN");
+                }
+
+                healthList.add(info);
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "timestamp", Instant.now().toString(),
+                    "totalConnected", connected.size(),
+                    "chargers", healthList));
+
+        } catch (Exception e) {
+            log.error("Error getting connection health", e);
             return ResponseEntity.status(500).body(Map.of(
                     "error", e.getMessage()));
         }
