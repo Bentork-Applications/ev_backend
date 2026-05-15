@@ -28,7 +28,8 @@ import java.util.Map;
 
 /**
  * Slim OCPP 1.6 WebSocket Server.
- * Delegates action handling to OcppMessageRouter and individual OcppActionHandlers.
+ * Delegates action handling to OcppMessageRouter and individual
+ * OcppActionHandlers.
  * Manages connections via OcppConnectionManager.
  *
  * After Phase 5 decomposition: ~200 lines (down from ~966).
@@ -51,7 +52,8 @@ public class OcppWebSocketServer extends WebSocketServer {
 
     public OcppWebSocketServer(
             @Value("${ocpp.server.port:8887}") int port,
-            @Value("${ocpp.websocket.connection-lost-timeout:90}") int connectionLostTimeout,
+            @Value("${ocpp.websocket.ping.interval:30}") int pingInterval,
+            @Value("${ocpp.websocket.pong.timeout:90}") int pongTimeout,
             OcppConnectionManager connectionManager,
             OcppMessageRouter messageRouter,
             ISessionService sessionService,
@@ -67,14 +69,12 @@ public class OcppWebSocketServer extends WebSocketServer {
         this.sessionRepository = sessionRepository;
 
         // Configure ping-pong keep-alive for lost connection detection.
-        // connectionLostTimeout = total time to wait for a pong response.
-        // The library automatically sends pings at (connectionLostTimeout / 2) intervals.
-        // e.g., 90s → ping every ~45s, close connection if no pong within 90s.
-        setConnectionLostTimeout(connectionLostTimeout);
+        // We use the pong.timeout as the connectionLostTimeout.
+        setConnectionLostTimeout(pongTimeout);
 
         log.info("OCPP 1.6 WebSocket Server initialized on ws://0.0.0.0:{}", port);
-        log.info("Ping-Pong keep-alive: connectionLostTimeout={}s (ping interval: ~{}s)",
-                connectionLostTimeout, connectionLostTimeout / 2);
+        log.info("Ping-Pong keep-alive: pingInterval={}s, pongTimeout={}s",
+                pingInterval, pongTimeout);
     }
 
     @Override
