@@ -62,4 +62,19 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
 
         // Delete all bookings associated with a slot
         void deleteBySlotId(Long slotId);
+
+        /**
+         * Find BOOKED slot bookings on a charger that overlap a maintenance time window.
+         * Overlap logic: slot.startTime < maintEnd AND slot.endTime > maintStart
+         *
+         * Only cancels bookings within the maintenance window — bookings outside are untouched.
+         */
+        @Query("SELECT sb FROM SlotBooking sb " +
+                        "WHERE sb.charger.id = :chargerId " +
+                        "AND sb.status = 'booked' " +
+                        "AND sb.slot.startTime < :endTime " +
+                        "AND sb.slot.endTime > :startTime")
+        List<SlotBooking> findOverlappingBookedSlots(@Param("chargerId") Long chargerId,
+                        @Param("startTime") LocalDateTime startTime,
+                        @Param("endTime") LocalDateTime endTime);
 }

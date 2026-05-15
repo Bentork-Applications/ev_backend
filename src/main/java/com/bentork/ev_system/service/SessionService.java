@@ -1,7 +1,23 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.model.User;
+import com.bentork.ev_system.model.Plan;
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+import com.bentork.ev_system.service.interfaces.IReceiptService;
+import com.bentork.ev_system.service.interfaces.IChargerCommandService;
+import com.bentork.ev_system.service.interfaces.ISessionFinalizationService;
+import com.bentork.ev_system.service.interfaces.ISessionQueryService;
+import com.bentork.ev_system.service.interfaces.IMaintenanceService;
+import com.bentork.ev_system.exception.domain.StationUnderMaintenanceException;
 import com.bentork.ev_system.dto.request.SessionDTO;
 import com.bentork.ev_system.exception.ChargerBusyException;
+import com.bentork.ev_system.exception.domain.ChargerNotFoundException;
+import com.bentork.ev_system.exception.domain.ChargerOfflineException;
+import com.bentork.ev_system.exception.domain.InvalidReceiptStateException;
+import com.bentork.ev_system.exception.domain.SessionNotFoundException;
+import com.bentork.ev_system.exception.domain.UnauthorizedSessionAccessException;
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
@@ -12,19 +28,11 @@ import com.bentork.ev_system.repository.SessionRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,54 +40,107 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.bentork.ev_system.service.interfaces.ISessionService;
+
+/**
+ * Session lifecycle management — start, stop, activate, schedule.
+ * Delegates finalization to ISessionFinalizationService,
+ * charger commands to IChargerCommandService,
+ * and queries to ISessionQueryService.
+ *
+ * After Phase 5 decomposition: ~300 lines (down from ~878).
+ */
 @Slf4j
 @Service
-public class SessionService {
+public class SessionService implements ISessionService {
 
-	@Autowired
-	private SessionRepository sessionRepository;
-
-	@Autowired
-	private ReceiptRepository receiptRepository;
-
-	@Autowired
-	private ChargerRepository chargerRepository;
-
-	@Autowired
-	private ReceiptService receiptService;
-
-	@Autowired
-	private WalletTransactionService walletTransactionService;
-
-	@Autowired
-	private AdminNotificationService adminNotificationService;
-
-	@Autowired
-	private RevenueService revenueService;
-
-	@Autowired
-	private UserNotificationService userNotificationService;
-
-	@Autowired
-	private CoinService coinService;
-
-	@Autowired
-	private ReferralService referralService;
-
-	@Autowired
-	private Clock clock;
+	private final SessionRepository sessionRepository;
+	private final ReceiptRepository receiptRepository;
+	private final ChargerRepository chargerRepository;
+	private final com.bentork.ev_system.repository.UserRepository userRepository;
+	private final com.bentork.ev_system.repository.PlanRepository planRepository;
+	private final IReceiptService receiptService;
+	private final IWalletTransactionService walletTransactionService;
+	private final IAdminNotificationService adminNotificationService;
+	private final IUserNotificationService userNotificationService;
+	private final IChargerCommandService chargerCommandService;
+	private final ISessionFinalizationService sessionFinalizationService;
+	private final ISessionQueryService sessionQueryService;
+	private final IMaintenanceService maintenanceService;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
-	@Autowired
-	@Lazy // ✅ FIXED: This prevents circular dependency
-	private OcppWebSocketServer ocppWebSocketServer;
+	public SessionService(
+			SessionRepository sessionRepository,
+			ReceiptRepository receiptRepository,
+			ChargerRepository chargerRepository,
+			com.bentork.ev_system.repository.UserRepository userRepository,
+			com.bentork.ev_system.repository.PlanRepository planRepository,
+			IReceiptService receiptService,
+			IWalletTransactionService walletTransactionService,
+			IAdminNotificationService adminNotificationService,
+			IUserNotificationService userNotificationService,
+			IChargerCommandService chargerCommandService,
+			ISessionFinalizationService sessionFinalizationService,
+			ISessionQueryService sessionQueryService,
+			IMaintenanceService maintenanceService) {
+		this.sessionRepository = sessionRepository;
+		this.receiptRepository = receiptRepository;
+		this.chargerRepository = chargerRepository;
+		this.userRepository = userRepository;
+		this.planRepository = planRepository;
+		this.receiptService = receiptService;
+		this.walletTransactionService = walletTransactionService;
+		this.adminNotificationService = adminNotificationService;
+		this.userNotificationService = userNotificationService;
+		this.chargerCommandService = chargerCommandService;
+		this.sessionFinalizationService = sessionFinalizationService;
+		this.sessionQueryService = sessionQueryService;
+		this.maintenanceService = maintenanceService;
+	}
 
-	private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+	// ===================== LIFECYCLE METHODS =====================
+
+	@Transactional
+	public Map<String, Object> startSession(String email, SessionDTO request) {
+		log.info("Starting session for user: {}, chargerId={}, planId={}, selectedKwh={}",
+				email, request.getChargerId(), request.getPlanId(), request.getSelectedKwh());
+
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new RuntimeException("User not found"));
+
+		Charger charger = chargerRepository.findById(request.getChargerId())
+				.orElseThrow(() -> new RuntimeException("Charger not found"));
+
+		Plan plan = null;
+		if (request.getPlanId() != null) {
+			plan = planRepository.findById(request.getPlanId())
+					.orElseThrow(() -> new RuntimeException("Plan not found"));
+		}
+
+		Receipt receipt = receiptService.createReceipt(user, plan, charger, request.getSelectedKwh());
+		Receipt paidReceipt = receiptService.payReceipt(receipt.getId(), request.getBoxId());
+		Session session = paidReceipt.getSession();
+
+		return Map.of(
+				"receiptId", paidReceipt.getId(),
+				"sessionId", session.getId(),
+				"amountDebited", paidReceipt.getAmount(),
+				"message", "Session started successfully.");
+	}
+
+	public Map<String, Object> stopSession(String email, SessionDTO request) {
+		log.info("Stopping session for user: {}, sessionId={}", email, request.getSessionId());
+
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new RuntimeException("User not found"));
+
+		return stopSession(user.getId(), request);
+	}
 
 	/**
 	 * Start session only if receipt is already PAID.
-	 * Sends RemoteStartTransaction to physical charger.
+	 * Sends RemoteStartTransaction to physical charger via IChargerCommandService.
 	 *
 	 * Uses pessimistic locking (SELECT ... FOR UPDATE) on the charger row
 	 * to prevent race conditions when multiple users try to start a session
@@ -94,16 +155,20 @@ public class SessionService {
 			if (!"PAID".equalsIgnoreCase(receipt.getStatus())) {
 				log.warn("Cannot start session - Receipt not paid: receiptId={}, status={}",
 						receipt.getId(), receipt.getStatus());
-				throw new RuntimeException("Cannot start session without a paid receipt.");
+				throw new InvalidReceiptStateException(receipt.getId(), "PAID");
 			}
 
 			// ★ LOCK: Acquire pessimistic lock on charger row
-			// This BLOCKS if another transaction already holds the lock on this charger
 			Charger lockedCharger = chargerRepository.findByIdForUpdate(receipt.getCharger().getId())
-					.orElseThrow(() -> new RuntimeException("Charger not found"));
+					.orElseThrow(() -> new ChargerNotFoundException(receipt.getCharger().getId()));
+
+			// ★ MAINTENANCE GUARD: Block session if charger/station is under active maintenance
+			if (maintenanceService.isChargerUnderMaintenance(lockedCharger.getId())) {
+				log.warn("Cannot start session — charger {} is under maintenance", lockedCharger.getId());
+				throw new StationUnderMaintenanceException(lockedCharger.getId(), "charger");
+			}
 
 			// Check if charger already has an active or initiated session
-			// (now safe — we hold the database lock, no other TX can slip through)
 			List<String> activeStatuses = List.of(
 					SessionStatus.ACTIVE.getValue(),
 					SessionStatus.INITIATED.getValue());
@@ -115,7 +180,7 @@ public class SessionService {
 				throw new ChargerBusyException(lockedCharger.getId());
 			}
 
-			// Now safe to create session — no other TX can get past the lock
+			// Now safe to create session
 			Session session = new Session();
 			session.setUser(receipt.getUser());
 			session.setCharger(lockedCharger);
@@ -132,66 +197,29 @@ public class SessionService {
 
 			log.info("Session created in DB: sessionId={}, status=INITIATED", session.getId());
 
-			// Send RemoteStartTransaction with correct idTag format
-			String ocppId = session.getCharger().getOcppId();
-			if (ocppId != null && !ocppId.isEmpty()) {
-				try {
-					com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
-					// Use "SESSION_" prefix so handleStartTransaction recognizes it
-					payload.put("idTag", "SESSION_" + session.getId());
-					payload.put("connectorId", 1);
-
-					log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, connectorId=1",
-							ocppId, session.getId());
-
-					boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStartTransaction", payload);
-
-					if (sent) {
-						log.info("✅ RemoteStartTransaction sent successfully to charger: {}", ocppId);
-
-						userNotificationService.createNotification(
-								session.getUser().getId(),
-								"Charging Command Sent",
-								"Start command sent to charger. Please ensure cable is connected.",
-								"INFO");
-					} else {
-						log.error("❌ Failed to send RemoteStartTransaction: Charger {} not connected", ocppId);
-						handleOfflineSession(session, receipt);
-					}
-				} catch (Exception e) {
-					log.error("❌ Error sending RemoteStartTransaction to {}: {}", ocppId, e.getMessage(), e);
-
-					userNotificationService.createNotification(
-							session.getUser().getId(),
-							"Start Command Failed",
-							"Failed to send start command to charger. Error: " + e.getMessage(),
-							"ERROR");
-				}
+			// Send RemoteStartTransaction via ChargerCommandService
+			boolean sent = chargerCommandService.sendRemoteStart(session);
+			if (sent) {
+				userNotificationService.createNotification(
+						session.getUser().getId(),
+						"Charging Command Sent",
+						"Start command sent to charger. Please ensure cable is connected.",
+						"INFO");
 			} else {
-				log.error("❌ Cannot send RemoteStartTransaction: charger OCPP ID is null/empty");
 				handleOfflineSession(session, receipt);
 			}
 
 			// Schedule auto-stop
 			if (receipt.getPlan() != null) {
-				// For TIME based plans, we stop exactly when time is up
 				int durationMin = receipt.getPlan().getDurationMin();
 				log.info("Scheduling auto-stop for TIME plan: sessionId={}, durationMin={}",
 						session.getId(), durationMin);
 				scheduleAutoStop(session.getId(), durationMin);
 
 			} else if (receipt.getSelectedKwh() != null) {
-				// ✅ FIX: For kWh packages, do NOT stop based on estimated time.
-				// Charging speed varies (grid, car onboard charger, etc).
-				// We rely on MeterValues to stop accurately.
-				// We set a 24-hour "Safety Fallback" just in case.
-
 				int safetyBufferMinutes = 24 * 60;
-
-				log.info(
-						"Scheduling safety fallback for kWh session: sessionId={}, selectedKwh={}, safetyTimeout={} mins",
+				log.info("Scheduling safety fallback for kWh session: sessionId={}, selectedKwh={}, safetyTimeout={} mins",
 						session.getId(), receipt.getSelectedKwh(), safetyBufferMinutes);
-
 				scheduleAutoStop(session.getId(), safetyBufferMinutes);
 			}
 
@@ -217,41 +245,24 @@ public class SessionService {
 			log.info("Manual stop requested: sessionId={}, userId={}", request.getSessionId(), userId);
 
 			Session session = sessionRepository.findById(request.getSessionId())
-					.orElseThrow(() -> new RuntimeException("Session not found"));
+					.orElseThrow(() -> new SessionNotFoundException(request.getSessionId()));
 
 			if (!session.getUser().getId().equals(userId)) {
 				log.warn("Unauthorized stop attempt: sessionId={}, requestedBy={}, owner={}",
 						request.getSessionId(), userId, session.getUser().getId());
-				throw new RuntimeException("Unauthorized to stop this session");
+				throw new UnauthorizedSessionAccessException(userId, request.getSessionId());
 			}
 
 			if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
 				log.info("Session already completed: sessionId={}, status={}",
 						request.getSessionId(), session.getStatus());
-				return buildAlreadyCompletedResponse(session);
+				return sessionFinalizationService.buildAlreadyCompletedResponse(session);
 			}
 
-			// ✅ NEW: Send RemoteStopTransaction to physical charger
-			try {
-				String ocppId = session.getCharger().getOcppId();
-				int transactionId = session.getId().intValue();
+			// Send RemoteStopTransaction via ChargerCommandService
+			chargerCommandService.sendRemoteStop(session);
 
-				com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
-				payload.put("transactionId", transactionId);
-
-				boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
-
-				if (sent) {
-					log.info("✅ RemoteStopTransaction sent to charger: {}, txId: {}", ocppId, transactionId);
-				} else {
-					log.warn("⚠️ Failed to send RemoteStopTransaction, but continuing with session finalization");
-				}
-			} catch (Exception e) {
-				log.error("Error sending RemoteStopTransaction: {}", e.getMessage());
-				// Continue with session finalization even if remote stop fails
-			}
-
-			return finalizeSession(session, "Manual Stop");
+			return sessionFinalizationService.finalizeSession(session, "Manual Stop");
 
 		} catch (Exception e) {
 			log.error("Failed to stop session: sessionId={}, userId={}: {}",
@@ -268,24 +279,11 @@ public class SessionService {
 			log.info("Auto-stop triggered by system: sessionId={}", sessionId);
 
 			Session session = sessionRepository.findById(sessionId)
-					.orElseThrow(() -> new RuntimeException("Session not found"));
+					.orElseThrow(() -> new SessionNotFoundException(sessionId));
 
 			if (SessionStatus.ACTIVE.matches(session.getStatus())) {
-				// ✅ NEW: Send RemoteStopTransaction for auto-stop too
-				try {
-					String ocppId = session.getCharger().getOcppId();
-					int transactionId = session.getId().intValue();
-
-					com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
-					payload.put("transactionId", transactionId);
-
-					ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
-					log.info("✅ RemoteStopTransaction sent for auto-stop: sessionId={}", sessionId);
-				} catch (Exception e) {
-					log.error("Error sending RemoteStopTransaction for auto-stop: {}", e.getMessage());
-				}
-
-				finalizeSession(session, "Auto Stop");
+				chargerCommandService.sendRemoteStop(session);
+				sessionFinalizationService.finalizeSession(session, "Auto Stop");
 			} else {
 				log.info("Session already inactive, skipping auto-stop: sessionId={}, status={}",
 						sessionId, session.getStatus());
@@ -302,7 +300,7 @@ public class SessionService {
 	public void checkAndStopIfReachedKwh(Long sessionId, double currentKwh) {
 		try {
 			Session session = sessionRepository.findById(sessionId)
-					.orElseThrow(() -> new RuntimeException("Session not found"));
+					.orElseThrow(() -> new SessionNotFoundException(sessionId));
 
 			Receipt receipt = receiptRepository.findBySession(session).orElse(null);
 			if (receipt != null && receipt.getSelectedKwh() != null &&
@@ -318,17 +316,8 @@ public class SessionService {
 					log.info("kWh limit reached, stopping session: sessionId={}, currentKwh={}, targetKwh={}",
 							sessionId, currentKwh, targetKwh);
 
-					// Send remote stop
-					try {
-						String ocppId = session.getCharger().getOcppId();
-						com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
-						payload.put("transactionId", session.getId().intValue());
-						ocppWebSocketServer.sendRemoteCommand(ocppId, "RemoteStopTransaction", payload);
-					} catch (Exception e) {
-						log.error("Error sending RemoteStopTransaction for kWh limit: {}", e.getMessage());
-					}
-
-					finalizeSession(session, "Auto stop kwh reached");
+					chargerCommandService.sendRemoteStop(session);
+					sessionFinalizationService.finalizeSession(session, "Auto stop kwh reached");
 				}
 			}
 		} catch (Exception e) {
@@ -339,246 +328,75 @@ public class SessionService {
 	}
 
 	/**
-	 * Finalize session (shared logic).
+	 * Activate an existing INITIATED session under a pessimistic lock.
 	 */
-	private Map<String, Object> finalizeSession(Session session, String stopReason) {
+	@Transactional
+	public Session activateOrRejectSession(String ocppId) {
 		try {
-			log.info("Finalizing session: sessionId={}, stopReason={}", session.getId(), stopReason);
+			Charger lockedCharger = chargerRepository.findByOcppIdForUpdate(ocppId)
+					.orElseThrow(() -> new ChargerNotFoundException(ocppId));
 
-			if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
-				return buildAlreadyCompletedResponse(session);
-			}
+			List<String> activeStatuses = List.of(
+					SessionStatus.INITIATED.getValue(),
+					SessionStatus.ACTIVE.getValue());
 
-			session.setEndTime(LocalDateTime.now());
-			session.setStatus(SessionStatus.COMPLETED.getValue());
+			Session session = sessionRepository
+					.findFirstByChargerAndStatusInOrderByCreatedAtDesc(lockedCharger, activeStatuses)
+					.orElse(null);
 
-			Receipt receipt = receiptRepository.findBySession(session).orElse(null);
-
-			double energyUsed;
-			BigDecimal finalCostBD;
-			boolean refundIssued = false;
-			boolean extraDebited = false;
-
-			if (receipt != null && receipt.getSelectedKwh() != null) {
-				// For selectedKwh sessions, use actual meter reading if available
-				double selectedKwh = receipt.getSelectedKwh().doubleValue();
-
-				// 1. Prioritize actual meter reading from OCPP if available
-				if (session.getEnergyKwh() > 0.001) {
-					energyUsed = session.getEnergyKwh();
-					log.info("Using actual meter reading for kWh session: sessionId={}, energyUsed={}",
-							session.getId(), energyUsed);
-				} else {
-					// 2. Fallback to calculation if no meter values
-					energyUsed = calculateEnergyUsed(session);
-					log.info("Calculated energy used (fallback) for kWh session: sessionId={}, energyUsed={}",
-							session.getId(), energyUsed);
-				}
-
-				// Calculate final cost based on actual energy used
-				finalCostBD = BigDecimal.valueOf(energyUsed)
-						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
-						.setScale(2, RoundingMode.HALF_UP);
-
-				// Calculate prepaid amount (selectedKwh * rate)
-				BigDecimal prepaidAmount = BigDecimal.valueOf(selectedKwh)
-						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
-						.setScale(2, RoundingMode.HALF_UP);
-
-				log.info(
-						"kWh session finalization: sessionId={}, selectedKwh={}, actualKwh={}, prepaidAmount={}, finalCost={}",
-						session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD);
-
-				// Refund/Extra debit logic for selectedKwh sessions
-				if (finalCostBD.compareTo(prepaidAmount) < 0) {
-					// User used less than selected - issue refund
-					BigDecimal refund = prepaidAmount.subtract(finalCostBD);
-					walletTransactionService.credit(session.getUser().getId(), session.getId(),
-							refund, "power session refund - unused energy");
-					refundIssued = true;
-
-					log.info(
-							"Refund issued for power session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, refund={}",
-							session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD, refund);
-
-					userNotificationService.createNotification(
-							session.getUser().getId(),
-							"Refund Issued",
-							"Unused energy refund: ₹" + refund + " has been credited to your wallet. (Used " +
-									String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh)
-									+ " kWh selected)",
-							"REFUND");
-				} else if (finalCostBD.compareTo(prepaidAmount) > 0) {
-					// User used more than selected - extra debit
-					BigDecimal extra = finalCostBD.subtract(prepaidAmount);
-					walletTransactionService.debit(session.getUser().getId(), session.getId(),
-							extra, "kWh Session Extra Debit - exceeded selected energy");
-					extraDebited = true;
-
-					log.info(
-							"Extra debit for kWh session: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, extra={}",
-							session.getId(), selectedKwh, energyUsed, prepaidAmount, finalCostBD, extra);
-
-					userNotificationService.createNotification(
-							session.getUser().getId(),
-							"Extra Debit",
-							"Extra amount ₹" + extra + " has been deducted. (Used " +
-									String.format("%.2f", energyUsed) + " kWh, exceeded "
-									+ String.format("%.2f", selectedKwh) + " kWh selected)",
-							"Debit");
-				}
-			} else {
-				// 1. Prioritize actual meter reading from OCPP if available
-				if (session.getEnergyKwh() > 0.000) {
-					energyUsed = session.getEnergyKwh();
-					log.info("Using actual meter reading: sessionId={}, energyUsed={}", session.getId(), energyUsed);
-				} else {
-					// 2. Fallback to calculation if no meter values
-					energyUsed = calculateEnergyUsed(session);
-					log.info("Calculated energy used (fallback): sessionId={}, energyUsed={}",
-							session.getId(), energyUsed);
-				}
-
-				finalCostBD = BigDecimal.valueOf(energyUsed)
-						.multiply(BigDecimal.valueOf(session.getCharger().getRate()))
-						.setScale(2, RoundingMode.HALF_UP);
-
-				log.info("Final cost calculation: sessionId={}, energyUsed={}, finalCost={}",
-						session.getId(), energyUsed, finalCostBD);
-
-				if (receipt != null) {
-					BigDecimal prepaid = receipt.getAmount();
-
-					if (finalCostBD.compareTo(prepaid) < 0) {
-						BigDecimal refund = prepaid.subtract(finalCostBD);
-						walletTransactionService.credit(session.getUser().getId(), session.getId(),
-								refund, "Plan session refund");
-						refundIssued = true;
-
-						log.info("Refund issued: sessionId={}, prepaid={}, finalCost={}, refund={}",
-								session.getId(), prepaid, finalCostBD, refund);
-
-						userNotificationService.createNotification(
-								session.getUser().getId(),
-								"Refund Issued",
-								"Unused amount ₹" + refund + " has been refunded to your wallet.",
-								"REFUND");
-					} else if (finalCostBD.compareTo(prepaid) > 0) {
-						BigDecimal extra = finalCostBD.subtract(prepaid);
-						walletTransactionService.debit(session.getUser().getId(), session.getId(),
-								extra, "Plan Session Extra Debit");
-						extraDebited = true;
-
-						log.info("Extra debit: sessionId={}, prepaid={}, finalCost={}, extra={}",
-								session.getId(), prepaid, finalCostBD, extra);
-
-						userNotificationService.createNotification(
-								session.getUser().getId(),
-								"Extra Debit",
-								"Extra amount ₹" + extra + " has been deducted due to higher usage.",
-								"Debit");
-					}
-				}
-			}
-
-			session.setEnergyKwh(energyUsed);
-			session.setCost(finalCostBD.doubleValue());
-			sessionRepository.save(session);
-
-			if (receipt != null) {
-				receiptService.finalizeReceipt(session, finalCostBD);
-			}
-
-			// === COIN & REFERRAL REWARDS ===
-			try {
-				// Award charging coins (5 coins per kWh)
-				coinService.awardChargingCoins(session.getUser().getId(), energyUsed, session.getId());
-
-				// Process referral bonus if this is user's first completed session
-				referralService.processFirstSessionCompletion(session.getUser().getId(), session.getId());
-			} catch (Exception coinEx) {
-				// Coin/referral errors should NOT break session finalization
-				log.error("Failed to process coin/referral rewards for sessionId={}: {}",
-						session.getId(), coinEx.getMessage(), coinEx);
-			}
-
-			Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
-			log.info(
-					"Session completed: sessionId={}, userId={}, energyUsed={}, finalCost={}, duration={} minutes, stopReason={}",
-					session.getId(), session.getUser().getId(), String.format("%.3f", energyUsed), finalCostBD,
-					duration.toMinutes(), stopReason);
-
-			adminNotificationService.createSystemNotification(
-					"User '" + session.getUser().getName() + "' stopped session. Energy used: " +
-							String.format("%.2f", energyUsed) + " kWh, Final cost: ₹" + finalCostBD,
-					"Session Completed");
-
-			userNotificationService.createNotification(
-					session.getUser().getId(),
-					"Charging Stopped",
-					"Your session has ended (" + stopReason + "). Total cost: ₹" + finalCostBD,
-					"INFO");
-
-			revenueService.recordRevenueForSession(session,
-					finalCostBD.doubleValue(), "Wallet", null, "success");
-
-			Map<String, Object> response = new HashMap<>();
-			response.put("sessionId", session.getId());
-			response.put("energyUsed", energyUsed);
-			response.put("finalCost", finalCostBD);
-			response.put("refundIssued", refundIssued);
-			response.put("extraDebited", extraDebited);
-			response.put("message", "Session completed (" + stopReason + ")" +
-					(refundIssued ? " - Refund issued" : extraDebited ? " - Extra debited" : ""));
-			return response;
-		} catch (Exception e) {
-			log.error("Failed to finalize session: sessionId={}, stopReason={}: {}",
-					session.getId(), stopReason, e.getMessage(), e);
-			// CRITICAL: Even on error, mark session as failed and save
-			// This ensures sessions don't remain stuck in 'active' status
-			try {
-				session.setStatus(SessionStatus.FAILED.getValue());
-				session.setEndTime(LocalDateTime.now());
+			if (session != null && SessionStatus.INITIATED.matches(session.getStatus())) {
+				session.setStatus(SessionStatus.ACTIVE.getValue());
+				session.setStartTime(LocalDateTime.now());
 				sessionRepository.save(session);
-				log.info("Session {} marked as FAILED due to finalization error", session.getId());
-			} catch (Exception saveEx) {
-				log.error("CRITICAL: Failed to save session failure status for session {}: {}",
-						session.getId(), saveEx.getMessage());
+				log.info("Session {} activated under lock for charger {}", session.getId(), ocppId);
 			}
+
+			return session;
+		} catch (Exception e) {
+			log.error("Error in activateOrRejectSession for charger {}: {}", ocppId, e.getMessage(), e);
 			throw e;
 		}
 	}
 
-	private Map<String, Object> buildAlreadyCompletedResponse(Session session) {
-		Map<String, Object> response = new HashMap<>();
-		response.put("sessionId", session.getId());
-		response.put("energyUsed", session.getEnergyKwh());
-		response.put("finalCost", session.getCost());
-		response.put("message", "Session already completed. No action taken.");
-		return response;
+	// ===================== DELEGATION TO QUERY SERVICE =====================
+
+	public Session getSessionById(Long sessionId) {
+		return sessionQueryService.getSessionById(sessionId);
 	}
 
-	private double calculateEnergyUsed(Session session) {
-		Duration duration = Duration.between(session.getStartTime(), session.getEndTime());
-		long minutes = duration.toMinutes();
-
-		// Check charger kwOutput configuration
-		Double chargerSpeedKw = session.getCharger().getKwOutput();
-		if (chargerSpeedKw == null || chargerSpeedKw <= 0) {
-			// GRACEFUL HANDLING: Return 0 instead of throwing exception
-			// This ensures session finalization completes even with misconfigured chargers
-			log.warn("CRITICAL CONFIG WARNING: Charger {} (ID: {}) has NO kwOutput configured. " +
-					"Using 0 kWh for energy calculation. Please configure charger kwOutput.",
-					session.getCharger().getOcppId(), session.getCharger().getId());
-			return 0.0;
-		}
-
-		double hours = minutes / 60.0;
-		double energy = hours * chargerSpeedKw;
-
-		// Round to 3 decimal places for precision
-		return Math.round(energy * 1000.0) / 1000.0;
+	public long getTotalSessions() {
+		return sessionQueryService.getTotalSessions();
 	}
+
+	public double getTotalEnergyConsumed() {
+		return sessionQueryService.getTotalEnergyConsumed();
+	}
+
+	public Long getActiveSessions() {
+		return sessionQueryService.getActiveSessions();
+	}
+
+	public Double getAverageUptime() {
+		return sessionQueryService.getAverageUptime();
+	}
+
+	public Optional<Session> findLastActiveSession() {
+		return sessionQueryService.findLastActiveSession();
+	}
+
+	public Long getTodaysErrorCount() {
+		return sessionQueryService.getTodaysErrorCount();
+	}
+
+	public List<Session> getallSessionRecords() {
+		return sessionQueryService.getallSessionRecords();
+	}
+
+	public List<Map<String, Object>> getActiveSessionDetails() {
+		return sessionQueryService.getActiveSessionDetails();
+	}
+
+	// ===================== PRIVATE HELPERS =====================
 
 	private void scheduleAutoStop(Long sessionId, int durationMin) {
 		scheduler.schedule(() -> {
@@ -593,7 +411,6 @@ public class SessionService {
 	private void handleOfflineSession(Session session, Receipt receipt) {
 		log.warn("Handling offline session failure for sessionId={}", session.getId());
 
-		// Refund logic
 		if (receipt.getAmount() != null && receipt.getAmount().compareTo(BigDecimal.ZERO) > 0) {
 			walletTransactionService.credit(
 					session.getUser().getId(),
@@ -614,201 +431,6 @@ public class SessionService {
 		session.setEndTime(LocalDateTime.now());
 		sessionRepository.save(session);
 
-		throw new RuntimeException("Charger is offline. Session failed and amount refunded.");
-	}
-
-	/**
-	 * Activate an existing INITIATED session under a pessimistic lock.
-	 * Used by the OCPP WebSocket path when a charger sends StartTransaction.
-	 *
-	 * This method acquires a database lock on the charger row to ensure
-	 * only one session can be activated at a time for a given charger.
-	 *
-	 * @param ocppId The OCPP identifier of the charger
-	 * @return The activated Session, or null if no matching session found
-	 */
-	@Transactional
-	public Session activateOrRejectSession(String ocppId) {
-		try {
-			// Acquire pessimistic lock on charger row
-			Charger lockedCharger = chargerRepository.findByOcppIdForUpdate(ocppId)
-					.orElseThrow(() -> new RuntimeException("Charger not found: " + ocppId));
-
-			// Find existing INITIATED or ACTIVE session for this charger
-			List<String> activeStatuses = List.of(
-					SessionStatus.INITIATED.getValue(),
-					SessionStatus.ACTIVE.getValue());
-
-			Session session = sessionRepository
-					.findFirstByChargerAndStatusInOrderByCreatedAtDesc(lockedCharger, activeStatuses)
-					.orElse(null);
-
-			if (session != null && SessionStatus.INITIATED.matches(session.getStatus())) {
-				// Activate the session
-				session.setStatus(SessionStatus.ACTIVE.getValue());
-				session.setStartTime(LocalDateTime.now());
-				sessionRepository.save(session);
-				log.info("Session {} activated under lock for charger {}", session.getId(), ocppId);
-			}
-
-			return session;
-		} catch (Exception e) {
-			log.error("Error in activateOrRejectSession for charger {}: {}", ocppId, e.getMessage(), e);
-			throw e;
-		}
-	}
-
-	// ... rest of your methods (getTotalSessions, etc.) remain the same ...
-
-	public long getTotalSessions() {
-		try {
-			long total = sessionRepository.findAll().stream()
-					.filter(s -> SessionStatus.COMPLETED.matches(s.getStatus()))
-					.count();
-			if (log.isDebugEnabled()) {
-				log.debug("Total completed sessions: {}", total);
-			}
-			return total;
-		} catch (Exception e) {
-			log.error("Failed to get total sessions: {}", e.getMessage(), e);
-			throw e;
-		}
-	}
-
-	public double getTotalEnergyConsumed() {
-		try {
-			double totalEnergy = sessionRepository.findAll().stream()
-					.filter(s -> SessionStatus.COMPLETED.matches(s.getStatus()))
-					.mapToDouble(Session::getEnergyKwh)
-					.sum();
-			if (log.isDebugEnabled()) {
-				log.debug("Total energy consumed: {} kWh", totalEnergy);
-			}
-			return totalEnergy;
-		} catch (Exception e) {
-			log.error("Failed to get total energy consumed: {}", e.getMessage(), e);
-			throw e;
-		}
-	}
-
-	public Long getActiveSessions() {
-		try {
-			Long activeCount = sessionRepository.findAll().stream()
-					.filter(session -> SessionStatus.ACTIVE.matches(session.getStatus()))
-					.count();
-			if (log.isDebugEnabled()) {
-				log.debug("Active sessions count: {}", activeCount);
-			}
-			return activeCount;
-		} catch (Exception e) {
-			log.error("Failed to get active sessions: {}", e.getMessage(), e);
-			throw e;
-		}
-	}
-
-	public Double getAverageUptime() {
-		try {
-			long totalSessions = sessionRepository.count();
-			if (totalSessions == 0) {
-				log.warn("No sessions found for uptime calculation");
-				return 0.0;
-			}
-			long completedSessions = sessionRepository.findAll().stream()
-					.filter(session -> SessionStatus.COMPLETED.matches(session.getStatus()))
-					.count();
-			double uptime = (completedSessions * 100.0) / totalSessions;
-			double roundedUptime = Math.round(uptime * 100.0) / 100.0;
-			log.info("Average uptime calculated: {}% (completed={}, total={})",
-					roundedUptime, completedSessions, totalSessions);
-			return roundedUptime;
-		} catch (Exception e) {
-			log.error("Failed to calculate average uptime: {}", e.getMessage(), e);
-			throw e;
-		}
-	}
-
-	public Session getSessionById(Long sessionId) {
-		if (log.isDebugEnabled()) {
-			log.debug("Fetching session by ID: sessionId={}", sessionId);
-		}
-		return sessionRepository.findById(sessionId).orElse(null);
-	}
-
-	public Optional<Session> findLastActiveSession() {
-		if (log.isDebugEnabled()) {
-			log.debug("Finding last active session");
-		}
-		return sessionRepository.findFirstByStatusOrderByStartTimeDesc(SessionStatus.ACTIVE.getValue());
-	}
-
-	public Long getTodaysErrorCount() {
-		try {
-			LocalDate today = LocalDate.now(clock);
-			LocalDateTime startOfDay = today.atStartOfDay();
-			LocalDateTime endOfDay = today.atTime(23, 59, 59, 999999999);
-			log.debug("Getting all session to count todays errors");
-			List<Session> allSessions = sessionRepository.findAll();
-			return allSessions.stream()
-					.filter(session -> session.getCreatedAt() != null
-							&& (session.getCreatedAt().isEqual(startOfDay)
-									|| (session.getCreatedAt().isAfter(startOfDay)
-											&& session.getCreatedAt().isBefore(endOfDay))))
-					.filter(session -> SessionStatus.FAILED.matches(session.getStatus()))
-					.count();
-		} catch (DataAccessException e) {
-			log.error("Error while accessing data: {}", e);
-			throw e;
-		} catch (Exception e) {
-			log.error("Unexpected error in getTodaysErrorCount ", e);
-			throw new RuntimeException("Failed to calculate today's error count", e);
-		}
-	}
-
-	public List<Session> getallSessionRecords() {
-		try {
-			log.debug("Getting all session records");
-			List<Session> allRecords = sessionRepository.findAll();
-			return allRecords;
-		} catch (DataAccessException e) {
-			log.error("Error while accessing data: {}", e);
-			throw e;
-		} catch (Exception e) {
-			log.error("Unexpected error ", e);
-			throw e;
-		}
-	}
-
-	/**
-	 * Get list of all active sessions (status = 'active' or 'initiated')
-	 * with details: userId, sessionId, and status.
-	 */
-	public List<Map<String, Object>> getActiveSessionDetails() {
-		try {
-			log.info("Fetching active session details");
-			List<String> activeStatuses = List.of(
-					SessionStatus.ACTIVE.getValue(),
-					SessionStatus.INITIATED.getValue());
-
-			List<Session> activeSessions = sessionRepository.findByStatusInOrderByCreatedAtDesc(activeStatuses);
-
-			List<Map<String, Object>> result = activeSessions.stream()
-					.map(session -> {
-						Map<String, Object> map = new HashMap<>();
-						map.put("sessionId", session.getId());
-						map.put("userId", session.getUser() != null ? session.getUser().getId() : null);
-						map.put("status", session.getStatus());
-						return map;
-					})
-					.toList();
-
-			log.info("Found {} active sessions", result.size());
-			return result;
-		} catch (DataAccessException e) {
-			log.error("Error fetching active session details: {}", e.getMessage(), e);
-			throw e;
-		} catch (Exception e) {
-			log.error("Unexpected error fetching active session details: {}", e.getMessage(), e);
-			throw e;
-		}
+		throw new ChargerOfflineException(session.getCharger().getId());
 	}
 }

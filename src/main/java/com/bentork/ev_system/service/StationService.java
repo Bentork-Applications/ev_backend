@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -22,25 +21,22 @@ import com.bentork.ev_system.repository.StationReviewRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class StationService {
 
-    @Autowired
-    private StationRepository stationRepository;
+    private final StationRepository stationRepository;
 
-    @Autowired
-    private LocationRepository locationRepository;
+    private final LocationRepository locationRepository;
 
-    @Autowired
-    private ChargerRepository chargerRepository;
+    private final ChargerRepository chargerRepository;
 
-    @Autowired
-    private StationReviewRepository reviewRepository;
+    private final StationReviewRepository reviewRepository;
 
-    @Autowired
-    private Clock clock;
+    private final Clock clock;
 
     public StationDTO createStation(StationDTO dto) {
         try {

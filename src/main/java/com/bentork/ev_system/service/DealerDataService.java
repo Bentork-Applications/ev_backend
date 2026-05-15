@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.response.RevenueDTO;
@@ -22,6 +21,7 @@ import com.bentork.ev_system.repository.SessionRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service for dealers to access data from their assigned stations only.
@@ -29,22 +29,18 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DealerDataService {
 
-    @Autowired
-    private DealerStationRepository dealerStationRepository;
+    private final DealerStationRepository dealerStationRepository;
 
-    @Autowired
-    private AdminRepository adminRepository;
+    private final AdminRepository adminRepository;
 
-    @Autowired
-    private SessionRepository sessionRepository;
+    private final SessionRepository sessionRepository;
 
-    @Autowired
-    private RevenueRepository revenueRepository;
+    private final RevenueRepository revenueRepository;
 
-    @Autowired
-    private ChargerRepository chargerRepository;
+    private final ChargerRepository chargerRepository;
 
     // ==================== HELPER METHODS ====================
 

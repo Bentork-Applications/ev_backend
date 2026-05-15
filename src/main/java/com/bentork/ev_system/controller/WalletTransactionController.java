@@ -1,19 +1,19 @@
 package com.bentork.ev_system.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.List;
 
 import com.bentork.ev_system.model.WalletTransaction;
-import com.bentork.ev_system.service.WalletTransactionService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/wallet")
 public class WalletTransactionController {
-
-    @Autowired
-    private WalletTransactionService walletService;
+    private final IWalletTransactionService walletService;
     
     @GetMapping("/history/{userId}")
     public ResponseEntity<List<WalletTransaction>> getWalletHistory(

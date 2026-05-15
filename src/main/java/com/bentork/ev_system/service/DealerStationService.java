@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +18,7 @@ import com.bentork.ev_system.repository.StationRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service for managing dealer-station assignments.
@@ -26,16 +26,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DealerStationService {
 
-    @Autowired
-    private DealerStationRepository dealerStationRepository;
+    private final DealerStationRepository dealerStationRepository;
 
-    @Autowired
-    private AdminRepository adminRepository;
+    private final AdminRepository adminRepository;
 
-    @Autowired
-    private StationRepository stationRepository;
+    private final StationRepository stationRepository;
 
     /**
      * Assign multiple stations to a dealer (Admin only)

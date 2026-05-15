@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,21 +23,19 @@ import com.bentork.ev_system.service.strategy.StationAccessStrategy;
 import com.bentork.ev_system.service.strategy.StationAccessStrategyFactory;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Controller for dealer-specific operations.
  * Dealers can only access their assigned stations' data.
  */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/dealer")
 @Slf4j
 public class DealerController {
-
-    @Autowired
-    private StationAccessStrategyFactory strategyFactory;
-
-    @Autowired
-    private DealerDataService dealerDataService;
+    private final StationAccessStrategyFactory strategyFactory;
+    private final DealerDataService dealerDataService;
 
     // ==================== STATION ENDPOINTS ====================
 

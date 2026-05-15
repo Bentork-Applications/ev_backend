@@ -14,10 +14,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.bentork.ev_system.service.interfaces.IRevenueService;
+
 @Slf4j
 @Service
 @Transactional
-public class RevenueService {
+public class RevenueService implements IRevenueService {
 
     private final RevenueRepository revenueRepository;
 
@@ -25,8 +27,8 @@ public class RevenueService {
         this.revenueRepository = revenueRepository;
     }
 
-    /* package-private */
-    Revenue recordRevenueForSession(Session session,
+    @Override
+    public Revenue recordRevenueForSession(Session session,
             double amount,
             String paymentMethod,
             String transactionId,
@@ -54,17 +56,11 @@ public class RevenueService {
     // Calculate Total Revenue
     public BigDecimal getTotalRevenue() {
         try {
-            double total = revenueRepository.findAll().stream()
-                    .filter(r -> "SUCCESS".equalsIgnoreCase(r.getPaymentStatus()))
-                    .mapToDouble(Revenue::getAmount)
-                    .sum();
-
+            double total = revenueRepository.sumAmountByPaymentStatus("SUCCESS");
             BigDecimal result = BigDecimal.valueOf(total);
-
             if (log.isDebugEnabled()) {
                 log.debug("Total revenue calculated: {}", result);
             }
-
             return result;
         } catch (Exception e) {
             log.error("Failed to calculate total revenue: {}", e.getMessage(), e);
@@ -75,17 +71,11 @@ public class RevenueService {
     // Pending Revenue (
     public BigDecimal getPendingRevenue() {
         try {
-            double pending = revenueRepository.findAll().stream()
-                    .filter(r -> "PENDING".equalsIgnoreCase(r.getPaymentStatus()))
-                    .mapToDouble(Revenue::getAmount)
-                    .sum();
-
+            double pending = revenueRepository.sumAmountByPaymentStatus("PENDING");
             BigDecimal result = BigDecimal.valueOf(pending);
-
             if (log.isDebugEnabled()) {
                 log.debug("Pending revenue calculated: {}", result);
             }
-
             return result;
         } catch (Exception e) {
             log.error("Failed to calculate pending revenue: {}", e.getMessage(), e);
@@ -171,9 +161,7 @@ public class RevenueService {
                 return 0.0;
             }
 
-            long successfulTransactions = revenueRepository.findAll().stream()
-                    .filter(r -> "SUCCESS".equalsIgnoreCase(r.getPaymentStatus()))
-                    .count();
+            long successfulTransactions = revenueRepository.countByPaymentStatusIgnoreCase("SUCCESS");
 
             double successRate = (successfulTransactions * 100.0) / totalTransactions;
             double roundedRate = Math.round(successRate * 100.0) / 100.0;

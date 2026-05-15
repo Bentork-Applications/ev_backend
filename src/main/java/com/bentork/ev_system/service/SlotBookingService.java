@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,21 +19,24 @@ import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.SlotBookingRepository;
 import com.bentork.ev_system.repository.SlotRepository;
 import com.bentork.ev_system.repository.UserRepository;
+import com.bentork.ev_system.service.interfaces.IMaintenanceService;
+import com.bentork.ev_system.exception.domain.StationUnderMaintenanceException;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SlotBookingService {
 
-        @Autowired
-        private SlotBookingRepository slotBookingRepository;
+        private final SlotBookingRepository slotBookingRepository;
 
-        @Autowired
-        private SlotRepository slotRepository;
+        private final SlotRepository slotRepository;
 
-        @Autowired
-        private UserRepository userRepository;
+        private final UserRepository userRepository;
+
+        private final IMaintenanceService maintenanceService;
 
         /**
          * Book a slot for a user.
@@ -76,7 +78,15 @@ public class SlotBookingService {
                 Charger charger = slot.getCharger();
                 Station station = charger.getStation();
 
-                // 6. Check if user already has an active booking on this charger
+                // 6. MAINTENANCE GUARD: Block booking if slot time overlaps a maintenance window
+                if (slot.getStartTime() != null && slot.getEndTime() != null) {
+                        if (maintenanceService.hasMaintenanceOverlap(
+                                        charger.getId(), slot.getStartTime(), slot.getEndTime())) {
+                                throw new StationUnderMaintenanceException(charger.getId(), "charger");
+                        }
+                }
+
+                // 7. Check if user already has an active booking on this charger
                 if (slotBookingRepository.hasActiveBooking(userId, charger.getId())) {
                         throw new IllegalStateException(
                                         "You already have an active booking for this charger. Cancel it first before booking a new slot.");

@@ -1,9 +1,10 @@
 package com.bentork.ev_system.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,11 +23,10 @@ import com.bentork.ev_system.service.RFIDCardService;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/rfid-card")
 public class RFIDCardController {
-
-    @Autowired
-    private RFIDCardService cardService;
+    private final RFIDCardService cardService;
 
     // Register card
     @PostMapping("/register")
@@ -121,7 +121,7 @@ public class RFIDCardController {
 
     // Total Cards
     @GetMapping("/total")
-    public ResponseEntity<Long> getTotalCards(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getTotalCards(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/rfid-card/total - Request received");
 
         try {
@@ -136,7 +136,7 @@ public class RFIDCardController {
 
     // Active Cards
     @GetMapping("/active")
-    public ResponseEntity<Long> getActiveCards(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getActiveCards(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/rfid-card/active - Request received");
 
         try {
@@ -151,7 +151,7 @@ public class RFIDCardController {
 
     // Inactive Cards
     @GetMapping("/inactive")
-    public ResponseEntity<Long> getInactiveCards(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getInactiveCards(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/rfid-card/inactive - Request received");
 
         try {
@@ -166,7 +166,7 @@ public class RFIDCardController {
 
     // Recently Added - Last 7 days
     @GetMapping("/recent")
-    public ResponseEntity<Long> getRecentlyAddedCards(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Long> getRecentlyAddedCards(@AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
         log.info("GET /api/rfid-card/recent - Request received");
 
         try {

@@ -31,4 +31,10 @@ public interface RevenueRepository extends JpaRepository<Revenue, Long> {
 
     // Count revenue entries by station ID
     Long countByStation_Id(Long stationId);
+
+    // Efficient aggregation queries — replace findAll().stream().filter()
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Revenue r WHERE UPPER(r.paymentStatus) = UPPER(:status)")
+    double sumAmountByPaymentStatus(@Param("status") String status);
+
+    long countByPaymentStatusIgnoreCase(String paymentStatus);
 }

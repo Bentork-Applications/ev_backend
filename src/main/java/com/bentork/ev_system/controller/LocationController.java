@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,20 +27,16 @@ import com.bentork.ev_system.repository.LocationRepository;
 import com.bentork.ev_system.service.LocationService;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/location")
 public class LocationController {
-
-    @Autowired
-    private LocationRepository locationRepository;
-
-    @Autowired
-    private AdminRepository adminRepository;
-
-    @Autowired
-    private LocationService locationService;
+    private final LocationRepository locationRepository;
+    private final AdminRepository adminRepository;
+    private final LocationService locationService;
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")

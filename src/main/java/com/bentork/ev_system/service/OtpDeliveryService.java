@@ -1,14 +1,15 @@
 package com.bentork.ev_system.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class OtpDeliveryService {
 
-	@Autowired private JavaMailSender mailSender;
+	private final JavaMailSender mailSender;
 
     public void sendOtp(String to, String otp) {
         SimpleMailMessage message = new SimpleMailMessage();

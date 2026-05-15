@@ -7,7 +7,7 @@ import com.bentork.ev_system.model.Station;
 import com.bentork.ev_system.repository.EmergencyContactRepository;
 import com.bentork.ev_system.repository.StationRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,13 +15,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmergencyContactService {
 
-    @Autowired
-    private EmergencyContactRepository contactRepository;
+    private final EmergencyContactRepository contactRepository;
 
-    @Autowired
-    private StationRepository stationRepository;
+    private final StationRepository stationRepository;
 
     public void createEmergencyContact(EmergencyContactDTO dto) {
         try {

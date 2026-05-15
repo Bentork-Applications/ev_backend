@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.ChargerDTO;
-import com.bentork.ev_system.service.ChargerService;
+import com.bentork.ev_system.service.interfaces.IChargerService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -25,9 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChargerController {
 
-    private final ChargerService chargerService;
+    private final IChargerService chargerService;
 
-    public ChargerController(ChargerService chargerService) {
+    public ChargerController(IChargerService chargerService) {
         this.chargerService = chargerService;
     }
 

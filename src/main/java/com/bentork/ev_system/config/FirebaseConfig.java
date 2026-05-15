@@ -22,14 +22,22 @@ public class FirebaseConfig {
     private Resource serviceAccountResource;
 
     @Bean
-    public FirebaseApp firebaseApp() throws IOException {
+    public FirebaseApp firebaseApp() {
         // Prevent re-initialization error during hot-reloads or tests
-        if (FirebaseApp.getApps().isEmpty()) {
+        if (!FirebaseApp.getApps().isEmpty()) {
+            return FirebaseApp.getInstance();
+        }
 
-            if (!serviceAccountResource.exists()) {
-                throw new IOException("Firebase service account file not found: " + serviceAccountResource);
-            }
+        // Gracefully skip Firebase if credentials file is missing
+        if (!serviceAccountResource.exists()) {
+            log.warn("⚠ Firebase service account file not found: {}. "
+                    + "Firebase features (push notifications) will be DISABLED. "
+                    + "Place the file in src/main/resources/ to enable.",
+                    serviceAccountResource);
+            return null;
+        }
 
+        try {
             log.info("Initializing Firebase Admin SDK...");
 
             FirebaseOptions options = FirebaseOptions.builder()
@@ -39,8 +47,9 @@ public class FirebaseConfig {
             FirebaseApp app = FirebaseApp.initializeApp(options);
             log.info("Firebase Application '{}' initialized successfully.", app.getName());
             return app;
+        } catch (IOException e) {
+            log.error("Failed to initialize Firebase: {}. Push notifications will be DISABLED.", e.getMessage());
+            return null;
         }
-
-        return FirebaseApp.getInstance();
     }
 }

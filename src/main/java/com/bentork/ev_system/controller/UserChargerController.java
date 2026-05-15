@@ -1,6 +1,7 @@
 package com.bentork.ev_system.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,14 +10,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.ChargerDTO;
-import com.bentork.ev_system.service.ChargerService;
+import com.bentork.ev_system.service.interfaces.IChargerService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/user/charger")
 public class UserChargerController {
-
-    @Autowired
-    private ChargerService chargerService;
+    private final IChargerService chargerService;
     
     // get charger by ocppid
     @GetMapping("/ocpp/{ocppId}")
