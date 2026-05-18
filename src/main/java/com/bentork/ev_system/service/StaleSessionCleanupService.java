@@ -90,7 +90,7 @@ public class StaleSessionCleanupService {
      * Marks a single stale session as FAILED, refunds the user if applicable,
      * and sends notifications.
      */
-    private void failStaleSession(Session session) {
+    public void failStaleSession(Session session) {
         log.info("Failing stale session: sessionId={}, userId={}, chargerId={}, createdAt={}",
                 session.getId(),
                 session.getUser().getId(),

@@ -27,8 +27,8 @@ public class JwtUtil {
     @Value("${app.jwt.secret}")
     private String secret;
 
-    @Value("${app.jwt.expiration-ms:86400000}")
-    private long expirationMs; // Default 24 hours
+    @Value("${app.jwt.expiration-ms:604800000}")
+    private long expirationMs; // Default 7 days
 
     // Changed from Key to SecretKey for JJWT 0.12.x compatibility
     private SecretKey key;

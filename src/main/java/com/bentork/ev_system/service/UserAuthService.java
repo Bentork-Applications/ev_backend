@@ -9,6 +9,7 @@ import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserAuthService implements IUserAuthService {

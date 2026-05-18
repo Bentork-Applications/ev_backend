@@ -67,6 +67,7 @@ public class SessionService implements ISessionService {
 	private final ISessionFinalizationService sessionFinalizationService;
 	private final ISessionQueryService sessionQueryService;
 	private final IMaintenanceService maintenanceService;
+	private final StaleSessionCleanupService staleSessionCleanupService;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
@@ -83,7 +84,8 @@ public class SessionService implements ISessionService {
 			IChargerCommandService chargerCommandService,
 			ISessionFinalizationService sessionFinalizationService,
 			ISessionQueryService sessionQueryService,
-			IMaintenanceService maintenanceService) {
+			IMaintenanceService maintenanceService,
+			StaleSessionCleanupService staleSessionCleanupService) {
 		this.sessionRepository = sessionRepository;
 		this.receiptRepository = receiptRepository;
 		this.chargerRepository = chargerRepository;
@@ -97,6 +99,7 @@ public class SessionService implements ISessionService {
 		this.sessionFinalizationService = sessionFinalizationService;
 		this.sessionQueryService = sessionQueryService;
 		this.maintenanceService = maintenanceService;
+		this.staleSessionCleanupService = staleSessionCleanupService;
 	}
 
 	// ===================== LIFECYCLE METHODS =====================
@@ -176,8 +179,19 @@ public class SessionService implements ISessionService {
 					lockedCharger, activeStatuses);
 
 			if (busySession.isPresent()) {
-				log.warn("Charger {} is busy with session {}", lockedCharger.getId(), busySession.get().getId());
-				throw new ChargerBusyException(lockedCharger.getId());
+				Session dangling = busySession.get();
+				if ("Available".equalsIgnoreCase(lockedCharger.getStatus())) {
+					log.warn("Charger {} is AVAILABLE but has dangling session {}. Auto-cleaning...", lockedCharger.getId(), dangling.getId());
+					if (SessionStatus.ACTIVE.matches(dangling.getStatus())) {
+						sessionFinalizationService.finalizeSession(dangling, "Auto-closed: Charger became available");
+					} else if (SessionStatus.INITIATED.matches(dangling.getStatus())) {
+						staleSessionCleanupService.failStaleSession(dangling);
+					}
+					// Dangling session resolved, safe to proceed and create the new session.
+				} else {
+					log.warn("Charger {} is busy with session {}", lockedCharger.getId(), dangling.getId());
+					throw new ChargerBusyException(lockedCharger.getId());
+				}
 			}
 
 			// Now safe to create session

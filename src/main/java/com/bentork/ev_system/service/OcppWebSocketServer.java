@@ -28,8 +28,7 @@ import java.util.Map;
 
 /**
  * Slim OCPP 1.6 WebSocket Server.
- * Delegates action handling to OcppMessageRouter and individual
- * OcppActionHandlers.
+ * Delegates action handling to OcppMessageRouter and individual OcppActionHandlers.
  * Manages connections via OcppConnectionManager.
  *
  * After Phase 5 decomposition: ~200 lines (down from ~966).

@@ -28,7 +28,6 @@ public class AdminAuthController {
     public ResponseEntity<?> loginAdmin(@Valid @RequestBody AdminLoginRequest request) {
         return ResponseEntity.ok(adminAuthService.login(request));
     }
-
     @GetMapping("/alladmin")
     public ResponseEntity<List<Admin>> getAllAdmin() {
         return ResponseEntity.ok(adminAuthService.getAllAdmins());
