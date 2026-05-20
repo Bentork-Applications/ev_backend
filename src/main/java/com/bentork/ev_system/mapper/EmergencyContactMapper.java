@@ -9,18 +9,19 @@ public class EmergencyContactMapper {
     public static EmergencyContact toEntity(EmergencyContactDTO dto, Station station) {
         EmergencyContact contact = new EmergencyContact();
         contact.setId(dto.getId());
-        contact.setName(dto.getName());
-        contact.setContactNumber(dto.getContactNumber());
-        contact.setStation(station); // ✅ Important
+        contact.setCpoPhoneNumber(dto.getCpoPhoneNumber());
+        contact.setCompanySupportNumber(dto.getCompanySupportNumber());
+        contact.setStation(station);
         return contact;
     }
 
     public static EmergencyContactDTO toDTO(EmergencyContact contact) {
         EmergencyContactDTO dto = new EmergencyContactDTO();
         dto.setId(contact.getId());
-        dto.setName(contact.getName());
-        dto.setContactNumber(contact.getContactNumber());
-        dto.setStationId(contact.getStation().getId()); // ✅ Required for DTO
+        dto.setCpoPhoneNumber(contact.getCpoPhoneNumber());
+        dto.setCompanySupportNumber(contact.getCompanySupportNumber());
+        dto.setStationId(contact.getStation().getId());
+        dto.setStationName(contact.getStation().getName());
         return dto;
     }
 }

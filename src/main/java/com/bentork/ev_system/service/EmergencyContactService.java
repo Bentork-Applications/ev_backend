@@ -27,18 +27,23 @@ public class EmergencyContactService {
             Station station = stationRepository.findById(dto.getStationId())
                     .orElseThrow(() -> new RuntimeException("Station not found"));
 
+            // Each station can have only one emergency contact record
+            if (contactRepository.existsByStationId(dto.getStationId())) {
+                throw new RuntimeException("Emergency contact already exists for station: " + station.getName());
+            }
+
             EmergencyContact contact = EmergencyContactMapper.toEntity(dto, station);
             EmergencyContact saved = contactRepository.save(contact);
 
-            log.info("Emergency contact created: id={}, name={}, stationId={}",
-                    saved.getId(), saved.getName(), station.getId());
+            log.info("Emergency contact created: id={}, stationId={}, cpo={}, support={}",
+                    saved.getId(), station.getId(), saved.getCpoPhoneNumber(), saved.getCompanySupportNumber());
         } catch (RuntimeException e) {
-            log.error("Failed to create emergency contact - Station not found: stationId={}",
-                    dto.getStationId());
+            log.error("Failed to create emergency contact: stationId={}, message={}",
+                    dto.getStationId(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Failed to create emergency contact: name={}, stationId={}: {}",
-                    dto.getName(), dto.getStationId(), e.getMessage(), e);
+            log.error("Failed to create emergency contact: stationId={}: {}",
+                    dto.getStationId(), e.getMessage(), e);
             throw e;
         }
     }
@@ -66,7 +71,7 @@ public class EmergencyContactService {
                     .orElseThrow(() -> new RuntimeException("Contact not found"));
 
             if (log.isDebugEnabled()) {
-                log.debug("Retrieved emergency contact: id={}, name={}", id, contact.getName());
+                log.debug("Retrieved emergency contact: id={}", id);
             }
 
             return EmergencyContactMapper.toDTO(contact);
@@ -75,6 +80,22 @@ public class EmergencyContactService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to retrieve emergency contact: id={}: {}", id, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    public EmergencyContactDTO getByStationId(Long stationId) {
+        try {
+            EmergencyContact contact = contactRepository.findByStationId(stationId)
+                    .orElseThrow(() -> new RuntimeException("Emergency contact not found for station: " + stationId));
+
+            log.info("Retrieved emergency contact for stationId={}", stationId);
+            return EmergencyContactMapper.toDTO(contact);
+        } catch (RuntimeException e) {
+            log.warn("Emergency contact not found for stationId={}", stationId);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to retrieve emergency contact for stationId={}: {}", stationId, e.getMessage(), e);
             throw e;
         }
     }
@@ -91,7 +112,8 @@ public class EmergencyContactService {
             updated.setId(id);
             contactRepository.save(updated);
 
-            log.info("Emergency contact updated: id={}, name={}", id, updated.getName());
+            log.info("Emergency contact updated: id={}, cpo={}, support={}",
+                    id, updated.getCpoPhoneNumber(), updated.getCompanySupportNumber());
         } catch (RuntimeException e) {
             log.warn("Failed to update emergency contact - Entity not found: contactId={}, message={}",
                     id, e.getMessage());

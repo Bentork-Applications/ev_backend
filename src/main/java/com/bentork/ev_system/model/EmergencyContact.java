@@ -10,10 +10,11 @@ public class EmergencyContact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    @Column(name = "cpo_phone_number")
+    private String cpoPhoneNumber;
 
-    @Column(name = "contact_number")
-    private String contactNumber;
+    @Column(name = "company_support_number")
+    private String companySupportNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id")
@@ -28,20 +29,20 @@ public class EmergencyContact {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getCpoPhoneNumber() {
+        return cpoPhoneNumber;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setCpoPhoneNumber(String cpoPhoneNumber) {
+        this.cpoPhoneNumber = cpoPhoneNumber;
     }
 
-    public String getContactNumber() {
-        return contactNumber;
+    public String getCompanySupportNumber() {
+        return companySupportNumber;
     }
 
-    public void setContactNumber(String contactNumber) {
-        this.contactNumber = contactNumber;
+    public void setCompanySupportNumber(String companySupportNumber) {
+        this.companySupportNumber = companySupportNumber;
     }
 
     public Station getStation() {

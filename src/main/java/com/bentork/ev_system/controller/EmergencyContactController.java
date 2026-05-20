@@ -21,22 +21,27 @@ public class EmergencyContactController {
     @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/add")
     public ResponseEntity<String> create(@RequestBody EmergencyContactDTO dto) {
-        log.info("POST /api/emergency-contacts/add - Creating emergency contact, name={}, stationId={}",
-                dto.getName(), dto.getStationId());
+        log.info("POST /api/emergency-contacts/add - Creating emergency contact, stationId={}",
+                dto.getStationId());
 
         try {
             contactService.createEmergencyContact(dto);
-            log.info("POST /api/emergency-contacts/add - Success, name={}", dto.getName());
-            return ResponseEntity.status(HttpStatus.CREATED).body("Contact Created");
+            log.info("POST /api/emergency-contacts/add - Success, stationId={}", dto.getStationId());
+            return ResponseEntity.status(HttpStatus.CREATED).body("Emergency Contact Created");
         } catch (RuntimeException e) {
             if (e.getMessage().contains("Station not found")) {
                 log.error("POST /api/emergency-contacts/add - Station not found: stationId={}",
                         dto.getStationId());
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
             }
+            if (e.getMessage().contains("already exists")) {
+                log.warn("POST /api/emergency-contacts/add - Duplicate: stationId={}",
+                        dto.getStationId());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            }
             log.error("POST /api/emergency-contacts/add - Failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to create contact");
+                    .body("Failed to create emergency contact");
         }
     }
 
@@ -60,7 +65,7 @@ public class EmergencyContactController {
 
         try {
             EmergencyContactDTO dto = contactService.getEmergencyContactById(id);
-            log.info("GET /api/emergency-contacts/{} - Success, name={}", id, dto.getName());
+            log.info("GET /api/emergency-contacts/{} - Success", id);
             return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
             log.warn("GET /api/emergency-contacts/{} - Contact not found", id);
@@ -72,15 +77,33 @@ public class EmergencyContactController {
         }
     }
 
+    @GetMapping("/by-station/{stationId}")
+    public ResponseEntity<?> getByStation(@PathVariable Long stationId) {
+        log.info("GET /api/emergency-contacts/by-station/{} - Request received", stationId);
+
+        try {
+            EmergencyContactDTO dto = contactService.getByStationId(stationId);
+            log.info("GET /api/emergency-contacts/by-station/{} - Success", stationId);
+            return ResponseEntity.ok(dto);
+        } catch (RuntimeException e) {
+            log.warn("GET /api/emergency-contacts/by-station/{} - Not found", stationId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("GET /api/emergency-contacts/by-station/{} - Failed: {}", stationId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to fetch emergency contact for station");
+        }
+    }
+
     @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/update/{id}")
     public ResponseEntity<String> update(@PathVariable Long id, @RequestBody EmergencyContactDTO dto) {
-        log.info("PUT /api/emergency-contacts/update/{} - Updating contact, name={}", id, dto.getName());
+        log.info("PUT /api/emergency-contacts/update/{} - Updating contact", id);
 
         try {
             contactService.updateContact(id, dto);
             log.info("PUT /api/emergency-contacts/update/{} - Success", id);
-            return ResponseEntity.ok("Contact Updated");
+            return ResponseEntity.ok("Emergency Contact Updated");
         } catch (RuntimeException e) {
             if (e.getMessage().contains("not found")) {
                 log.warn("PUT /api/emergency-contacts/update/{} - Not found: {}", id, e.getMessage());
@@ -100,7 +123,7 @@ public class EmergencyContactController {
         try {
             contactService.deleteContact(id);
             log.info("DELETE /api/emergency-contacts/delete/{} - Success", id);
-            return ResponseEntity.ok("Contact Deleted");
+            return ResponseEntity.ok("Emergency Contact Deleted");
         } catch (RuntimeException e) {
             log.warn("DELETE /api/emergency-contacts/delete/{} - Contact not found", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
