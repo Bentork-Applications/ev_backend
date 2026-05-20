@@ -69,4 +69,14 @@ public interface MaintenanceScheduleRepository extends JpaRepository<Maintenance
      * Find maintenance schedules for a specific charger.
      */
     List<MaintenanceSchedule> findByChargerIdOrderByCreatedAtDesc(Long chargerId);
+
+    /**
+     * Find all maintenance schedules ordered by creation date descending (full history).
+     */
+    List<MaintenanceSchedule> findAllByOrderByCreatedAtDesc();
+
+    /**
+     * Find maintenance schedules filtered by status, ordered by creation date descending.
+     */
+    List<MaintenanceSchedule> findByStatusOrderByCreatedAtDesc(String status);
 }

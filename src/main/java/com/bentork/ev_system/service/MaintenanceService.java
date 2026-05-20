@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,11 +15,13 @@ import com.bentork.ev_system.enums.BookingStatus;
 import com.bentork.ev_system.enums.ChargerStatus;
 import com.bentork.ev_system.enums.MaintenanceStatus;
 import com.bentork.ev_system.mapper.MaintenanceMapper;
+import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.MaintenanceSchedule;
 import com.bentork.ev_system.model.Slot;
 import com.bentork.ev_system.model.SlotBooking;
 import com.bentork.ev_system.model.Station;
+import com.bentork.ev_system.repository.AdminRepository;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.MaintenanceScheduleRepository;
 import com.bentork.ev_system.repository.SlotBookingRepository;
@@ -50,6 +54,7 @@ public class MaintenanceService implements IMaintenanceService {
     private final ChargerRepository chargerRepository;
     private final SlotBookingRepository slotBookingRepository;
     private final SlotRepository slotRepository;
+    private final AdminRepository adminRepository;
     private final IAdminNotificationService adminNotificationService;
     private final IUserNotificationService userNotificationService;
 
@@ -80,6 +85,7 @@ public class MaintenanceService implements IMaintenanceService {
         schedule.setScheduledStart(request.getScheduledStart());
         schedule.setScheduledEnd(request.getScheduledEnd());
         schedule.setStatus(initialStatus);
+        schedule.setCreatedByAdmin(resolveCurrentAdmin());
         scheduleRepository.save(schedule);
 
         // Cancel overlapping bookings on ALL chargers of this station
@@ -137,6 +143,7 @@ public class MaintenanceService implements IMaintenanceService {
         schedule.setScheduledStart(request.getScheduledStart());
         schedule.setScheduledEnd(request.getScheduledEnd());
         schedule.setStatus(initialStatus);
+        schedule.setCreatedByAdmin(resolveCurrentAdmin());
         scheduleRepository.save(schedule);
 
         // Cancel overlapping bookings on this charger only
@@ -298,7 +305,35 @@ public class MaintenanceService implements IMaintenanceService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<MaintenanceResponse> getMaintenanceHistory(String status) {
+        List<MaintenanceSchedule> schedules;
+        if (status != null && !status.isBlank()) {
+            schedules = scheduleRepository.findByStatusOrderByCreatedAtDesc(status.toLowerCase().trim());
+        } else {
+            schedules = scheduleRepository.findAllByOrderByCreatedAtDesc();
+        }
+        return schedules.stream()
+                .map(MaintenanceMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
     // ==================== PRIVATE HELPERS ====================
+
+    /**
+     * Resolve the currently authenticated admin from the security context.
+     * Returns null if not authenticated or if the user is not an admin.
+     */
+    private Admin resolveCurrentAdmin() {
+        try {
+            String email = SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
+            return adminRepository.findByEmail(email).orElse(null);
+        } catch (Exception e) {
+            log.warn("Could not resolve current admin: {}", e.getMessage());
+            return null;
+        }
+    }
 
     /**
      * Validates that the maintenance time window is valid.

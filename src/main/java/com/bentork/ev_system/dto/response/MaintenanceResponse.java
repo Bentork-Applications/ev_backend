@@ -17,6 +17,7 @@ public class MaintenanceResponse {
     private String status;
     private int cancelledBookingsCount;
     private LocalDateTime createdAt;
+    private String createdByAdminName;
 
     // Getters & Setters
 
@@ -98,5 +99,13 @@ public class MaintenanceResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getCreatedByAdminName() {
+        return createdByAdminName;
+    }
+
+    public void setCreatedByAdminName(String createdByAdminName) {
+        this.createdByAdminName = createdByAdminName;
     }
 }

@@ -83,6 +83,14 @@ public class MaintenanceSchedule {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * The admin who created/activated this maintenance schedule.
+     * Nullable for backward compatibility with existing records.
+     */
+    @ManyToOne
+    @JoinColumn(name = "created_by_admin_id", nullable = true)
+    private Admin createdByAdmin;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -174,5 +182,13 @@ public class MaintenanceSchedule {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Admin getCreatedByAdmin() {
+        return createdByAdmin;
+    }
+
+    public void setCreatedByAdmin(Admin createdByAdmin) {
+        this.createdByAdmin = createdByAdmin;
     }
 }

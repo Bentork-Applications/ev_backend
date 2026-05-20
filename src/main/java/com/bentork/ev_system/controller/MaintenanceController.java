@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.MaintenanceRequest;
@@ -142,5 +143,19 @@ public class MaintenanceController {
             @PathVariable Long chargerId) {
         log.info("GET /api/maintenance/charger/{}", chargerId);
         return ResponseEntity.ok(maintenanceService.getMaintenanceByCharger(chargerId));
+    }
+
+    /**
+     * Get full maintenance history, optionally filtered by status.
+     * e.g. GET /api/maintenance/history?status=completed
+     *      GET /api/maintenance/history?status=active
+     *      GET /api/maintenance/history  (returns all)
+     */
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @GetMapping("/history")
+    public ResponseEntity<List<MaintenanceResponse>> getMaintenanceHistory(
+            @RequestParam(required = false) String status) {
+        log.info("GET /api/maintenance/history - status={}", status);
+        return ResponseEntity.ok(maintenanceService.getMaintenanceHistory(status));
     }
 }

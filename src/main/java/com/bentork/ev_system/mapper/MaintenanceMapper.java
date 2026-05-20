@@ -36,6 +36,10 @@ public class MaintenanceMapper {
             response.setTargetName(schedule.getCharger().getOcppId());
         }
 
+        if (schedule.getCreatedByAdmin() != null) {
+            response.setCreatedByAdminName(schedule.getCreatedByAdmin().getName());
+        }
+
         return response;
     }
 }

@@ -69,4 +69,10 @@ public interface IMaintenanceService {
      * Get maintenance history for a charger.
      */
     List<MaintenanceResponse> getMaintenanceByCharger(Long chargerId);
+
+    /**
+     * Get full maintenance history, optionally filtered by status.
+     * Returns all statuses when status parameter is null or blank.
+     */
+    List<MaintenanceResponse> getMaintenanceHistory(String status);
 }
