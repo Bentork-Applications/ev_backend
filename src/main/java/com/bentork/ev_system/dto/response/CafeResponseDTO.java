@@ -2,6 +2,10 @@ package com.bentork.ev_system.dto.response;
 
 public class CafeResponseDTO {
 
+    private Long id;
+    private Long stationId;
+    private String stationName;
+    private boolean adminAdded;
     private String name;
     private String address;
     private Double latitude;
@@ -9,6 +13,7 @@ public class CafeResponseDTO {
     private Double rating;
     private Boolean openNow;
     private String googleMapsUri;
+    private String googleMapImageUrl;
 
     public CafeResponseDTO() {
     }
@@ -22,6 +27,38 @@ public class CafeResponseDTO {
         this.rating = rating;
         this.openNow = openNow;
         this.googleMapsUri = googleMapsUri;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getStationId() {
+        return stationId;
+    }
+
+    public void setStationId(Long stationId) {
+        this.stationId = stationId;
+    }
+
+    public String getStationName() {
+        return stationName;
+    }
+
+    public void setStationName(String stationName) {
+        this.stationName = stationName;
+    }
+
+    public boolean isAdminAdded() {
+        return adminAdded;
+    }
+
+    public void setAdminAdded(boolean adminAdded) {
+        this.adminAdded = adminAdded;
     }
 
     public String getName() {
@@ -78,5 +115,13 @@ public class CafeResponseDTO {
 
     public void setGoogleMapsUri(String googleMapsUri) {
         this.googleMapsUri = googleMapsUri;
+    }
+
+    public String getGoogleMapImageUrl() {
+        return googleMapImageUrl;
+    }
+
+    public void setGoogleMapImageUrl(String googleMapImageUrl) {
+        this.googleMapImageUrl = googleMapImageUrl;
     }
 }

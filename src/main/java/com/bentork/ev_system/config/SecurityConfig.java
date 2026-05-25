@@ -145,6 +145,10 @@ public class SecurityConfig {
 
                                                 // Cafes - All authenticated users can search nearby cafes
                                                 .requestMatchers(HttpMethod.GET, "/api/cafes/**").authenticated()
+                                                // Only ADMIN can create/update/delete cafes
+                                                .requestMatchers(HttpMethod.POST, "/api/cafes/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/cafes/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/cafes/**").hasAuthority("ADMIN")
 
                                                 // Coins & Referrals - All authenticated users
                                                 .requestMatchers("/api/coins/**").authenticated()
