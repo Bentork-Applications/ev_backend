@@ -67,9 +67,13 @@ public class ReceiptService implements IReceiptService {
 
         BigDecimal amount;
         if (plan != null) {
-            amount = plan.getWalletDeduction(); // prepaid amount from plan
+            amount = plan.getWalletDeduction(); // prepaid amount from plan — platform fee handled at finalization
         } else {
-            amount = selectedKwh.multiply(BigDecimal.valueOf(charger.getRate())); // charger.rate is Double
+            BigDecimal energyCost = selectedKwh.multiply(BigDecimal.valueOf(charger.getRate()));
+            Double feePerKwh = charger.getPlatformFeePerKwh() != null ? charger.getPlatformFeePerKwh() : 0.0;
+            BigDecimal platformFee = selectedKwh.multiply(BigDecimal.valueOf(feePerKwh))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            amount = energyCost.add(platformFee);
             receipt.setSelectedKwh(selectedKwh);
         }
 

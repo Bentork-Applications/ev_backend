@@ -100,6 +100,9 @@ public class SessionFinalizationService implements ISessionFinalizationService {
             // ========== Persist Session ==========
             session.setEnergyKwh(energyUsed);
             session.setCost(billing.getFinalCost().doubleValue());
+            if (billing.getPlatformFee() != null) {
+                session.setPlatformFee(billing.getPlatformFee().doubleValue());
+            }
             sessionRepository.save(session);
 
             if (receipt != null) {
@@ -139,6 +142,7 @@ public class SessionFinalizationService implements ISessionFinalizationService {
             response.put("sessionId", session.getId());
             response.put("energyUsed", energyUsed);
             response.put("finalCost", billing.getFinalCost());
+            response.put("platformFee", billing.getPlatformFee());
             response.put("refundIssued", billing.isRefundIssued());
             response.put("extraDebited", billing.isExtraDebited());
             response.put("message", "Session completed (" + stopReason + ")" +

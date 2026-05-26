@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @Data
 public class BillingResult {
     private BigDecimal finalCost;
+    private BigDecimal platformFee;      // platform fee applied to this session
     private BigDecimal prepaidAmount;
     private BigDecimal refundAmount;    // null if no refund
     private BigDecimal extraDebit;      // null if no extra charge

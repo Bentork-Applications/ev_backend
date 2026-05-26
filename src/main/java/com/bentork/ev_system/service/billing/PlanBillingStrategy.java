@@ -25,27 +25,36 @@ public class PlanBillingStrategy implements BillingStrategy {
     public BillingResult calculate(Session session, Receipt receipt, double energyUsed) {
         BigDecimal rate = BigDecimal.valueOf(session.getCharger().getRate());
 
-        BigDecimal finalCost = BigDecimal.valueOf(energyUsed).multiply(rate)
+        // Platform fee based on ACTUAL energy used (plans have no selectedKwh)
+        Double feePerKwh = session.getCharger().getPlatformFeePerKwh() != null
+                ? session.getCharger().getPlatformFeePerKwh() : 0.0;
+        BigDecimal platformFee = BigDecimal.valueOf(energyUsed)
+                .multiply(BigDecimal.valueOf(feePerKwh))
                 .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal finalCost = energyCost.add(platformFee);
         BigDecimal prepaid = receipt.getAmount();
 
-        log.info("Plan billing: sessionId={}, prepaid={}, finalCost={}, energyUsed={}",
-                session.getId(), prepaid, finalCost, energyUsed);
+        log.info("Plan billing: sessionId={}, prepaid={}, finalCost={}, energyUsed={}, platformFee={}",
+                session.getId(), prepaid, finalCost, energyUsed, platformFee);
 
         BillingResult result = new BillingResult();
         result.setFinalCost(finalCost);
         result.setPrepaidAmount(prepaid);
+        result.setPlatformFee(platformFee);
 
         if (finalCost.compareTo(prepaid) < 0) {
             BigDecimal refund = prepaid.subtract(finalCost);
             result.setRefundAmount(refund);
             result.setRefundIssued(true);
-            result.setDescription("Unused amount ₹" + refund + " has been refunded to your wallet.");
+            result.setDescription("Unused amount ₹" + refund + " has been refunded to your wallet. (Platform fee: ₹" + platformFee + ")");
         } else if (finalCost.compareTo(prepaid) > 0) {
             BigDecimal extra = finalCost.subtract(prepaid);
             result.setExtraDebit(extra);
             result.setExtraDebited(true);
-            result.setDescription("Extra amount ₹" + extra + " has been deducted due to higher usage.");
+            result.setDescription("Extra amount ₹" + extra + " has been deducted due to higher usage. (Platform fee: ₹" + platformFee + ")");
         }
         return result;
     }

@@ -43,6 +43,10 @@ public class Charger {
 	@Column(nullable = false)
 	private Double rate;
 
+	@Column(name = "platform_fee_per_kwh")
+	@Builder.Default
+	private Double platformFeePerKwh = 0.0;
+
 	@Column(name = "kw_output")
 	private Double kwOutput; // e.g., 7.4, 11.0, 22.0, 50.0
 
@@ -54,6 +58,7 @@ public class Charger {
 	@Builder.Default
 	private String status = ChargerStatus.OFFLINE.getValue(); // busy, available, offline, faulted
 
+	@Builder.Default
 	private LocalDateTime createdAt = LocalDateTime.now();
 
 	public Long getId() {
@@ -102,6 +107,14 @@ public class Charger {
 
 	public void setRate(Double rate) {
 		this.rate = rate;
+	}
+
+	public Double getPlatformFeePerKwh() {
+		return platformFeePerKwh;
+	}
+
+	public void setPlatformFeePerKwh(Double platformFeePerKwh) {
+		this.platformFeePerKwh = platformFeePerKwh;
 	}
 
 	public boolean isOccupied() {

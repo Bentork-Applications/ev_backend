@@ -185,11 +185,20 @@ public class RFIDChargingService implements IRFIDChargingService {
 
             Session saved = sessionRepo.save(session);
 
-            // 🔹 Final cost
-            BigDecimal finalCost = BigDecimal.valueOf(saved.getCost());
+            // 🔹 Final cost including platform fee
+            Double feePerKwh = saved.getCharger().getPlatformFeePerKwh() != null
+                    ? saved.getCharger().getPlatformFeePerKwh() : 0.0;
+            BigDecimal platformFee = BigDecimal.valueOf(saved.getEnergyKwh())
+                    .multiply(BigDecimal.valueOf(feePerKwh))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal finalCost = BigDecimal.valueOf(saved.getCost()).add(platformFee);
+            saved.setCost(finalCost.doubleValue());
+            saved.setPlatformFee(platformFee.doubleValue());
+            sessionRepo.save(saved);
+
             if (finalCost.compareTo(BigDecimal.ZERO) > 0) {
-                log.info("Processing payment for session: sessionId={}, finalCost={}",
-                        sessionId, finalCost);
+                log.info("Processing payment for session: sessionId={}, finalCost={}, platformFee={}",
+                        sessionId, finalCost, platformFee);
 
                 // 1. Wallet debit
                 WalletTransaction tx = walletTxService.debit(

@@ -40,6 +40,9 @@ public class Session {
     @Column(name = "charging_duration_seconds")
     private Long chargingDurationSeconds;
 
+    @Column(name = "platform_fee")
+    private Double platformFee;
+
     // Getters and Setters
 
     public Long getId() {
@@ -152,5 +155,13 @@ public class Session {
 
     public void setChargingDurationSeconds(Long chargingDurationSeconds) {
         this.chargingDurationSeconds = chargingDurationSeconds;
+    }
+
+    public Double getPlatformFee() {
+        return platformFee;
+    }
+
+    public void setPlatformFee(Double platformFee) {
+        this.platformFee = platformFee;
     }
 }

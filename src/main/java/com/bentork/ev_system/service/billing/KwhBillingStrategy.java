@@ -26,30 +26,43 @@ public class KwhBillingStrategy implements BillingStrategy {
         BigDecimal rate = BigDecimal.valueOf(session.getCharger().getRate());
         double selectedKwh = receipt.getSelectedKwh().doubleValue();
 
-        BigDecimal finalCost = BigDecimal.valueOf(energyUsed).multiply(rate)
-                .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal prepaid = BigDecimal.valueOf(selectedKwh).multiply(rate)
+        // Platform fee locked on selectedKwh — does NOT change with actual usage
+        Double feePerKwh = session.getCharger().getPlatformFeePerKwh() != null
+                ? session.getCharger().getPlatformFeePerKwh() : 0.0;
+        BigDecimal platformFee = BigDecimal.valueOf(selectedKwh)
+                .multiply(BigDecimal.valueOf(feePerKwh))
                 .setScale(2, RoundingMode.HALF_UP);
 
-        log.info("kWh billing: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}",
-                session.getId(), selectedKwh, energyUsed, prepaid, finalCost);
+        // Energy cost based on ACTUAL usage
+        BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal finalCost = energyCost.add(platformFee);
+
+        // Prepaid also included the same platform fee
+        BigDecimal prepaidEnergyCost = BigDecimal.valueOf(selectedKwh).multiply(rate)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal prepaid = prepaidEnergyCost.add(platformFee);
+
+        log.info("kWh billing: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, platformFee={}",
+                session.getId(), selectedKwh, energyUsed, prepaid, finalCost, platformFee);
 
         BillingResult result = new BillingResult();
         result.setFinalCost(finalCost);
         result.setPrepaidAmount(prepaid);
+        result.setPlatformFee(platformFee);
 
         if (finalCost.compareTo(prepaid) < 0) {
             BigDecimal refund = prepaid.subtract(finalCost);
             result.setRefundAmount(refund);
             result.setRefundIssued(true);
             result.setDescription("Unused energy refund: ₹" + refund + " (Used " +
-                    String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh) + " kWh selected)");
+                    String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ")");
         } else if (finalCost.compareTo(prepaid) > 0) {
             BigDecimal extra = finalCost.subtract(prepaid);
             result.setExtraDebit(extra);
             result.setExtraDebited(true);
             result.setDescription("Extra amount ₹" + extra + " deducted. (Used " +
-                    String.format("%.2f", energyUsed) + " kWh, exceeded " + String.format("%.2f", selectedKwh) + " kWh selected)");
+                    String.format("%.2f", energyUsed) + " kWh, exceeded " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ")");
         }
         return result;
     }

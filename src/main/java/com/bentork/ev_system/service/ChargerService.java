@@ -92,6 +92,7 @@ public class ChargerService implements IChargerService {
             charger.setConnectorType(dto.getConnectorType());
             charger.setChargerType(dto.getChargerType());
             charger.setRate(dto.getRate());
+            charger.setPlatformFeePerKwh(dto.getPlatformFeePerKwh() != null ? dto.getPlatformFeePerKwh() : 0.0);
             charger.setOccupied(dto.isOccupied());
             charger.setAvailability(dto.isAvailability());
             
