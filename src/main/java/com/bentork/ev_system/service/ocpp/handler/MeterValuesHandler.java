@@ -5,6 +5,7 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 import com.bentork.ev_system.service.interfaces.ISessionService;
+import com.bentork.ev_system.service.SessionReminderService;
 import com.bentork.ev_system.service.ocpp.OcppActionHandler;
 import com.bentork.ev_system.service.ocpp.OcppConnectionManager;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,6 +28,7 @@ public class MeterValuesHandler implements OcppActionHandler {
     private final SessionRepository sessionRepository;
     private final OcppConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
+    private final SessionReminderService sessionReminderService;
 
     @Override
     public String getAction() {
@@ -47,9 +49,10 @@ public class MeterValuesHandler implements OcppActionHandler {
             logAllMeasurands(payload);
 
             BigDecimal currentAbsKwh = extractEnergyFromMeterValues(payload);
+            Double currentSoc = extractSocFromMeterValues(payload);
 
-            if (currentAbsKwh == null) {
-                log.debug("MeterValues - no energy measurand found");
+            if (currentAbsKwh == null && currentSoc == null) {
+                log.debug("MeterValues - no energy or SoC measurand found");
                 return objectMapper.createObjectNode();
             }
 
@@ -64,10 +67,16 @@ public class MeterValuesHandler implements OcppActionHandler {
                 return objectMapper.createObjectNode();
             }
 
-            log.debug("MeterValues - SessionId: {}, CurrentAbsKwh: {}, Source: {}",
-                    sessionId, currentAbsKwh, session.getSourceType());
+            if (currentSoc != null) {
+                log.info("SoC Update: SessionId={}, SoC={}%", sessionId, currentSoc);
+                sessionReminderService.checkAndSendFullyChargedNotification(sessionId, currentSoc);
+            }
 
-            if ("RFID".equals(session.getSourceType())) {
+            if (currentAbsKwh != null) {
+                log.debug("MeterValues - SessionId: {}, CurrentAbsKwh: {}, Source: {}",
+                        sessionId, currentAbsKwh, session.getSourceType());
+
+                if ("RFID".equals(session.getSourceType())) {
                 Session updated = rfidChargingService.updateEnergy(sessionId, currentAbsKwh);
 
                 Long durationSeconds = extractDurationFromMeterValues(payload);
@@ -111,8 +120,10 @@ public class MeterValuesHandler implements OcppActionHandler {
                 }
 
                 sessionRepository.save(session);
+                sessionReminderService.checkAndSendKwhReminder(sessionId, consumedKwh);
                 sessionService.checkAndStopIfReachedKwh(sessionId, consumedKwh);
             }
+            } // end if (currentAbsKwh != null)
 
             return objectMapper.createObjectNode();
 
@@ -152,6 +163,32 @@ public class MeterValuesHandler implements OcppActionHandler {
             }
         } catch (Exception e) {
             log.error("Error parsing meter values: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private Double extractSocFromMeterValues(JsonNode payload) {
+        try {
+            if (!payload.has("meterValue")) return null;
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray()) return null;
+
+            for (JsonNode meterValue : meterValues) {
+                if (!meterValue.has("sampledValue")) continue;
+                JsonNode sampledValues = meterValue.get("sampledValue");
+                if (!sampledValues.isArray()) continue;
+
+                for (JsonNode sample : sampledValues) {
+                    if (!sample.has("measurand")) continue;
+                    String measurand = sample.get("measurand").asText();
+
+                    if ("SoC".equals(measurand)) {
+                        return Double.parseDouble(sample.get("value").asText());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing SoC from meter values: {}", e.getMessage());
         }
         return null;
     }

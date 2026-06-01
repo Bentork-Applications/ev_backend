@@ -43,6 +43,12 @@ public class Session {
     @Column(name = "platform_fee")
     private Double platformFee;
 
+    @Column(name = "reminder_sent")
+    private Boolean reminderSent = false;
+
+    @Column(name = "fully_charged_notified")
+    private Boolean fullyChargedNotified = false;
+
     // Getters and Setters
 
     public Long getId() {
@@ -163,5 +169,21 @@ public class Session {
 
     public void setPlatformFee(Double platformFee) {
         this.platformFee = platformFee;
+    }
+
+    public Boolean getReminderSent() {
+        return reminderSent;
+    }
+
+    public void setReminderSent(Boolean reminderSent) {
+        this.reminderSent = reminderSent;
+    }
+
+    public Boolean getFullyChargedNotified() {
+        return fullyChargedNotified;
+    }
+
+    public void setFullyChargedNotified(Boolean fullyChargedNotified) {
+        this.fullyChargedNotified = fullyChargedNotified;
     }
 }

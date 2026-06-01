@@ -68,6 +68,7 @@ public class SessionService implements ISessionService {
 	private final ISessionQueryService sessionQueryService;
 	private final IMaintenanceService maintenanceService;
 	private final StaleSessionCleanupService staleSessionCleanupService;
+	private final SessionReminderService sessionReminderService;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
@@ -85,7 +86,8 @@ public class SessionService implements ISessionService {
 			ISessionFinalizationService sessionFinalizationService,
 			ISessionQueryService sessionQueryService,
 			IMaintenanceService maintenanceService,
-			StaleSessionCleanupService staleSessionCleanupService) {
+			StaleSessionCleanupService staleSessionCleanupService,
+			SessionReminderService sessionReminderService) {
 		this.sessionRepository = sessionRepository;
 		this.receiptRepository = receiptRepository;
 		this.chargerRepository = chargerRepository;
@@ -100,6 +102,7 @@ public class SessionService implements ISessionService {
 		this.sessionQueryService = sessionQueryService;
 		this.maintenanceService = maintenanceService;
 		this.staleSessionCleanupService = staleSessionCleanupService;
+		this.sessionReminderService = sessionReminderService;
 	}
 
 	// ===================== LIFECYCLE METHODS =====================
@@ -229,6 +232,9 @@ public class SessionService implements ISessionService {
 				log.info("Scheduling auto-stop for TIME plan: sessionId={}, durationMin={}",
 						session.getId(), durationMin);
 				scheduleAutoStop(session.getId(), durationMin);
+
+				// Schedule reminder notification before session ends
+				sessionReminderService.scheduleTimeReminder(session.getId(), durationMin);
 
 			} else if (receipt.getSelectedKwh() != null) {
 				int safetyBufferMinutes = 24 * 60;
