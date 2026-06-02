@@ -61,6 +61,7 @@ public class SecurityConfig {
                                                 .requestMatchers(
                                                                 "/api/user/signup",
                                                                 "/api/user/login",
+                                                                "/api/user/truecaller-login",
                                                                 "/api/admin/signup",
                                                                 "/api/admin/login",
                                                                 "/api/user/request-otp",

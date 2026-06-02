@@ -1,8 +1,10 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
 import com.bentork.ev_system.dto.request.UserSignupRequest;
 import com.bentork.ev_system.model.User;
+import com.bentork.ev_system.service.TruecallerAuthService;
 import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import java.util.List;
 public class UserAuthController {
 
     private final IUserAuthService userAuthService;
+    private final TruecallerAuthService truecallerAuthService;
 
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserSignupRequest request) {
@@ -46,6 +49,11 @@ public class UserAuthController {
     @GetMapping("/google-login-success")
     public ResponseEntity<?> googleLoginSuccess(@RequestParam String email) {
         return ResponseEntity.ok(userAuthService.googleLogin(email));
+    }
+
+    @PostMapping("/truecaller-login")
+    public ResponseEntity<?> truecallerLogin(@Valid @RequestBody TruecallerLoginRequest request) {
+        return ResponseEntity.ok(truecallerAuthService.login(request));
     }
 
     @DeleteMapping("/delete-account")
