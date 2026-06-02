@@ -115,6 +115,11 @@ public class TruecallerAuthService {
     private String exchangeCodeForAccessToken(String authorizationCode, String codeVerifier) {
         log.debug("Exchanging authorization code for access token");
 
+        if (clientId == null || clientId.trim().isEmpty()) {
+            log.error("Truecaller Client ID is not configured (TRUECALLER_CLIENT_ID is empty)");
+            throw new RuntimeException("Server misconfiguration: Truecaller Client ID is missing.");
+        }
+
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "authorization_code");
         params.add("client_id", clientId);
