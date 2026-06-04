@@ -11,4 +11,6 @@ public class TruecallerLoginRequest {
 
     @NotBlank(message = "Code verifier is required")
     private String codeVerifier;
+
+    private String clientType; // "MOBILE" or "WEB"
 }

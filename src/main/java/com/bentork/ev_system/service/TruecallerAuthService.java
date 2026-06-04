@@ -35,6 +35,9 @@ public class TruecallerAuthService {
     @Value("${truecaller.client-id:}")
     private String clientId;
 
+    @Value("${truecaller.web.client-id:}")
+    private String webClientId;
+
     @Value("${truecaller.token-url:https://oauth-account-noneu.truecaller.com/v1/token}")
     private String tokenUrl;
 
@@ -54,7 +57,8 @@ public class TruecallerAuthService {
         // Step 1: Exchange authorization code for access token
         String accessToken = exchangeCodeForAccessToken(
                 request.getAuthorizationCode(),
-                request.getCodeVerifier()
+                request.getCodeVerifier(),
+                request.getClientType()
         );
 
         // Step 2: Fetch user profile from Truecaller
@@ -112,17 +116,19 @@ public class TruecallerAuthService {
      * Exchange the authorization code and code verifier for an access token
      * using Truecaller's OAuth2 PKCE token endpoint.
      */
-    private String exchangeCodeForAccessToken(String authorizationCode, String codeVerifier) {
+    private String exchangeCodeForAccessToken(String authorizationCode, String codeVerifier, String clientType) {
         log.debug("Exchanging authorization code for access token");
 
-        if (clientId == null || clientId.trim().isEmpty()) {
-            log.error("Truecaller Client ID is not configured (TRUECALLER_CLIENT_ID is empty)");
+        String activeClientId = "WEB".equalsIgnoreCase(clientType) ? webClientId : clientId;
+
+        if (activeClientId == null || activeClientId.trim().isEmpty()) {
+            log.error("Truecaller Client ID is not configured for client type: {}", clientType != null ? clientType : "MOBILE");
             throw new RuntimeException("Server misconfiguration: Truecaller Client ID is missing.");
         }
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "authorization_code");
-        params.add("client_id", clientId);
+        params.add("client_id", activeClientId);
         params.add("code", authorizationCode);
         params.add("code_verifier", codeVerifier);
 
