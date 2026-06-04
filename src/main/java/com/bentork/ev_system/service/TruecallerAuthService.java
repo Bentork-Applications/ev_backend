@@ -4,6 +4,10 @@ import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
 import com.bentork.ev_system.dto.response.TruecallerLoginResponse;
 import com.bentork.ev_system.dto.response.TruecallerUserInfo;
+import com.bentork.ev_system.dto.request.TruecallerWebhookPayload;
+import com.bentork.ev_system.dto.response.TruecallerStatusResponse;
+import com.bentork.ev_system.model.TruecallerLoginSession;
+import com.bentork.ev_system.repository.TruecallerLoginSessionRepository;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
@@ -31,6 +35,7 @@ public class TruecallerAuthService {
     private final UserRepository userRepo;
     private final JwtUtil jwtUtil;
     private final IAdminNotificationService adminNotificationService;
+    private final TruecallerLoginSessionRepository sessionRepo;
 
     @Value("${truecaller.client-id:}")
     private String clientId;
@@ -258,5 +263,59 @@ public class TruecallerAuthService {
             return "****";
         }
         return "****" + phoneNumber.substring(phoneNumber.length() - 4);
+    }
+
+    public void handleWebhook(TruecallerWebhookPayload payload) {
+        log.info("Processing Truecaller webhook for requestId: {}", payload.getRequestId());
+        
+        TruecallerLoginSession session = sessionRepo.findByRequestId(payload.getRequestId())
+                .orElse(new TruecallerLoginSession(payload.getRequestId()));
+        
+        try {
+            TruecallerUserInfo userInfo;
+            if (payload.getAccessToken() != null && !payload.getAccessToken().isEmpty()) {
+                userInfo = fetchUserProfile(payload.getAccessToken());
+            } else if (payload.getPhoneNumber() != null) {
+                userInfo = new TruecallerUserInfo();
+                userInfo.setPhoneNumber(payload.getPhoneNumber());
+                // For simplicity, we just set name if provided directly
+            } else {
+                throw new RuntimeException("Invalid webhook payload: missing token or phone number");
+            }
+
+            String normalizedMobile = normalizePhoneNumber(userInfo.getPhoneNumber());
+            Optional<User> existingUser = userRepo.findByMobile(normalizedMobile);
+            User user;
+
+            if (existingUser.isPresent()) {
+                user = existingUser.get();
+            } else {
+                user = createUserFromTruecaller(userInfo, normalizedMobile);
+                adminNotificationService.notifyNewUserRegistration(user.getName());
+            }
+
+            UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getEmail() != null ? user.getEmail() : normalizedMobile)
+                    .password("")
+                    .authorities("ROLE_USER")
+                    .build();
+
+            String jwtToken = jwtUtil.generateToken(userDetails);
+            
+            session.setJwtToken(jwtToken);
+            session.setStatus("SUCCESS");
+            
+        } catch (Exception e) {
+            log.error("Webhook processing failed: {}", e.getMessage());
+            session.setStatus("FAILED");
+        }
+        
+        sessionRepo.save(session);
+    }
+    
+    public TruecallerStatusResponse getLoginStatus(String requestId) {
+        return sessionRepo.findByRequestId(requestId)
+                .map(session -> new TruecallerStatusResponse(session.getStatus(), session.getJwtToken()))
+                .orElse(new TruecallerStatusResponse("PENDING", null));
     }
 }

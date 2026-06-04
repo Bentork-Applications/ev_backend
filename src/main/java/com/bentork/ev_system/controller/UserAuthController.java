@@ -1,6 +1,7 @@
 package com.bentork.ev_system.controller;
 
 import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
+import com.bentork.ev_system.dto.request.TruecallerWebhookPayload;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
 import com.bentork.ev_system.dto.request.UserSignupRequest;
 import com.bentork.ev_system.model.User;
@@ -54,6 +55,17 @@ public class UserAuthController {
     @PostMapping("/truecaller-login")
     public ResponseEntity<?> truecallerLogin(@Valid @RequestBody TruecallerLoginRequest request) {
         return ResponseEntity.ok(truecallerAuthService.login(request));
+    }
+
+    @PostMapping("/truecaller/webhook")
+    public ResponseEntity<?> truecallerWebhook(@RequestBody TruecallerWebhookPayload payload) {
+        truecallerAuthService.handleWebhook(payload);
+        return ResponseEntity.ok("Webhook received");
+    }
+
+    @GetMapping("/truecaller/status/{requestId}")
+    public ResponseEntity<?> getTruecallerStatus(@PathVariable String requestId) {
+        return ResponseEntity.ok(truecallerAuthService.getLoginStatus(requestId));
     }
 
     @DeleteMapping("/delete-account")

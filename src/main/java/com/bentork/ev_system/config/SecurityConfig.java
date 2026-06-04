@@ -62,6 +62,8 @@ public class SecurityConfig {
                                                                 "/api/user/signup",
                                                                 "/api/user/login",
                                                                 "/api/user/truecaller-login",
+                                                                "/api/user/truecaller/webhook",
+                                                                "/api/user/truecaller/status/**",
                                                                 "/api/admin/signup",
                                                                 "/api/admin/login",
                                                                 "/api/user/request-otp",
