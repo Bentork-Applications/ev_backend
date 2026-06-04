@@ -63,8 +63,7 @@ public class TruecallerAuthService {
         String accessToken = exchangeCodeForAccessToken(
                 request.getAuthorizationCode(),
                 request.getCodeVerifier(),
-                request.getClientType()
-        );
+                request.getClientType());
 
         // Step 2: Fetch user profile from Truecaller
         TruecallerUserInfo userInfo = fetchUserProfile(accessToken);
@@ -127,7 +126,8 @@ public class TruecallerAuthService {
         String activeClientId = "WEB".equalsIgnoreCase(clientType) ? webClientId : clientId;
 
         if (activeClientId == null || activeClientId.trim().isEmpty()) {
-            log.error("Truecaller Client ID is not configured for client type: {}", clientType != null ? clientType : "MOBILE");
+            log.error("Truecaller Client ID is not configured for client type: {}",
+                    clientType != null ? clientType : "MOBILE");
             throw new RuntimeException("Server misconfiguration: Truecaller Client ID is missing.");
         }
 
@@ -190,8 +190,7 @@ public class TruecallerAuthService {
                     userinfoUrl,
                     HttpMethod.GET,
                     requestEntity,
-                    TruecallerUserInfo.class
-            );
+                    TruecallerUserInfo.class);
 
             if (response.getBody() == null || response.getBody().getPhoneNumber() == null) {
                 log.error("Truecaller profile response missing phone number");
@@ -267,17 +266,19 @@ public class TruecallerAuthService {
 
     public void handleWebhook(TruecallerWebhookPayload payload) {
         log.info("Processing Truecaller webhook for requestId: {}", payload.getRequestId());
-        
+
         TruecallerLoginSession session = sessionRepo.findByRequestId(payload.getRequestId())
                 .orElse(new TruecallerLoginSession(payload.getRequestId()));
-        
+
         try {
             TruecallerUserInfo userInfo;
+            String providedPhone = payload.getPhoneNumber() != null ? payload.getPhoneNumber()
+                    : payload.getPhonenumber();
             if (payload.getAccessToken() != null && !payload.getAccessToken().isEmpty()) {
                 userInfo = fetchUserProfile(payload.getAccessToken());
-            } else if (payload.getPhoneNumber() != null) {
+            } else if (providedPhone != null) {
                 userInfo = new TruecallerUserInfo();
-                userInfo.setPhoneNumber(payload.getPhoneNumber());
+                userInfo.setPhoneNumber(providedPhone);
                 // For simplicity, we just set name if provided directly
             } else {
                 throw new RuntimeException("Invalid webhook payload: missing token or phone number");
@@ -301,18 +302,18 @@ public class TruecallerAuthService {
                     .build();
 
             String jwtToken = jwtUtil.generateToken(userDetails);
-            
+
             session.setJwtToken(jwtToken);
             session.setStatus("SUCCESS");
-            
+
         } catch (Exception e) {
             log.error("Webhook processing failed: {}", e.getMessage());
             session.setStatus("FAILED");
         }
-        
+
         sessionRepo.save(session);
     }
-    
+
     public TruecallerStatusResponse getLoginStatus(String requestId) {
         return sessionRepo.findByRequestId(requestId)
                 .map(session -> new TruecallerStatusResponse(session.getStatus(), session.getJwtToken()))

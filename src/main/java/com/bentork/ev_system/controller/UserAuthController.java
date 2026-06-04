@@ -13,12 +13,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
+@Slf4j
 public class UserAuthController {
 
     private final IUserAuthService userAuthService;
@@ -57,9 +61,31 @@ public class UserAuthController {
         return ResponseEntity.ok(truecallerAuthService.login(request));
     }
 
-    @PostMapping("/truecaller/webhook")
-    public ResponseEntity<?> truecallerWebhook(@RequestBody TruecallerWebhookPayload payload) {
-        truecallerAuthService.handleWebhook(payload);
+    @PostMapping(value = "/truecaller/webhook", consumes = { MediaType.APPLICATION_JSON_VALUE,
+            MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            MediaType.ALL_VALUE })
+    public ResponseEntity<?> truecallerWebhook(
+            @RequestParam(required = false) String requestId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String phonenumber,
+            @RequestBody(required = false) TruecallerWebhookPayload body,
+            HttpServletRequest request) {
+        String resolvedRequestId = body != null ? body.getRequestId() : requestId;
+        String resolvedStatus = body != null ? body.getStatus() : status;
+        String resolvedPhone = body != null ? body.getPhonenumber() : phonenumber;
+
+        log.info("Truecaller webhook hit — contentType: {}, requestId: {}, status: {}",
+                request.getContentType(), resolvedRequestId, resolvedStatus);
+
+        TruecallerWebhookPayload payloadToUse = body;
+        if (payloadToUse == null) {
+            payloadToUse = new TruecallerWebhookPayload();
+            payloadToUse.setRequestId(resolvedRequestId);
+            payloadToUse.setStatus(resolvedStatus);
+            payloadToUse.setPhonenumber(resolvedPhone);
+        }
+
+        truecallerAuthService.handleWebhook(payloadToUse);
         return ResponseEntity.ok("Webhook received");
     }
 
