@@ -10,6 +10,8 @@ import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -33,6 +35,7 @@ public class UserAuthService implements IUserAuthService {
     private final IAdminNotificationService adminNotificationService;
 
     @Override
+    @CacheEvict(value = "user-data", allEntries = true)
     public String register(UserSignupRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword()))
             throw new IllegalArgumentException("Passwords do not match");
@@ -90,28 +93,33 @@ public class UserAuthService implements IUserAuthService {
     }
 
     @Override
+    @CacheEvict(value = "user-data", allEntries = true)
     public void deleteAccount(String email) {
         User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
         userRepo.delete(user);
     }
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'total-users'")
     public long getTotalUsers() {
         return userRepo.count();
     }
 
     @Override
+    @Cacheable(value = "user-data", key = "#email")
     public User getUserDetailsByEmail(String email) throws Exception {
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> new Exception("User with email '" + email + "' not found."));
     }
 
     @Override
+    @Cacheable(value = "user-data", key = "'all-users'")
     public List<User> getAllUsers() {
         return userRepo.findAll();
     }
 
     @Override
+    @Cacheable(value = "user-data", key = "#id")
     public User getUserById(Long id) throws Exception {
         return userRepo.findById(id).orElseThrow(() -> new Exception("User not found"));
     }

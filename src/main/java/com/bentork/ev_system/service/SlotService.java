@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class SlotService {
          * Validates time range and checks for overlapping slots.
          */
         @Transactional
+        @CacheEvict(value = "slots", allEntries = true)
         public SlotDTO createSlot(SlotDTO dto) {
                 log.info("Creating slot for chargerId={}, startTime={}, endTime={}",
                                 dto.getChargerId(), dto.getStartTime(), dto.getEndTime());
@@ -87,6 +90,7 @@ public class SlotService {
          * @return list of created slots
          */
         @Transactional
+        @CacheEvict(value = "slots", allEntries = true)
         public List<SlotDTO> createBulkSlots(Long chargerId, String date, int durationMinutes, boolean allDay) {
                 log.info("Creating bulk slots for chargerId={}, date={}, durationMinutes={}, allDay={}",
                                 chargerId, date, durationMinutes, allDay);
@@ -205,6 +209,7 @@ public class SlotService {
          * - Future date-specific slots
          * - All-day (recurring everyday) unbooked slots
          */
+        @Cacheable(value = "slots", key = "'available-' + #chargerId")
         public List<SlotDTO> getAvailableSlots(Long chargerId) {
                 log.info("Fetching available slots for chargerId={}", chargerId);
 
@@ -232,6 +237,7 @@ public class SlotService {
         /**
          * Get all slots for a charger (admin view — includes booked and past slots).
          */
+        @Cacheable(value = "slots", key = "'charger-' + #chargerId")
         public List<SlotDTO> getSlotsByCharger(Long chargerId) {
                 log.info("Fetching all slots for chargerId={}", chargerId);
 
@@ -258,6 +264,7 @@ public class SlotService {
          * Delete an unbooked slot (admin only).
          */
         @Transactional
+        @CacheEvict(value = "slots", allEntries = true)
         public void deleteSlot(Long slotId) {
                 log.info("Deleting slot: slotId={}", slotId);
 

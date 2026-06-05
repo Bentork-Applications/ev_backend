@@ -3,11 +3,13 @@ package com.bentork.ev_system.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.*;
-//import java.io.Serializable;
+import java.io.Serializable;
 
 @Entity
 @Table(name = "locations")
-public class Location{
+public class Location implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

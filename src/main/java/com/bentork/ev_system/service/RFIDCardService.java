@@ -5,6 +5,8 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.request.RFIDCardRequest;
@@ -22,6 +24,7 @@ public class RFIDCardService {
     private final UserRepository userRepo;
 
     // Register new RFID card
+    @CacheEvict(value = "rfid-stats", allEntries = true)
     public RFIDCard registerCard(RFIDCardRequest req) {
         try {
             User user = userRepo.findById(req.getUserId())
@@ -48,6 +51,7 @@ public class RFIDCardService {
     }
 
     // Get all cards
+    @Cacheable(value = "rfid-stats", key = "'all-cards'")
     public List<RFIDCard> getAllCards() {
         try {
             List<RFIDCard> cards = cardRepo.findAll();
@@ -84,6 +88,7 @@ public class RFIDCardService {
     }
 
     // Update card status (activate/deactivate)
+    @CacheEvict(value = "rfid-stats", allEntries = true)
     public RFIDCard updateCardStatus(Long id, boolean active) {
         try {
             RFIDCard card = getCard(id);
@@ -103,6 +108,7 @@ public class RFIDCardService {
     }
 
     // Delete card
+    @CacheEvict(value = "rfid-stats", allEntries = true)
     public void deleteCard(Long id) {
         try {
             cardRepo.deleteById(id);
@@ -114,6 +120,7 @@ public class RFIDCardService {
     }
 
     // Total Cards
+    @Cacheable(value = "rfid-stats", key = "'total-cards'")
     public Long getTotalCards() {
         try {
             Long total = cardRepo.count();
@@ -130,6 +137,7 @@ public class RFIDCardService {
     }
 
     // Active Cards
+    @Cacheable(value = "rfid-stats", key = "'active-cards'")
     public Long getActiveCards() {
         try {
             Long activeCount = cardRepo.countByActiveTrue();
@@ -143,6 +151,7 @@ public class RFIDCardService {
         }
     }
 
+    @Cacheable(value = "rfid-stats", key = "'inactive-cards'")
     public Long getInactiveCards() {
         try {
             Long inactiveCount = cardRepo.countByActiveFalse();
@@ -157,6 +166,7 @@ public class RFIDCardService {
     }
 
     // Recently Added - Last 7 days
+    @Cacheable(value = "rfid-stats", key = "'recently-added'")
     public Long getRecentlyAddedCards() {
         try {
             LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);

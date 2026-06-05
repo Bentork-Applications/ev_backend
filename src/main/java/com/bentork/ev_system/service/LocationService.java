@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,11 +25,13 @@ public class LocationService {
 
     private final AdminRepository adminRepo;
 
+    @CacheEvict(value = "locations", allEntries = true)
     public Location addLocation(LocationDTO dto, Admin admin) {
         Location location = LocationMapper.toEntity(dto, admin);
         return locationRepo.save(location);
     }
 
+    @Cacheable(value = "locations", key = "'all-location-names'")
     public List<Map<String, Object>> getAllLocationNames() {
         return locationRepo.findAll().stream()
                 .map(location -> {

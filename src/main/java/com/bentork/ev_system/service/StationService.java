@@ -6,6 +6,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +41,10 @@ public class StationService {
 
     private final Clock clock;
 
+    @Caching(evict = {
+        @CacheEvict(value = "stations", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public StationDTO createStation(StationDTO dto) {
         try {
             Location location = locationRepository.findById(dto.getLocationId())
@@ -62,6 +69,7 @@ public class StationService {
         }
     }
 
+    @Cacheable(value = "stations", key = "'all-stations'")
     public List<StationDTO> getAllStations() {
         try {
             List<StationDTO> stations = stationRepository.findAll().stream()
@@ -83,6 +91,7 @@ public class StationService {
         }
     }
 
+    @Cacheable(value = "stations", key = "#id")
     public StationDTO getStationById(Long id) {
         try {
             Station station = stationRepository.findById(id)
@@ -121,6 +130,10 @@ public class StationService {
         }
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "stations", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public StationDTO updateStation(Long id, StationDTO dto) {
         try {
             Station station = stationRepository.findById(id)
@@ -152,6 +165,10 @@ public class StationService {
         }
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "stations", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public void deleteStation(Long id) {
         try {
             if (!stationRepository.existsById(id)) {
@@ -168,6 +185,7 @@ public class StationService {
         }
     }
 
+    @Cacheable(value = "dashboard-stats", key = "'total-stations'")
     public Long getTotalStations() {
         try {
             Long total = stationRepository.count();
@@ -183,6 +201,7 @@ public class StationService {
         }
     }
 
+    @Cacheable(value = "dashboard-stats", key = "'active-stations'")
     public Long getActiveStations() {
         try {
             Long activeCount = stationRepository.findAll().stream()
@@ -200,6 +219,7 @@ public class StationService {
         }
     }
 
+    @Cacheable(value = "dashboard-stats", key = "'avg-uptime'")
     public Double getAverageUptime() {
         try {
             List<Station> stations = stationRepository.findAll();
@@ -240,6 +260,7 @@ public class StationService {
     }
 
     // Error Today
+    @Cacheable(value = "dashboard-stats", key = "'todays-error-count'")
     public Long getTodaysErrorCount() {
         try {
             LocalDate today = LocalDate.now(clock);

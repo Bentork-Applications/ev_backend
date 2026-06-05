@@ -11,6 +11,8 @@ import com.bentork.ev_system.repository.StationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ public class CafeService {
     // Approx degrees per meter
     private static final double LAT_DEGREE_IN_METERS = 111320.0;
 
+    @CacheEvict(value = "cafes", allEntries = true)
     public CafeResponseDTO createCafe(CafeRequestDTO dto) {
         log.info("CafeService - Creating new cafe: {}", dto.getName());
         Station station = stationRepository.findById(dto.getStationId())
@@ -43,6 +46,7 @@ public class CafeService {
         return CafeMapper.toResponseDTO(saved);
     }
 
+    @CacheEvict(value = "cafes", allEntries = true)
     public CafeResponseDTO updateCafe(Long id, CafeRequestDTO dto) {
         log.info("CafeService - Updating cafe ID: {}", id);
         Cafe existing = cafeRepository.findById(id)
@@ -67,6 +71,7 @@ public class CafeService {
         return CafeMapper.toResponseDTO(updated);
     }
 
+    @CacheEvict(value = "cafes", allEntries = true)
     public void deleteCafe(Long id) {
         log.info("CafeService - Deleting cafe ID: {}", id);
         if (!cafeRepository.existsById(id)) {
@@ -75,18 +80,21 @@ public class CafeService {
         cafeRepository.deleteById(id);
     }
 
+    @Cacheable(value = "cafes", key = "#id")
     public CafeResponseDTO getCafeById(Long id) {
         Cafe cafe = cafeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cafe not found with ID: " + id));
         return CafeMapper.toResponseDTO(cafe);
     }
 
+    @Cacheable(value = "cafes", key = "'station-' + #stationId")
     public List<CafeResponseDTO> getCafesByStationId(Long stationId) {
         return cafeRepository.findByStationId(stationId).stream()
                 .map(CafeMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "cafes", key = "'all-cafes'")
     public List<CafeResponseDTO> getAllCafes() {
         return cafeRepository.findAll().stream()
                 .map(CafeMapper::toResponseDTO)

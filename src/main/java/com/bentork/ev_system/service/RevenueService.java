@@ -7,6 +7,8 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.repository.RevenueRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -54,6 +56,7 @@ public class RevenueService implements IRevenueService {
     }
 
     // Calculate Total Revenue
+    @Cacheable(value = "dashboard-stats", key = "'total-revenue'")
     public BigDecimal getTotalRevenue() {
         try {
             double total = revenueRepository.sumAmountByPaymentStatus("SUCCESS");
@@ -69,6 +72,7 @@ public class RevenueService implements IRevenueService {
     }
 
     // Pending Revenue (
+    @Cacheable(value = "dashboard-stats", key = "'pending-revenue'")
     public BigDecimal getPendingRevenue() {
         try {
             double pending = revenueRepository.sumAmountByPaymentStatus("PENDING");
@@ -136,6 +140,7 @@ public class RevenueService implements IRevenueService {
     }
 
     // Total Transactions
+    @Cacheable(value = "dashboard-stats", key = "'total-transactions'")
     public Long getTotalTransactions() {
         try {
             Long total = revenueRepository.count();
@@ -152,6 +157,7 @@ public class RevenueService implements IRevenueService {
     }
 
     // Success Rate
+    @Cacheable(value = "dashboard-stats", key = "'success-rate'")
     public Double getSuccessRate() {
         try {
             long totalTransactions = revenueRepository.count();

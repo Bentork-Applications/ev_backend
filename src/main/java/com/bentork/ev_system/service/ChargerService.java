@@ -3,6 +3,9 @@ package com.bentork.ev_system.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.request.ChargerDTO;
@@ -27,6 +30,10 @@ public class ChargerService implements IChargerService {
 
     private final StationRepository stationRepository;
 
+    @Caching(evict = {
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public String createCharger(ChargerDTO dto) {
         try {
             Station station = stationRepository.findById(dto.getStationId())
@@ -47,6 +54,7 @@ public class ChargerService implements IChargerService {
          } 
     }
 
+    @Cacheable(value = "chargers", key = "'all-chargers'")
     public List<ChargerDTO> getAllChargers() {
         try {
             List<ChargerDTO> chargers = chargerRepository.findAll()
@@ -62,6 +70,7 @@ public class ChargerService implements IChargerService {
         }   
     }
 
+    @Cacheable(value = "chargers", key = "#id")
     public ChargerDTO getChargerById(Long id) {
         try {
             Charger charger = chargerRepository.findById(id)
@@ -78,6 +87,10 @@ public class ChargerService implements IChargerService {
         }
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public String updateCharger(Long id, ChargerDTO dto) {
         try {
             Charger charger = chargerRepository.findById(id)
@@ -110,6 +123,10 @@ public class ChargerService implements IChargerService {
         }
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public String deleteCharger(Long id) {
        try {
             if (!chargerRepository.existsById(id)) {
@@ -128,6 +145,7 @@ public class ChargerService implements IChargerService {
     }
 
     // Total Chargers
+    @Cacheable(value = "dashboard-stats", key = "'total-chargers'")
     public Long getTotalChargers() {
        try {
             Long total = chargerRepository.count();
@@ -138,6 +156,7 @@ public class ChargerService implements IChargerService {
             throw e;
         }
     }
+    @Cacheable(value = "dashboard-stats", key = "'available-chargers'")
     public Long getAvailableChargers() {
         try {
             Long available = chargerRepository.countByAvailabilityTrueAndOccupiedFalse();
@@ -150,6 +169,7 @@ public class ChargerService implements IChargerService {
     }
 
     // AC Chargers
+    @Cacheable(value = "dashboard-stats", key = "'ac-chargers'")
     public Long getACChargers() {
         try {
             Long acCount = chargerRepository.countByChargerTypeIgnoreCase("AC");
@@ -162,6 +182,7 @@ public class ChargerService implements IChargerService {
     }
 
     // DC Chargers
+    @Cacheable(value = "dashboard-stats", key = "'dc-chargers'")
     public Long getDCChargers() {
         try {
             Long dcCount = chargerRepository.countByChargerTypeIgnoreCase("DC");

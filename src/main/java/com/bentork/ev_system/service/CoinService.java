@@ -5,6 +5,8 @@ import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,7 @@ public class CoinService implements ICoinService {
      * Formula: floor(energyKwh) * COINS_PER_KWH
      */
     @Transactional
+    @CacheEvict(value = "user-data", allEntries = true)
     public void awardChargingCoins(Long userId, double energyKwh, Long sessionId) {
         int kwhFloor = (int) Math.floor(energyKwh);
         if (kwhFloor <= 0) {
@@ -74,6 +77,7 @@ public class CoinService implements ICoinService {
      * Award referral bonus to the referrer (250 coins).
      */
     @Transactional
+    @CacheEvict(value = "user-data", allEntries = true)
     public void awardReferralBonus(Long referrerId, Long sessionId) {
         User user = userRepo.findByIdWithLock(referrerId)
                 .orElseThrow(() -> new UserNotFoundException(referrerId));
@@ -96,6 +100,7 @@ public class CoinService implements ICoinService {
      * Award referred friend bonus (50 coins).
      */
     @Transactional
+    @CacheEvict(value = "user-data", allEntries = true)
     public void awardReferredBonus(Long referredUserId, Long sessionId) {
         User user = userRepo.findByIdWithLock(referredUserId)
                 .orElseThrow(() -> new UserNotFoundException(referredUserId));
@@ -126,6 +131,7 @@ public class CoinService implements ICoinService {
      * @return The kWh value redeemed
      */
     @Transactional
+    @CacheEvict(value = "user-data", allEntries = true)
     public double redeemCoins(Long userId, int coins, double ratePerKwh) {
         if (coins <= 0 || coins % COINS_TO_REDEEM_1_KWH != 0) {
             throw new RuntimeException("Coins must be a positive multiple of " + COINS_TO_REDEEM_1_KWH);
@@ -168,6 +174,7 @@ public class CoinService implements ICoinService {
     /**
      * Get user's coin balance and redeemable kWh.
      */
+    @Cacheable(value = "user-data", key = "'coin-balance-' + #userId")
     public CoinBalanceResponse getCoinBalance(Long userId) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));

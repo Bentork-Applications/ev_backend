@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,10 @@ public class StationReviewService {
     // CREATE REVIEW
     // ========================
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "reviews", allEntries = true),
+        @CacheEvict(value = "stations", allEntries = true)
+    })
     public StationReviewResponse createReview(Long stationId, Long userId,
             StationReviewRequest request) {
 
@@ -69,6 +76,10 @@ public class StationReviewService {
     // UPDATE REVIEW
     // ========================
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "reviews", allEntries = true),
+        @CacheEvict(value = "stations", allEntries = true)
+    })
     public StationReviewResponse updateReview(Long reviewId, Long userId,
             StationReviewRequest request) {
 
@@ -101,6 +112,10 @@ public class StationReviewService {
     // DELETE REVIEW
     // ========================
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "reviews", allEntries = true),
+        @CacheEvict(value = "stations", allEntries = true)
+    })
     public void deleteReview(Long reviewId, Long userId) {
 
         log.info("Deleting review: reviewId={}, userId={}", reviewId, userId);
@@ -123,6 +138,7 @@ public class StationReviewService {
     // ========================
     // GET REVIEWS BY STATION
     // ========================
+    @Cacheable(value = "reviews", key = "'station-' + #stationId")
     public List<StationReviewResponse> getReviewsByStation(Long stationId) {
 
         log.info("Fetching reviews for station: stationId={}", stationId);
@@ -143,6 +159,7 @@ public class StationReviewService {
     // ========================
     // GET REVIEWS BY USER
     // ========================
+    @Cacheable(value = "reviews", key = "'user-' + #userId")
     public List<StationReviewResponse> getReviewsByUser(Long userId) {
 
         log.info("Fetching reviews by user: userId={}", userId);
@@ -159,6 +176,7 @@ public class StationReviewService {
     // ========================
     // GET STATION RATING SUMMARY
     // ========================
+    @Cacheable(value = "reviews", key = "'summary-' + #stationId")
     public StationRatingSummary getStationRatingSummary(Long stationId) {
 
         log.info("Fetching rating summary for station: stationId={}", stationId);
@@ -190,6 +208,7 @@ public class StationReviewService {
     // ========================
     // GET USER'S REVIEW FOR A STATION
     // ========================
+    @Cacheable(value = "reviews", key = "'station-' + #stationId + '-user-' + #userId")
     public StationReviewResponse getUserReviewForStation(Long stationId, Long userId) {
 
         log.info("Fetching user review: stationId={}, userId={}", stationId, userId);

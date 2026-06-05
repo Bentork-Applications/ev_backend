@@ -1,5 +1,6 @@
 package com.bentork.ev_system.model;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import com.bentork.ev_system.enums.ChargerStatus;
@@ -21,7 +22,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Charger {
+public class Charger implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

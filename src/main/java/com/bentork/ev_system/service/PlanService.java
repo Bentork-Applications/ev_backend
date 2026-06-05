@@ -9,6 +9,8 @@ import com.bentork.ev_system.repository.PlanRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +25,7 @@ public class PlanService {
 
     private final AdminRepository adminRepository;
 
+    @CacheEvict(value = "plans", allEntries = true)
     public PlanDTO createPlan(PlanDTO dto, Long adminId) {
         try {
             Admin admin = adminRepository.findById(adminId)
@@ -46,6 +49,7 @@ public class PlanService {
         }
     }
 
+    @Cacheable(value = "plans", key = "'all-plans'")
     public List<PlanDTO> getAllPlans() {
         try {
             List<PlanDTO> plans = planRepository.findByIsActiveTrue()
@@ -64,6 +68,7 @@ public class PlanService {
         }
     }
 
+    @Cacheable(value = "plans", key = "#id")
     public PlanDTO getPlanById(Long id) {
         try {
             Plan plan = planRepository.findById(id)
@@ -83,6 +88,7 @@ public class PlanService {
         }
     }
 
+    @CacheEvict(value = "plans", allEntries = true)
     public PlanDTO updatePlan(Long id, PlanDTO dto) {
         try {
             Plan plan = planRepository.findById(id)
@@ -108,6 +114,7 @@ public class PlanService {
         }
     }
 
+    @CacheEvict(value = "plans", allEntries = true)
     public void deletePlan(Long id) {
         try {
             Plan plan = planRepository.findById(id)

@@ -31,6 +31,10 @@ public class EvChargingSystemApplication {
         safeSetProperty(dotenv, "RAZORPAY_KEY_SECRET");
         safeSetProperty(dotenv, "GOOGLE_MAPS_API_KEY");
         safeSetProperty(dotenv, "TRUECALLER_CLIENT_ID");
+        safeSetProperty(dotenv, "TRUECALLER_WEB_CLIENT_ID");
+        safeSetProperty(dotenv, "REDIS_HOST");
+        safeSetProperty(dotenv, "REDIS_PORT");
+        safeSetProperty(dotenv, "REDIS_PASSWORD");
 
         SpringApplication.run(EvChargingSystemApplication.class, args);
     }

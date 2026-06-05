@@ -11,6 +11,8 @@ import com.bentork.ev_system.service.billing.BillingStrategy;
 import com.bentork.ev_system.service.interfaces.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -45,6 +47,10 @@ public class SessionFinalizationService implements ISessionFinalizationService {
     private final BillingStrategyFactory billingStrategyFactory;
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "dashboard-stats", allEntries = true),
+        @CacheEvict(value = "user-data", allEntries = true)
+    })
     public Map<String, Object> finalizeSession(Session session, String stopReason) {
         try {
             log.info("Finalizing session: sessionId={}, stopReason={}", session.getId(), stopReason);

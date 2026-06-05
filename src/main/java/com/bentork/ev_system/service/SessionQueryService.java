@@ -6,6 +6,7 @@ import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.interfaces.ISessionQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ public class SessionQueryService implements ISessionQueryService {
     private final Clock clock;
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'total-sessions'")
     public long getTotalSessions() {
         try {
             long total = sessionRepository.countByStatus(SessionStatus.COMPLETED.getValue());
@@ -44,6 +46,7 @@ public class SessionQueryService implements ISessionQueryService {
     }
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'total-energy'")
     public double getTotalEnergyConsumed() {
         try {
             double totalEnergy = sessionRepository.sumEnergyByStatus(SessionStatus.COMPLETED.getValue());
@@ -58,6 +61,7 @@ public class SessionQueryService implements ISessionQueryService {
     }
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'active-sessions'")
     public Long getActiveSessions() {
         try {
             long activeCount = sessionRepository.countByStatus(SessionStatus.ACTIVE.getValue());
@@ -72,6 +76,7 @@ public class SessionQueryService implements ISessionQueryService {
     }
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'session-avg-uptime'")
     public Double getAverageUptime() {
         try {
             long totalSessions = sessionRepository.count();
@@ -108,6 +113,7 @@ public class SessionQueryService implements ISessionQueryService {
     }
 
     @Override
+    @Cacheable(value = "dashboard-stats", key = "'todays-session-errors'")
     public Long getTodaysErrorCount() {
         try {
             LocalDate today = LocalDate.now(clock);

@@ -1,5 +1,6 @@
 package com.bentork.ev_system.model;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -19,7 +20,9 @@ import jakarta.persistence.UniqueConstraint;
 @Table(name = "station_reviews", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "station_id", "user_id" })
 })
-public class StationReview {
+public class StationReview implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
