@@ -82,8 +82,18 @@ public class UserAuthService implements IUserAuthService {
     }
 
     @Override
+    @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
     public JwtResponse googleLogin(String email) {
-        User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepo.findByEmail(email).orElseGet(() -> {
+            log.info("New Google user detected, auto-registering: {}", email);
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setName(email.split("@")[0]); // default name from email prefix
+            // password left null — valid for Google-only login (see User.java line 28)
+            userRepo.save(newUser);
+            adminNotificationService.notifyNewUserRegistration(newUser.getName());
+            return newUser;
+        });
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password("")
