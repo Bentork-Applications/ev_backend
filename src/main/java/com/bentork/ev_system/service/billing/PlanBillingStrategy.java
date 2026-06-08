@@ -2,6 +2,7 @@ package com.bentork.ev_system.service.billing;
 
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
+import com.bentork.ev_system.service.TaxCalculationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,12 @@ import java.math.RoundingMode;
 @Slf4j
 @Component
 public class PlanBillingStrategy implements BillingStrategy {
+
+    private final TaxCalculationService taxService;
+
+    public PlanBillingStrategy(TaxCalculationService taxService) {
+        this.taxService = taxService;
+    }
 
     @Override
     public boolean supports(Receipt receipt) {
@@ -34,27 +41,31 @@ public class PlanBillingStrategy implements BillingStrategy {
 
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal finalCost = energyCost.add(platformFee);
+        
+        BigDecimal pst = taxService.calculatePst(energyCost.add(platformFee));
+        BigDecimal finalCost = energyCost.add(platformFee).add(pst);
+        
         BigDecimal prepaid = receipt.getAmount();
 
-        log.info("Plan billing: sessionId={}, prepaid={}, finalCost={}, energyUsed={}, platformFee={}",
-                session.getId(), prepaid, finalCost, energyUsed, platformFee);
+        log.info("Plan billing: sessionId={}, prepaid={}, finalCost={}, energyUsed={}, platformFee={}, pst={}",
+                session.getId(), prepaid, finalCost, energyUsed, platformFee, pst);
 
         BillingResult result = new BillingResult();
         result.setFinalCost(finalCost);
         result.setPrepaidAmount(prepaid);
         result.setPlatformFee(platformFee);
+        result.setPstAmount(pst);
 
         if (finalCost.compareTo(prepaid) < 0) {
             BigDecimal refund = prepaid.subtract(finalCost);
             result.setRefundAmount(refund);
             result.setRefundIssued(true);
-            result.setDescription("Unused amount ₹" + refund + " has been refunded to your wallet. (Platform fee: ₹" + platformFee + ")");
+            result.setDescription("Unused amount ₹" + refund + " has been refunded to your wallet. (Platform fee: ₹" + platformFee + ", PST: ₹" + pst + ")");
         } else if (finalCost.compareTo(prepaid) > 0) {
             BigDecimal extra = finalCost.subtract(prepaid);
             result.setExtraDebit(extra);
             result.setExtraDebited(true);
-            result.setDescription("Extra amount ₹" + extra + " has been deducted due to higher usage. (Platform fee: ₹" + platformFee + ")");
+            result.setDescription("Extra amount ₹" + extra + " has been deducted due to higher usage. (Platform fee: ₹" + platformFee + ", PST: ₹" + pst + ")");
         }
         return result;
     }

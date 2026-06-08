@@ -177,16 +177,16 @@ public class WalletTransactionService implements IWalletTransactionService {
             throw new IllegalArgumentException("amount cannot be null");
 
         BigDecimal gst = BigDecimal.ZERO;
-        BigDecimal pst = BigDecimal.ZERO;
+        BigDecimal pst = BigDecimal.ZERO; // PST removed from wallet top-ups
         BigDecimal netAmount = amount;
 
         // APPLY TAX ONLY FOR WALLET TOP-UP
         if (sessionId == null && "TOPUP".equalsIgnoreCase(method)) {
 
             gst = taxService.calculateGst(amount);
-            pst = taxService.calculatePst(amount);
+            // PST is no longer applied to wallet top-ups
 
-            netAmount = amount.subtract(gst).subtract(pst);
+            netAmount = amount.subtract(gst);
         }
 
         WalletTransaction tx = new WalletTransaction();

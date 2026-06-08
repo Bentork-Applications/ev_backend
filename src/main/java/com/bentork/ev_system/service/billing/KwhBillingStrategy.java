@@ -2,6 +2,7 @@ package com.bentork.ev_system.service.billing;
 
 import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
+import com.bentork.ev_system.service.TaxCalculationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,12 @@ import java.math.RoundingMode;
 @Slf4j
 @Component
 public class KwhBillingStrategy implements BillingStrategy {
+
+    private final TaxCalculationService taxService;
+
+    public KwhBillingStrategy(TaxCalculationService taxService) {
+        this.taxService = taxService;
+    }
 
     @Override
     public boolean supports(Receipt receipt) {
@@ -36,33 +43,37 @@ public class KwhBillingStrategy implements BillingStrategy {
         // Energy cost based on ACTUAL usage
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal finalCost = energyCost.add(platformFee);
+        
+        BigDecimal pst = taxService.calculatePst(energyCost.add(platformFee));
+        BigDecimal finalCost = energyCost.add(platformFee).add(pst);
 
-        // Prepaid also included the same platform fee
+        // Prepaid also included the same platform fee and its PST
         BigDecimal prepaidEnergyCost = BigDecimal.valueOf(selectedKwh).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal prepaid = prepaidEnergyCost.add(platformFee);
+        BigDecimal prepaidPst = taxService.calculatePst(prepaidEnergyCost.add(platformFee));
+        BigDecimal prepaid = prepaidEnergyCost.add(platformFee).add(prepaidPst);
 
-        log.info("kWh billing: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, platformFee={}",
-                session.getId(), selectedKwh, energyUsed, prepaid, finalCost, platformFee);
+        log.info("kWh billing: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, platformFee={}, pst={}",
+                session.getId(), selectedKwh, energyUsed, prepaid, finalCost, platformFee, pst);
 
         BillingResult result = new BillingResult();
         result.setFinalCost(finalCost);
         result.setPrepaidAmount(prepaid);
         result.setPlatformFee(platformFee);
+        result.setPstAmount(pst);
 
         if (finalCost.compareTo(prepaid) < 0) {
             BigDecimal refund = prepaid.subtract(finalCost);
             result.setRefundAmount(refund);
             result.setRefundIssued(true);
             result.setDescription("Unused energy refund: ₹" + refund + " (Used " +
-                    String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ")");
+                    String.format("%.2f", energyUsed) + " kWh of " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ", PST: ₹" + pst + ")");
         } else if (finalCost.compareTo(prepaid) > 0) {
             BigDecimal extra = finalCost.subtract(prepaid);
             result.setExtraDebit(extra);
             result.setExtraDebited(true);
             result.setDescription("Extra amount ₹" + extra + " deducted. (Used " +
-                    String.format("%.2f", energyUsed) + " kWh, exceeded " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ")");
+                    String.format("%.2f", energyUsed) + " kWh, exceeded " + String.format("%.2f", selectedKwh) + " kWh selected, Platform fee: ₹" + platformFee + ", PST: ₹" + pst + ")");
         }
         return result;
     }

@@ -109,6 +109,9 @@ public class SessionFinalizationService implements ISessionFinalizationService {
             if (billing.getPlatformFee() != null) {
                 session.setPlatformFee(billing.getPlatformFee().doubleValue());
             }
+            if (billing.getPstAmount() != null) {
+                session.setPstAmount(billing.getPstAmount().doubleValue());
+            }
             sessionRepository.save(session);
 
             if (receipt != null) {
@@ -149,6 +152,7 @@ public class SessionFinalizationService implements ISessionFinalizationService {
             response.put("energyUsed", energyUsed);
             response.put("finalCost", billing.getFinalCost());
             response.put("platformFee", billing.getPlatformFee());
+            response.put("pstAmount", billing.getPstAmount());
             response.put("refundIssued", billing.isRefundIssued());
             response.put("extraDebited", billing.isExtraDebited());
             response.put("message", "Session completed (" + stopReason + ")" +

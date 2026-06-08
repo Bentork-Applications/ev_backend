@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 public class BillingResult {
     private BigDecimal finalCost;
     private BigDecimal platformFee;      // platform fee applied to this session
+    private BigDecimal pstAmount;        // PST applied to this session
     private BigDecimal prepaidAmount;
     private BigDecimal refundAmount;    // null if no refund
     private BigDecimal extraDebit;      // null if no extra charge

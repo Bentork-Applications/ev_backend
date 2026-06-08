@@ -43,6 +43,9 @@ public class Session {
     @Column(name = "platform_fee")
     private Double platformFee;
 
+    @Column(name = "pst_amount")
+    private Double pstAmount;
+
     @Column(name = "reminder_sent")
     private Boolean reminderSent = false;
 
@@ -169,6 +172,14 @@ public class Session {
 
     public void setPlatformFee(Double platformFee) {
         this.platformFee = platformFee;
+    }
+
+    public Double getPstAmount() {
+        return pstAmount;
+    }
+
+    public void setPstAmount(Double pstAmount) {
+        this.pstAmount = pstAmount;
     }
 
     public Boolean getReminderSent() {

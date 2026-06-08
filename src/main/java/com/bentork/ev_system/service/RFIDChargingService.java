@@ -45,6 +45,7 @@ public class RFIDChargingService implements IRFIDChargingService {
     private final IAdminNotificationService adminNotificationService;
     private final IWalletTransactionService walletTxService;
     private final RevenueRepository revenueRepo;
+    private final TaxCalculationService taxService;
 
     // Start charging
     public Session startCharging(String cardNumber, Long chargerId, String boxId) {
@@ -185,20 +186,25 @@ public class RFIDChargingService implements IRFIDChargingService {
 
             Session saved = sessionRepo.save(session);
 
-            // 🔹 Final cost including platform fee
+            // 🔹 Final cost including platform fee and PST
             Double feePerKwh = saved.getCharger().getPlatformFeePerKwh() != null
                     ? saved.getCharger().getPlatformFeePerKwh() : 0.0;
             BigDecimal platformFee = BigDecimal.valueOf(saved.getEnergyKwh())
                     .multiply(BigDecimal.valueOf(feePerKwh))
                     .setScale(2, java.math.RoundingMode.HALF_UP);
-            BigDecimal finalCost = BigDecimal.valueOf(saved.getCost()).add(platformFee);
+            BigDecimal subtotal = BigDecimal.valueOf(saved.getCost()).add(platformFee);
+            
+            BigDecimal pst = taxService.calculatePst(subtotal);
+            BigDecimal finalCost = subtotal.add(pst);
+            
             saved.setCost(finalCost.doubleValue());
             saved.setPlatformFee(platformFee.doubleValue());
+            saved.setPstAmount(pst.doubleValue());
             sessionRepo.save(saved);
 
             if (finalCost.compareTo(BigDecimal.ZERO) > 0) {
-                log.info("Processing payment for session: sessionId={}, finalCost={}, platformFee={}",
-                        sessionId, finalCost, platformFee);
+                log.info("Processing payment for session: sessionId={}, finalCost={}, platformFee={}, pst={}",
+                        sessionId, finalCost, platformFee, pst);
 
                 // 1. Wallet debit
                 WalletTransaction tx = walletTxService.debit(

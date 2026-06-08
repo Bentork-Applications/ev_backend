@@ -36,18 +36,21 @@ public class ReceiptService implements IReceiptService {
     private final IUserNotificationService userNotificationService;
     private final ISessionService sessionService;
     private final IMaintenanceService maintenanceService;
+    private final TaxCalculationService taxService;
 
     public ReceiptService(
             ReceiptRepository receiptRepository,
             IWalletTransactionService walletTransactionService,
             IUserNotificationService userNotificationService,
             @Lazy ISessionService sessionService,
-            IMaintenanceService maintenanceService) {
+            IMaintenanceService maintenanceService,
+            TaxCalculationService taxService) {
         this.receiptRepository = receiptRepository;
         this.walletTransactionService = walletTransactionService;
         this.userNotificationService = userNotificationService;
         this.sessionService = sessionService;
         this.maintenanceService = maintenanceService;
+        this.taxService = taxService;
     }
 
     /**
@@ -73,7 +76,11 @@ public class ReceiptService implements IReceiptService {
             Double feePerKwh = charger.getPlatformFeePerKwh() != null ? charger.getPlatformFeePerKwh() : 0.0;
             BigDecimal platformFee = selectedKwh.multiply(BigDecimal.valueOf(feePerKwh))
                     .setScale(2, java.math.RoundingMode.HALF_UP);
-            amount = energyCost.add(platformFee);
+            
+            BigDecimal subtotal = energyCost.add(platformFee);
+            BigDecimal pst = taxService.calculatePst(subtotal);
+            
+            amount = subtotal.add(pst);
             receipt.setSelectedKwh(selectedKwh);
         }
 
