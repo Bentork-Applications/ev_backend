@@ -60,6 +60,7 @@ public class OcppConnectionManager {
     }
 
     public String removeConnection(WebSocket conn) {
+        if (conn == null) return null;
         String ocppId = connectionToOcppIdMap.remove(conn);
         if (ocppId != null) {
             ocppIdToConnectionMap.remove(ocppId);
@@ -69,6 +70,7 @@ public class OcppConnectionManager {
     }
 
     public String getOcppId(WebSocket conn) {
+        if (conn == null) return "SERVER";
         return connectionToOcppIdMap.getOrDefault(conn, "UNKNOWN");
     }
 
