@@ -30,7 +30,8 @@ import java.util.Map;
 
 /**
  * Slim OCPP 1.6 WebSocket Server.
- * Delegates action handling to OcppMessageRouter and individual OcppActionHandlers.
+ * Delegates action handling to OcppMessageRouter and individual
+ * OcppActionHandlers.
  * Manages connections via OcppConnectionManager.
  *
  * After Phase 5 decomposition: ~200 lines (down from ~966).
@@ -82,6 +83,9 @@ public class OcppWebSocketServer extends WebSocketServer {
         // We use the pong.timeout as the connectionLostTimeout.
         setConnectionLostTimeout(pongTimeout);
 
+        // Allow rapid restarts by reusing the port even if stuck in TIME_WAIT
+        setReuseAddr(true);
+
         log.info("OCPP 1.6 WebSocket Server initialized on ws://0.0.0.0:{}", port);
         log.info("Ping-Pong keep-alive: pingInterval={}s, pongTimeout={}s",
                 pingInterval, pongTimeout);
@@ -129,7 +133,8 @@ public class OcppWebSocketServer extends WebSocketServer {
                 }
             } else if (messageType == OCPP_CALL_RESULT) {
                 String messageId = messageArray.get(1).asText();
-                JsonNode resultPayload = messageArray.size() > 2 ? messageArray.get(2) : objectMapper.createObjectNode();
+                JsonNode resultPayload = messageArray.size() > 2 ? messageArray.get(2)
+                        : objectMapper.createObjectNode();
                 handleCallResult(messageId, resultPayload);
             } else if (messageType == OCPP_CALL_ERROR) {
                 String messageId = messageArray.get(1).asText();
@@ -207,7 +212,8 @@ public class OcppWebSocketServer extends WebSocketServer {
 
     /**
      * Send a remote OCPP command (CALL, type=2) to a charger.
-     * The messageId is provided by the caller (ChargerCommandService) for pending command tracking.
+     * The messageId is provided by the caller (ChargerCommandService) for pending
+     * command tracking.
      */
     public boolean sendRemoteCommand(String ocppId, String action, ObjectNode payload, String messageId) {
         WebSocket conn = connectionManager.getConnection(ocppId);
@@ -272,7 +278,8 @@ public class OcppWebSocketServer extends WebSocketServer {
     }
 
     /**
-     * Handle OCPP CALL_RESULT (type 3) — the charger's response to a command we sent.
+     * Handle OCPP CALL_RESULT (type 3) — the charger's response to a command we
+     * sent.
      * Correlates the response with the pending command via messageId.
      */
     private void handleCallResult(String messageId, JsonNode resultPayload) {
@@ -292,7 +299,8 @@ public class OcppWebSocketServer extends WebSocketServer {
             if ("Accepted".equalsIgnoreCase(status)) {
                 log.info("✅ Charger {} ACCEPTED RemoteStartTransaction for session {}",
                         pending.getOcppId(), pending.getSessionId());
-                // The charger will now send StartTransaction CALL — handled by StartTransactionHandler
+                // The charger will now send StartTransaction CALL — handled by
+                // StartTransactionHandler
             } else {
                 log.error("❌ Charger {} REJECTED RemoteStartTransaction for session {} (status={})",
                         pending.getOcppId(), pending.getSessionId(), status);
@@ -302,7 +310,8 @@ public class OcppWebSocketServer extends WebSocketServer {
             if ("Accepted".equalsIgnoreCase(status)) {
                 log.info("✅ Charger {} ACCEPTED RemoteStopTransaction for session {}",
                         pending.getOcppId(), pending.getSessionId());
-                // The charger will now send StopTransaction CALL — handled by StopTransactionHandler
+                // The charger will now send StopTransaction CALL — handled by
+                // StopTransactionHandler
             } else {
                 log.warn("⚠️ Charger {} REJECTED RemoteStopTransaction for session {} (status={})",
                         pending.getOcppId(), pending.getSessionId(), status);
@@ -313,7 +322,8 @@ public class OcppWebSocketServer extends WebSocketServer {
     }
 
     /**
-     * Handle OCPP CALL_ERROR (type 4) — the charger returned an error for our command.
+     * Handle OCPP CALL_ERROR (type 4) — the charger returned an error for our
+     * command.
      */
     private void handleCallError(String messageId, String errorCode, String errorDescription) {
         OcppConnectionManager.PendingCommand pending = connectionManager.removePendingCommand(messageId);
