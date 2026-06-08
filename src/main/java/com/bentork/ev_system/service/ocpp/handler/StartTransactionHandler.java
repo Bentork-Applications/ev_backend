@@ -53,8 +53,27 @@ public class StartTransactionHandler implements OcppActionHandler {
             Session session = null;
             String sessionType = "UNKNOWN";
 
-            // Strategy 1: RFID Card Flow
-            if (idTag != null && !idTag.isEmpty()) {
+            // Strategy 1: App-initiated session (idTag starts with "SESSION_")
+            // When the backend sends RemoteStartTransaction, it uses idTag = "SESSION_<id>"
+            // The charger echoes this idTag in its StartTransaction call
+            if (idTag != null && idTag.startsWith("SESSION_")) {
+                log.info("App-initiated session detected (idTag: {}), activating via activateOrRejectSession...", idTag);
+                try {
+                    session = sessionService.activateOrRejectSession(ocppId);
+                    if (session != null) {
+                        Receipt linkedReceipt = receiptRepository.findBySession(session).orElse(null);
+                        sessionType = linkedReceipt != null && linkedReceipt.getPlan() != null ? "PLAN" : "KWH_PACKAGE";
+                        log.info("{} session activated under lock (sessionId: {})", sessionType, session.getId());
+                    } else {
+                        log.warn("No initiated/active session found for app idTag {} on charger {}", idTag, ocppId);
+                    }
+                } catch (Exception ex) {
+                    log.warn("App session activation failed for idTag {}: {}", idTag, ex.getMessage());
+                }
+            }
+
+            // Strategy 2: RFID Card Flow (only if NOT an app-initiated session)
+            if (session == null && idTag != null && !idTag.isEmpty() && !idTag.startsWith("SESSION_")) {
                 try {
                     session = rfidChargingService.startCharging(idTag, charger.getId(), ocppId);
                     sessionType = "RFID";
@@ -64,7 +83,7 @@ public class StartTransactionHandler implements OcppActionHandler {
                 }
             }
 
-            // Strategy 2: Prepaid Flow (Plan/kWh Package)
+            // Strategy 3: Prepaid Flow fallback (no matching app or RFID session found)
             if (session == null) {
                 try {
                     session = sessionService.activateOrRejectSession(ocppId);
@@ -78,7 +97,7 @@ public class StartTransactionHandler implements OcppActionHandler {
                 }
             }
 
-            // Strategy 3: Look for PAID receipt without session (fallback)
+            // Strategy 4: Look for PAID receipt without session (fallback)
             if (session == null) {
                 try {
                     Receipt receipt = receiptRepository
@@ -95,7 +114,7 @@ public class StartTransactionHandler implements OcppActionHandler {
                 }
             }
 
-            // Strategy 4: No valid payment method
+            // Strategy 5: No valid payment method
             if (session == null) {
                 log.warn("No RFID or prepaid session found for charger {}", ocppId);
                 throw new RuntimeException("No valid payment method found. Please use RFID card or prepay via app.");

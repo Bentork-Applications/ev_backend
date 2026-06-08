@@ -8,6 +8,8 @@ import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 import com.bentork.ev_system.service.interfaces.ISessionService;
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
+import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
 import com.bentork.ev_system.service.ocpp.OcppConnectionManager;
 import com.bentork.ev_system.service.ocpp.OcppMessageRouter;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,8 +47,11 @@ public class OcppWebSocketServer extends WebSocketServer {
     private final OcppMessageRouter messageRouter;
     private final ISessionService sessionService;
     private final IRFIDChargingService rfidChargingService;
+    private final IUserNotificationService userNotificationService;
+    private final IWalletTransactionService walletTransactionService;
     private final ChargerRepository chargerRepository;
     private final SessionRepository sessionRepository;
+    private final com.bentork.ev_system.repository.ReceiptRepository receiptRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OcppWebSocketServer(
@@ -57,15 +62,21 @@ public class OcppWebSocketServer extends WebSocketServer {
             OcppMessageRouter messageRouter,
             ISessionService sessionService,
             IRFIDChargingService rfidChargingService,
+            IUserNotificationService userNotificationService,
+            IWalletTransactionService walletTransactionService,
             ChargerRepository chargerRepository,
-            SessionRepository sessionRepository) {
+            SessionRepository sessionRepository,
+            com.bentork.ev_system.repository.ReceiptRepository receiptRepository) {
         super(new InetSocketAddress(port));
         this.connectionManager = connectionManager;
         this.messageRouter = messageRouter;
         this.sessionService = sessionService;
         this.rfidChargingService = rfidChargingService;
+        this.userNotificationService = userNotificationService;
+        this.walletTransactionService = walletTransactionService;
         this.chargerRepository = chargerRepository;
         this.sessionRepository = sessionRepository;
+        this.receiptRepository = receiptRepository;
 
         // Configure ping-pong keep-alive for lost connection detection.
         // We use the pong.timeout as the connectionLostTimeout.
@@ -116,8 +127,17 @@ public class OcppWebSocketServer extends WebSocketServer {
                     log.error("Error handling OCPP call {}: {}", action, e.getMessage(), e);
                     sendErrorResponse(conn, messageId, "InternalError", e.getMessage());
                 }
+            } else if (messageType == OCPP_CALL_RESULT) {
+                String messageId = messageArray.get(1).asText();
+                JsonNode resultPayload = messageArray.size() > 2 ? messageArray.get(2) : objectMapper.createObjectNode();
+                handleCallResult(messageId, resultPayload);
+            } else if (messageType == OCPP_CALL_ERROR) {
+                String messageId = messageArray.get(1).asText();
+                String errorCode = messageArray.size() > 2 ? messageArray.get(2).asText() : "Unknown";
+                String errorDesc = messageArray.size() > 3 ? messageArray.get(3).asText() : "";
+                handleCallError(messageId, errorCode, errorDesc);
             } else {
-                log.debug("Received message type: {}", messageType);
+                log.warn("Unknown OCPP message type: {}", messageType);
             }
 
         } catch (Exception e) {
@@ -185,7 +205,11 @@ public class OcppWebSocketServer extends WebSocketServer {
 
     // ===================== PUBLIC API =====================
 
-    public boolean sendRemoteCommand(String ocppId, String action, ObjectNode payload) {
+    /**
+     * Send a remote OCPP command (CALL, type=2) to a charger.
+     * The messageId is provided by the caller (ChargerCommandService) for pending command tracking.
+     */
+    public boolean sendRemoteCommand(String ocppId, String action, ObjectNode payload, String messageId) {
         WebSocket conn = connectionManager.getConnection(ocppId);
         if (conn == null || !conn.isOpen()) {
             log.warn("Charger {} not connected", ocppId);
@@ -193,7 +217,6 @@ public class OcppWebSocketServer extends WebSocketServer {
         }
 
         try {
-            String messageId = java.util.UUID.randomUUID().toString();
             ArrayNode message = objectMapper.createArrayNode();
             message.add(OCPP_CALL);
             message.add(messageId);
@@ -202,7 +225,7 @@ public class OcppWebSocketServer extends WebSocketServer {
 
             String messageStr = objectMapper.writeValueAsString(message);
             conn.send(messageStr);
-            log.info("Sent remote command to {}: {} ({})", ocppId, action, messageId);
+            log.info("Sent remote command to {}: {} (messageId={})", ocppId, action, messageId);
             return true;
         } catch (Exception e) {
             log.error("Error sending remote command to {}: {}", ocppId, e.getMessage(), e);
@@ -245,6 +268,117 @@ public class OcppWebSocketServer extends WebSocketServer {
             log.debug("Sent CallError: {}", responseStr);
         } catch (Exception e) {
             log.error("Error sending CallError: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Handle OCPP CALL_RESULT (type 3) — the charger's response to a command we sent.
+     * Correlates the response with the pending command via messageId.
+     */
+    private void handleCallResult(String messageId, JsonNode resultPayload) {
+        OcppConnectionManager.PendingCommand pending = connectionManager.removePendingCommand(messageId);
+
+        if (pending == null) {
+            log.debug("Received CALL_RESULT for unknown/already-processed messageId: {}", messageId);
+            return;
+        }
+
+        String status = resultPayload.has("status") ? resultPayload.get("status").asText() : "Unknown";
+
+        log.info("CALL_RESULT received - Action: {}, MessageId: {}, Status: {}, SessionId: {}, OcppId: {}",
+                pending.getAction(), messageId, status, pending.getSessionId(), pending.getOcppId());
+
+        if ("RemoteStartTransaction".equals(pending.getAction())) {
+            if ("Accepted".equalsIgnoreCase(status)) {
+                log.info("✅ Charger {} ACCEPTED RemoteStartTransaction for session {}",
+                        pending.getOcppId(), pending.getSessionId());
+                // The charger will now send StartTransaction CALL — handled by StartTransactionHandler
+            } else {
+                log.error("❌ Charger {} REJECTED RemoteStartTransaction for session {} (status={})",
+                        pending.getOcppId(), pending.getSessionId(), status);
+                handleRejectedRemoteStart(pending.getSessionId());
+            }
+        } else if ("RemoteStopTransaction".equals(pending.getAction())) {
+            if ("Accepted".equalsIgnoreCase(status)) {
+                log.info("✅ Charger {} ACCEPTED RemoteStopTransaction for session {}",
+                        pending.getOcppId(), pending.getSessionId());
+                // The charger will now send StopTransaction CALL — handled by StopTransactionHandler
+            } else {
+                log.warn("⚠️ Charger {} REJECTED RemoteStopTransaction for session {} (status={})",
+                        pending.getOcppId(), pending.getSessionId(), status);
+            }
+        } else {
+            log.info("CALL_RESULT for action {}: {}", pending.getAction(), status);
+        }
+    }
+
+    /**
+     * Handle OCPP CALL_ERROR (type 4) — the charger returned an error for our command.
+     */
+    private void handleCallError(String messageId, String errorCode, String errorDescription) {
+        OcppConnectionManager.PendingCommand pending = connectionManager.removePendingCommand(messageId);
+
+        if (pending == null) {
+            log.debug("Received CALL_ERROR for unknown/already-processed messageId: {}", messageId);
+            return;
+        }
+
+        log.error("CALL_ERROR received - Action: {}, MessageId: {}, Error: {} ({}), SessionId: {}, OcppId: {}",
+                pending.getAction(), messageId, errorCode, errorDescription,
+                pending.getSessionId(), pending.getOcppId());
+
+        if ("RemoteStartTransaction".equals(pending.getAction())) {
+            handleRejectedRemoteStart(pending.getSessionId());
+        }
+    }
+
+    /**
+     * When the charger rejects or errors on RemoteStartTransaction,
+     * fail the session and refund the user.
+     */
+    private void handleRejectedRemoteStart(Long sessionId) {
+        try {
+            Session session = sessionRepository.findById(sessionId).orElse(null);
+            if (session == null) {
+                log.warn("Cannot handle rejected RemoteStart: session {} not found", sessionId);
+                return;
+            }
+
+            if (!SessionStatus.INITIATED.matches(session.getStatus())) {
+                log.info("Session {} is no longer INITIATED (status={}), skipping rejection handling",
+                        sessionId, session.getStatus());
+                return;
+            }
+
+            // Mark session as FAILED
+            session.setStatus(SessionStatus.FAILED.getValue());
+            session.setEndTime(java.time.LocalDateTime.now());
+            sessionRepository.save(session);
+
+            // Refund the user
+            com.bentork.ev_system.model.Receipt receipt = receiptRepository.findBySession(session).orElse(null);
+            if (receipt != null && receipt.getAmount() != null
+                    && receipt.getAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                walletTransactionService.credit(
+                        session.getUser().getId(),
+                        session.getId(),
+                        receipt.getAmount(),
+                        "Refund: Charger rejected start command");
+                log.info("Refunded ₹{} to userId={} for rejected RemoteStart (sessionId={})",
+                        receipt.getAmount(), session.getUser().getId(), sessionId);
+            }
+
+            // Notify user
+            userNotificationService.createNotification(
+                    session.getUser().getId(),
+                    "Charging Failed",
+                    "The charger rejected the start command. Your payment has been refunded.",
+                    "ERROR");
+
+            log.info("Session {} marked FAILED due to charger rejection, user refunded and notified", sessionId);
+
+        } catch (Exception e) {
+            log.error("Error handling rejected RemoteStart for session {}: {}", sessionId, e.getMessage(), e);
         }
     }
 

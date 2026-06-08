@@ -23,6 +23,35 @@ public class OcppConnectionManager {
     private final Map<String, Instant> lastPongTimeMap = new ConcurrentHashMap<>();
     private final Map<Integer, Long> transactionToSessionMap = new ConcurrentHashMap<>();
     private final Map<Long, Double> sessionToMeterStartMap = new ConcurrentHashMap<>();
+    private final Map<String, PendingCommand> pendingCommands = new ConcurrentHashMap<>();
+
+    /**
+     * Represents a pending OCPP command awaiting a CALL_RESULT or CALL_ERROR from the charger.
+     */
+    public static class PendingCommand {
+        private final String action;
+        private final Long sessionId;
+        private final String ocppId;
+        private final Instant sentAt;
+
+        public PendingCommand(String action, Long sessionId, String ocppId) {
+            this.action = action;
+            this.sessionId = sessionId;
+            this.ocppId = ocppId;
+            this.sentAt = Instant.now();
+        }
+
+        public String getAction() { return action; }
+        public Long getSessionId() { return sessionId; }
+        public String getOcppId() { return ocppId; }
+        public Instant getSentAt() { return sentAt; }
+
+        @Override
+        public String toString() {
+            return "PendingCommand{action='" + action + "', sessionId=" + sessionId +
+                    ", ocppId='" + ocppId + "', sentAt=" + sentAt + "}";
+        }
+    }
 
     public void registerConnection(WebSocket conn, String ocppId) {
         connectionToOcppIdMap.put(conn, ocppId);
@@ -72,6 +101,25 @@ public class OcppConnectionManager {
      */
     public Map<String, Instant> getAllLastPongTimes() {
         return Map.copyOf(lastPongTimeMap);
+    }
+
+    // Pending command tracking
+
+    /**
+     * Track a pending command so its CALL_RESULT/CALL_ERROR can be correlated.
+     */
+    public void trackCommand(String messageId, String action, Long sessionId, String ocppId) {
+        pendingCommands.put(messageId, new PendingCommand(action, sessionId, ocppId));
+        log.debug("Tracking pending command: messageId={}, action={}, sessionId={}, ocppId={}",
+                messageId, action, sessionId, ocppId);
+    }
+
+    /**
+     * Remove and return the pending command for the given messageId.
+     * Returns null if no pending command is found (e.g., already processed or unknown messageId).
+     */
+    public PendingCommand removePendingCommand(String messageId) {
+        return pendingCommands.remove(messageId);
     }
 
     // Transaction-Session mapping

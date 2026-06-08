@@ -182,7 +182,7 @@ public class DebugController {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.node.ObjectNode payload = mapper.createObjectNode();
 
-            boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, action, payload);
+            boolean sent = ocppWebSocketServer.sendRemoteCommand(ocppId, action, payload, java.util.UUID.randomUUID().toString());
 
             if (sent) {
                 log.info("✅ Test command sent successfully");
