@@ -12,8 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Encapsulates OCPP remote command logic (RemoteStartTransaction,
- * RemoteStopTransaction).
+ * Encapsulates OCPP remote command logic (RemoteStartTransaction, RemoteStopTransaction).
  * Depends on OcppWebSocketServer for transport but is itself a thin adapter,
  * breaking the circular dependency that previously existed between
  * SessionService ↔ OcppWebSocketServer.
@@ -30,7 +29,7 @@ public class ChargerCommandService implements IChargerCommandService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ChargerCommandService(@Lazy OcppWebSocketServer ocppWebSocketServer,
-            OcppConnectionManager connectionManager) {
+                                 OcppConnectionManager connectionManager) {
         this.ocppWebSocketServer = ocppWebSocketServer;
         this.connectionManager = connectionManager;
     }
@@ -48,7 +47,7 @@ public class ChargerCommandService implements IChargerCommandService {
             payload.put("idTag", "SESSION_" + session.getId());
             payload.put("connectorId", 1);
 
-            String messageId = String.valueOf(System.currentTimeMillis());
+            String messageId = UUID.randomUUID().toString();
 
             log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, connectorId=1, messageId={}",
                     ocppId, session.getId(), messageId);
@@ -79,7 +78,7 @@ public class ChargerCommandService implements IChargerCommandService {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("transactionId", session.getId().intValue());
 
-            String messageId = String.valueOf(System.currentTimeMillis());
+            String messageId = UUID.randomUUID().toString();
 
             // Track the pending command so we can correlate the charger's CALL_RESULT
             connectionManager.trackCommand(messageId, "RemoteStopTransaction", session.getId(), ocppId);

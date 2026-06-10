@@ -55,7 +55,11 @@ public class OcppConnectionManager {
 
     public void registerConnection(WebSocket conn, String ocppId) {
         connectionToOcppIdMap.put(conn, ocppId);
-        ocppIdToConnectionMap.put(ocppId, conn);
+        WebSocket oldConn = ocppIdToConnectionMap.put(ocppId, conn);
+        if (oldConn != null && oldConn != conn && oldConn.isOpen()) {
+            log.warn("Closing old ghost connection for charger {}", ocppId);
+            oldConn.close(1000, "Replaced by new connection");
+        }
         log.info("Charger connected: {} (OCPP ID: {})", conn.getRemoteSocketAddress(), ocppId);
     }
 
@@ -63,8 +67,13 @@ public class OcppConnectionManager {
         if (conn == null) return null;
         String ocppId = connectionToOcppIdMap.remove(conn);
         if (ocppId != null) {
-            ocppIdToConnectionMap.remove(ocppId);
-            lastPongTimeMap.remove(ocppId);
+            // Only remove from active map if the closing connection is the currently registered one
+            if (conn.equals(ocppIdToConnectionMap.get(ocppId))) {
+                ocppIdToConnectionMap.remove(ocppId);
+                lastPongTimeMap.remove(ocppId);
+            } else {
+                log.info("Skipped removing ocppIdToConnectionMap entry for {} because a newer connection exists", ocppId);
+            }
         }
         return ocppId;
     }
@@ -148,5 +157,22 @@ public class OcppConnectionManager {
 
     public void removeMeterStart(Long sessionId) {
         sessionToMeterStartMap.remove(sessionId);
+    }
+
+    /**
+     * Periodically clean up pending commands that never received a response.
+     * Runs every 5 minutes and removes commands older than 5 minutes.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 300000)
+    public void cleanupPendingCommands() {
+        Instant threshold = Instant.now().minusSeconds(300);
+        pendingCommands.entrySet().removeIf(entry -> {
+            if (entry.getValue().getSentAt().isBefore(threshold)) {
+                log.warn("Removing expired pending command: messageId={}, action={}, charger={}",
+                        entry.getKey(), entry.getValue().getAction(), entry.getValue().getOcppId());
+                return true;
+            }
+            return false;
+        });
     }
 }

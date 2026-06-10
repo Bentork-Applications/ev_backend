@@ -102,9 +102,14 @@ public class MeterValuesHandler implements OcppActionHandler {
                 double consumedKwh = Math.round(rawConsumed * 1000.0) / 1000.0;
 
                 if (consumedKwh < 0) {
-                    log.warn("Negative consumption detected (Meter reset?): Current={}, Start={}. Treating as 0.",
+                    log.warn("Negative consumption detected (Meter reset?): Current={}, Start={}.",
                             currentAbsKwh, startKwh);
-                    consumedKwh = 0;
+                    if (session.getEnergyKwh() > 0) {
+                        log.info("Falling back to previously accumulated energy: {} kWh", session.getEnergyKwh());
+                        consumedKwh = session.getEnergyKwh();
+                    } else {
+                        consumedKwh = 0;
+                    }
                 }
 
                 log.info("kWh Check: SessionId={}, AbsoluteMeter={}, StartMeter={}, Consumed={}",

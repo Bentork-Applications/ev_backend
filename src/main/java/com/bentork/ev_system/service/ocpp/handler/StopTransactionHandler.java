@@ -77,6 +77,15 @@ public class StopTransactionHandler implements OcppActionHandler {
             log.info("Energy calculation: MeterStart (kWh)={}, MeterStop (kWh)={}, Energy={} kWh",
                     startKwh, stopKwh, energyKwh);
 
+            // Prevent negative energy wipeout if meterStop is 0 or invalid
+            if (energyKwh <= 0 && session.getEnergyKwh() > 0) {
+                log.warn("Calculated energy is <= 0 ({}). Falling back to previously accumulated energy: {} kWh",
+                        energyKwh, session.getEnergyKwh());
+                energyKwh = session.getEnergyKwh();
+            } else if (energyKwh < 0) {
+                energyKwh = 0; // Don't allow negative energy if there's no previous accumulation
+            }
+
             session.setEnergyKwh(energyKwh);
 
             // Check if selectedKwh session and limit reached
