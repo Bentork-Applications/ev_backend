@@ -16,6 +16,7 @@ public class CafeMapper {
         cafe.setLatitude(dto.getLatitude());
         cafe.setLongitude(dto.getLongitude());
         cafe.setAddress(dto.getAddress());
+        cafe.setCategory(dto.getCategory());
         return cafe;
     }
 
@@ -35,6 +36,7 @@ public class CafeMapper {
         dto.setLatitude(cafe.getLatitude());
         dto.setLongitude(cafe.getLongitude());
         dto.setAddress(cafe.getAddress());
+        dto.setCategory(cafe.getCategory());
         return dto;
     }
 }

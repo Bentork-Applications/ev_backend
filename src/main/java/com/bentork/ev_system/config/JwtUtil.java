@@ -105,7 +105,7 @@ public class JwtUtil {
             boolean isValid = username.equals(userDetails.getUsername());
 
             if (isValid) {
-                log.info("Token validated successfully for user: {}", username);
+                log.debug("Token validated successfully for user: {}", username);
             } else {
                 log.warn("Token validation failed: Username mismatch. Token username: {}, Expected: {}",
                         username, userDetails.getUsername());

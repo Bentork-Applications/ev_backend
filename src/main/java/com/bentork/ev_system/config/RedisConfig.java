@@ -17,6 +17,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.SerializationException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,7 +49,7 @@ public class RedisConfig implements CachingConfigurer {
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
+                        RedisSerializationContext.SerializationPair.fromSerializer(new WrapperSerializer()))
                 .disableCachingNullValues();
 
         // Per-cache TTL overrides
@@ -126,3 +128,46 @@ public class RedisConfig implements CachingConfigurer {
         };
     }
 }
+
+class CacheValueWrapper {
+    private Object value;
+
+    public CacheValueWrapper() {}
+
+    public CacheValueWrapper(Object value) {
+        this.value = value;
+    }
+
+    public Object getValue() {
+        return value;
+    }
+
+    public void setValue(Object value) {
+        this.value = value;
+    }
+}
+
+class WrapperSerializer implements RedisSerializer<Object> {
+    private final GenericJackson2JsonRedisSerializer delegate = new GenericJackson2JsonRedisSerializer();
+
+    @Override
+    public byte[] serialize(Object t) throws SerializationException {
+        if (t == null) {
+            return new byte[0];
+        }
+        return delegate.serialize(new CacheValueWrapper(t));
+    }
+
+    @Override
+    public Object deserialize(byte[] bytes) throws SerializationException {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+        Object deserialized = delegate.deserialize(bytes);
+        if (deserialized instanceof CacheValueWrapper) {
+            return ((CacheValueWrapper) deserialized).getValue();
+        }
+        return deserialized;
+    }
+}
+

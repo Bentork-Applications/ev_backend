@@ -50,6 +50,8 @@ public class Cafe implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String address;
 
+    private String category;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -147,6 +149,14 @@ public class Cafe implements Serializable {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public LocalDateTime getCreatedAt() {

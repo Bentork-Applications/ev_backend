@@ -11,6 +11,7 @@ public class CafeRequestDTO {
     private Double latitude;
     private Double longitude;
     private String address;
+    private String category;
 
     // Getters and Setters
 
@@ -84,5 +85,13 @@ public class CafeRequestDTO {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 }

@@ -14,12 +14,13 @@ public class CafeResponseDTO {
     private Boolean openNow;
     private String googleMapsUri;
     private String googleMapImageUrl;
+    private String category;
 
     public CafeResponseDTO() {
     }
 
     public CafeResponseDTO(String name, String address, Double latitude, Double longitude,
-            Double rating, Boolean openNow, String googleMapsUri) {
+            Double rating, Boolean openNow, String googleMapsUri, String category) {
         this.name = name;
         this.address = address;
         this.latitude = latitude;
@@ -27,6 +28,7 @@ public class CafeResponseDTO {
         this.rating = rating;
         this.openNow = openNow;
         this.googleMapsUri = googleMapsUri;
+        this.category = category;
     }
 
     public Long getId() {
@@ -123,5 +125,13 @@ public class CafeResponseDTO {
 
     public void setGoogleMapImageUrl(String googleMapImageUrl) {
         this.googleMapImageUrl = googleMapImageUrl;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 }

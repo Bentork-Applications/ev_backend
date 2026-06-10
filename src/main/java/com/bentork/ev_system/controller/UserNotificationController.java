@@ -62,11 +62,11 @@ public class UserNotificationController {
     // Get all notifications for a user
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<UserNotification>> getUserNotifications(@PathVariable Long userId) {
-        log.info("GET /api/notifications/user/{} - Request received", userId);
+        log.debug("GET /api/notifications/user/{} - Request received", userId);
 
         try {
             List<UserNotification> notifications = service.getUserNotifications(userId);
-            log.info("GET /api/notifications/user/{} - Success, returned {} notifications",
+            log.debug("GET /api/notifications/user/{} - Success, returned {} notifications",
                     userId, notifications.size());
             return ResponseEntity.ok(notifications);
         } catch (Exception e) {
@@ -78,11 +78,11 @@ public class UserNotificationController {
     // Get only unread notifications
     @GetMapping("/user/{userId}/unread")
     public ResponseEntity<List<UserNotification>> getUnreadNotifications(@PathVariable Long userId) {
-        log.info("GET /api/notifications/user/{}/unread - Request received", userId);
+        log.debug("GET /api/notifications/user/{}/unread - Request received", userId);
 
         try {
             List<UserNotification> notifications = service.getUnreadNotifications(userId);
-            log.info("GET /api/notifications/user/{}/unread - Success, returned {} unread notifications",
+            log.debug("GET /api/notifications/user/{}/unread - Success, returned {} unread notifications",
                     userId, notifications.size());
             return ResponseEntity.ok(notifications);
         } catch (Exception e) {

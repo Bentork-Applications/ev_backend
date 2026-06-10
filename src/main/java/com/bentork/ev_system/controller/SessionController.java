@@ -67,12 +67,12 @@ public class SessionController {
 
 	@GetMapping("/total")
 	public ResponseEntity<Long> getTotalSessions() {
-		log.info("GET /api/sessions/total - Request received");
+		log.debug("GET /api/sessions/total - Request received");
 
 		try {
 			// ensureAdmin(authHeader);
 			Long total = sessionService.getTotalSessions();
-			log.info("GET /api/sessions/total - Success, total={}", total);
+			log.debug("GET /api/sessions/total - Success, total={}", total);
 			return ResponseEntity.ok(total);
 		} catch (Exception e) {
 			log.error("GET /api/sessions/total - Failed: {}", e.getMessage(), e);
@@ -83,12 +83,12 @@ public class SessionController {
 	// @PreAuthorize("hasAuthority('ADMIN')")
 	@GetMapping("/energy")
 	public ResponseEntity<Double> getTotalEnergy() {
-		log.info("GET /api/sessions/energy - Request received");
+		log.debug("GET /api/sessions/energy - Request received");
 
 		try {
 			// ensureAdmin(authHeader);
 			Double totalEnergy = sessionService.getTotalEnergyConsumed();
-			log.info("GET /api/sessions/energy - Success, totalEnergy={} kWh", totalEnergy);
+			log.debug("GET /api/sessions/energy - Success, totalEnergy={} kWh", totalEnergy);
 			return ResponseEntity.ok(totalEnergy);
 		} catch (Exception e) {
 			log.error("GET /api/sessions/energy - Failed: {}", e.getMessage(), e);
@@ -99,11 +99,11 @@ public class SessionController {
 	// Active Sessions Count
 	@GetMapping("/active")
 	public ResponseEntity<Long> getActiveSessions() {
-		log.info("GET /api/sessions/active - Request received");
+		log.debug("GET /api/sessions/active - Request received");
 
 		try {
 			Long active = sessionService.getActiveSessions();
-			log.info("GET /api/sessions/active - Success, active={}", active);
+			log.debug("GET /api/sessions/active - Success, active={}", active);
 			return ResponseEntity.ok(active);
 		} catch (Exception e) {
 			log.error("GET /api/sessions/active - Failed: {}", e.getMessage(), e);
@@ -114,11 +114,11 @@ public class SessionController {
 	// Active Sessions with Details (userId, sessionId, status)
 	@GetMapping("/active/details")
 	public ResponseEntity<List<Map<String, Object>>> getActiveSessionDetails() {
-		log.info("GET /api/sessions/active/details - Request received");
+		log.debug("GET /api/sessions/active/details - Request received");
 
 		try {
 			List<Map<String, Object>> activeSessions = sessionService.getActiveSessionDetails();
-			log.info("GET /api/sessions/active/details - Success, count={}", activeSessions.size());
+			log.debug("GET /api/sessions/active/details - Success, count={}", activeSessions.size());
 			return ResponseEntity.ok(activeSessions);
 		} catch (Exception e) {
 			log.error("GET /api/sessions/active/details - Failed: {}", e.getMessage(), e);
@@ -129,11 +129,11 @@ public class SessionController {
 	// Average Uptime
 	@GetMapping("/uptime")
 	public ResponseEntity<Double> getAverageUptime() {
-		log.info("GET /api/sessions/uptime - Request received");
+		log.debug("GET /api/sessions/uptime - Request received");
 
 		try {
 			Double uptime = sessionService.getAverageUptime();
-			log.info("GET /api/sessions/uptime - Success, uptime={}%", uptime);
+			log.debug("GET /api/sessions/uptime - Success, uptime={}%", uptime);
 			return ResponseEntity.ok(uptime);
 		} catch (Exception e) {
 			log.error("GET /api/sessions/uptime - Failed: {}", e.getMessage(), e);
@@ -149,7 +149,7 @@ public class SessionController {
 	public ResponseEntity<Double> getSessionEnergy(
 			@PathVariable Long sessionId) {
 
-		log.info("GET /api/sessions/{}/energy - Request received", sessionId);
+		log.debug("GET /api/sessions/{}/energy - Request received", sessionId);
 
 		try {
 			Session session = sessionService.getSessionById(sessionId);
@@ -161,7 +161,7 @@ public class SessionController {
 			// No null check needed because 'double' is primitive
 			double energy = session.getEnergyKwh();
 
-			log.info("GET /api/sessions/{}/energy - Success, energy={} kWh", sessionId, energy);
+			log.debug("GET /api/sessions/{}/energy - Success, energy={} kWh", sessionId, energy);
 			return ResponseEntity.ok(energy);
 
 		} catch (Exception e) {
@@ -177,7 +177,7 @@ public class SessionController {
 	public ResponseEntity<String> getSessionStatus(
 			@PathVariable Long sessionId) {
 
-		log.info("GET /api/sessions/{}/status - Request received", sessionId);
+		log.debug("GET /api/sessions/{}/status - Request received", sessionId);
 
 		try {
 			Session session = sessionService.getSessionById(sessionId);
@@ -188,7 +188,7 @@ public class SessionController {
 
 			String status = session.getStatus();
 
-			log.info("GET /api/sessions/{}/status - Success, status={}", sessionId, status);
+			log.debug("GET /api/sessions/{}/status - Success, status={}", sessionId, status);
 			return ResponseEntity.ok(status);
 
 		} catch (Exception e) {
@@ -201,7 +201,7 @@ public class SessionController {
 	@GetMapping("/error/today")
 	public ResponseEntity<Long> getTodaysError() {
 		try {
-			log.info("Calling session service to get todays total errors");
+			log.debug("Calling session service to get todays total errors");
 			Long count = sessionService.getTodaysErrorCount();
 			return ResponseEntity.ok(count);
 		} catch (DataAccessException e) {
@@ -217,7 +217,7 @@ public class SessionController {
 	@GetMapping("/all/records")
 	public ResponseEntity<List<Session>> getAllSessionRecords() {
 		try {
-			log.info("Calling session service to get all session records");
+			log.debug("Calling session service to get all session records");
 			List<Session> allRecords = sessionService.getallSessionRecords();
 			return ResponseEntity.ok(allRecords);
 		} catch (DataAccessException e) {

@@ -66,6 +66,7 @@ public class CafeService {
         existing.setLatitude(dto.getLatitude());
         existing.setLongitude(dto.getLongitude());
         existing.setAddress(dto.getAddress());
+        existing.setCategory(dto.getCategory());
 
         Cafe updated = cafeRepository.save(existing);
         return CafeMapper.toResponseDTO(updated);

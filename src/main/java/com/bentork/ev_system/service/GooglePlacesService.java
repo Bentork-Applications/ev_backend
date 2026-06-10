@@ -21,7 +21,7 @@ public class GooglePlacesService {
     private static final String NEARBY_SEARCH_URL = "https://places.googleapis.com/v1/places:searchNearby";
 
     private static final String FIELD_MASK = "places.displayName,places.formattedAddress,"
-            + "places.location,places.rating,places.currentOpeningHours,places.googleMapsUri";
+            + "places.location,places.rating,places.currentOpeningHours,places.googleMapsUri,places.primaryType";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -96,7 +96,7 @@ public class GooglePlacesService {
     private String buildRequestBody(double latitude, double longitude, double radius) {
         return """
                 {
-                  "includedTypes": ["cafe"],
+                  "includedTypes": ["cafe", "restaurant", "shopping_mall"],
                   "maxResultCount": 10,
                   "locationRestriction": {
                     "circle": {
@@ -158,6 +158,21 @@ public class GooglePlacesService {
 
                 // Google Maps URI
                 cafe.setGoogleMapsUri(place.path("googleMapsUri").asText(null));
+
+                // Category
+                JsonNode primaryType = place.path("primaryType");
+                if (!primaryType.isMissingNode()) {
+                    String type = primaryType.asText("");
+                    if ("shopping_mall".equals(type)) {
+                        cafe.setCategory("mall");
+                    } else if ("restaurant".equals(type)) {
+                        cafe.setCategory("restaurant");
+                    } else if ("cafe".equals(type)) {
+                        cafe.setCategory("cafe");
+                    } else {
+                        cafe.setCategory(type);
+                    }
+                }
 
                 cafes.add(cafe);
             }
