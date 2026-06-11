@@ -78,7 +78,7 @@ public class ReceiptService implements IReceiptService {
                     .setScale(2, java.math.RoundingMode.HALF_UP);
             
             BigDecimal subtotal = energyCost.add(platformFee);
-            BigDecimal pst = taxService.calculatePst(subtotal);
+            BigDecimal pst = taxService.calculatePstPerKwh(selectedKwh.doubleValue(), charger.getPstPerKwh());
             
             amount = subtotal.add(pst);
             receipt.setSelectedKwh(selectedKwh);

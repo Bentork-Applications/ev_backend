@@ -15,6 +15,7 @@ public class ChargerMapper {
         dto.setChargerType(charger.getChargerType());
         dto.setRate(charger.getRate());
         dto.setPlatformFeePerKwh(charger.getPlatformFeePerKwh());
+        dto.setPstPerKwh(charger.getPstPerKwh());
         dto.setOccupied(charger.isOccupied());
         dto.setAvailability(charger.isAvailability());
         dto.setCreatedAt(charger.getCreatedAt());
@@ -29,6 +30,7 @@ public class ChargerMapper {
         charger.setChargerType(dto.getChargerType());
         charger.setRate(dto.getRate());
         charger.setPlatformFeePerKwh(dto.getPlatformFeePerKwh() != null ? dto.getPlatformFeePerKwh() : 0.0);
+        charger.setPstPerKwh(dto.getPstPerKwh() != null ? dto.getPstPerKwh() : 0.0);
         charger.setOccupied(dto.isOccupied());
         charger.setAvailability(dto.isAvailability());
         return charger;

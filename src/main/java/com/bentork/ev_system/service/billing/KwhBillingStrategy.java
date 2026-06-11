@@ -44,13 +44,13 @@ public class KwhBillingStrategy implements BillingStrategy {
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
         
-        BigDecimal pst = taxService.calculatePst(energyCost.add(platformFee));
+        BigDecimal pst = taxService.calculatePstPerKwh(energyUsed, session.getCharger().getPstPerKwh());
         BigDecimal finalCost = energyCost.add(platformFee).add(pst);
 
         // Prepaid also included the same platform fee and its PST
         BigDecimal prepaidEnergyCost = BigDecimal.valueOf(selectedKwh).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal prepaidPst = taxService.calculatePst(prepaidEnergyCost.add(platformFee));
+        BigDecimal prepaidPst = taxService.calculatePstPerKwh(selectedKwh, session.getCharger().getPstPerKwh());
         BigDecimal prepaid = prepaidEnergyCost.add(platformFee).add(prepaidPst);
 
         log.info("kWh billing: sessionId={}, selectedKwh={}, actualKwh={}, prepaid={}, finalCost={}, platformFee={}, pst={}",

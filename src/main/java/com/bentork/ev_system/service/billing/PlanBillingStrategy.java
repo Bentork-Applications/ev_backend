@@ -42,7 +42,7 @@ public class PlanBillingStrategy implements BillingStrategy {
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
         
-        BigDecimal pst = taxService.calculatePst(energyCost.add(platformFee));
+        BigDecimal pst = taxService.calculatePstPerKwh(energyUsed, session.getCharger().getPstPerKwh());
         BigDecimal finalCost = energyCost.add(platformFee).add(pst);
         
         BigDecimal prepaid = receipt.getAmount();

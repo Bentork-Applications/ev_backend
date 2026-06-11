@@ -22,6 +22,7 @@ public class ChargerDTO {
 	private String chargerType; // AC or DC
 	private Double rate;
 	private Double platformFeePerKwh;
+	private Double pstPerKwh;
 
 	private boolean isOccupied;
 	private boolean availability;
@@ -91,6 +92,14 @@ public class ChargerDTO {
 
 	public void setPlatformFeePerKwh(Double platformFeePerKwh) {
 		this.platformFeePerKwh = platformFeePerKwh;
+	}
+
+	public Double getPstPerKwh() {
+		return pstPerKwh;
+	}
+
+	public void setPstPerKwh(Double pstPerKwh) {
+		this.pstPerKwh = pstPerKwh;
 	}
 
 	public boolean isOccupied() {

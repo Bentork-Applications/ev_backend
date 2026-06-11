@@ -194,7 +194,7 @@ public class RFIDChargingService implements IRFIDChargingService {
                     .setScale(2, java.math.RoundingMode.HALF_UP);
             BigDecimal subtotal = BigDecimal.valueOf(saved.getCost()).add(platformFee);
             
-            BigDecimal pst = taxService.calculatePst(subtotal);
+            BigDecimal pst = taxService.calculatePstPerKwh(saved.getEnergyKwh(), saved.getCharger().getPstPerKwh());
             BigDecimal finalCost = subtotal.add(pst);
             
             saved.setCost(finalCost.doubleValue());
