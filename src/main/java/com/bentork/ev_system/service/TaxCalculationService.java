@@ -36,4 +36,24 @@ public class TaxCalculationService {
                 .multiply(BigDecimal.valueOf(pstPerKwh))
                 .setScale(2, RoundingMode.HALF_UP);
     }
+
+    /**
+     * Calculates platform fee based on per-kWh fixed rate set on each charger.
+     * Formula: max(1, floor(energyUsed)) × platformFeePerKwh
+     *
+     * Examples (platformFeePerKwh = ₹5):
+     *   0.01 kWh → max(1, 0) = 1 → ₹5
+     *   0.98 kWh → max(1, 0) = 1 → ₹5
+     *   2.01 kWh → max(1, 2) = 2 → ₹10
+     *   3.01 kWh → max(1, 3) = 3 → ₹15
+     */
+    public BigDecimal calculatePlatformFee(double energyUsed, Double platformFeePerKwh) {
+        if (platformFeePerKwh == null || platformFeePerKwh <= 0) {
+            return BigDecimal.ZERO;
+        }
+        int units = Math.max(1, (int) Math.floor(energyUsed));
+        return BigDecimal.valueOf(units)
+                .multiply(BigDecimal.valueOf(platformFeePerKwh))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
 }

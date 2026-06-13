@@ -6,6 +6,7 @@ import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.ReceiptRepository;
+import com.bentork.ev_system.repository.SessionRepository;
 import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 import com.bentork.ev_system.service.interfaces.ISessionService;
 import com.bentork.ev_system.service.ocpp.OcppActionHandler;
@@ -17,6 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,6 +31,7 @@ public class StopTransactionHandler implements OcppActionHandler {
     private final IRFIDChargingService rfidChargingService;
     private final ChargerRepository chargerRepository;
     private final ReceiptRepository receiptRepository;
+    private final SessionRepository sessionRepository;
     private final OcppConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
 
@@ -44,9 +50,11 @@ public class StopTransactionHandler implements OcppActionHandler {
             transactionId = payload.has("transactionId") ? payload.get("transactionId").asInt() : -1;
             double meterStop = payload.has("meterStop") ? payload.get("meterStop").asDouble() : 0.0;
             String reason = payload.has("reason") ? payload.get("reason").asText() : "Local";
+            String rawTimestamp = payload.has("timestamp") ? payload.get("timestamp").asText() : null;
+            LocalDateTime chargerTimestamp = parseOcppTimestamp(rawTimestamp);
 
-            log.info("StopTransaction - TransactionId: {}, MeterStop: {}, Reason: {}",
-                    transactionId, meterStop, reason);
+            log.info("StopTransaction - TransactionId: {}, MeterStop: {}, Reason: {}, Timestamp: {} (raw: {})",
+                    transactionId, meterStop, reason, chargerTimestamp, rawTimestamp);
 
             if (transactionId == -1) {
                 throw new RuntimeException("Missing transactionId");
@@ -101,8 +109,19 @@ public class StopTransactionHandler implements OcppActionHandler {
                 sessionService.stopSessionBySystem(sessionId);
             }
 
-            log.info("Session stopped successfully: {} (Energy: {} kWh, Source: {})",
-                    session.getId(), energyKwh, session.getSourceType());
+            // Override endTime with charger-reported timestamp.
+            // The stop services above set endTime to LocalDateTime.now() internally,
+            // but the charger's timestamp is the authoritative source for when
+            // charging actually stopped (handles offline-queued messages, network delays).
+            session = sessionService.getSessionById(sessionId);
+            if (session != null) {
+                session.setEndTime(chargerTimestamp);
+                sessionRepository.save(session);
+                log.info("Session {} endTime overridden with charger timestamp: {}", sessionId, chargerTimestamp);
+            }
+
+            log.info("Session stopped successfully: {} (Energy: {} kWh, Source: {}, EndTime: {})",
+                    sessionId, energyKwh, session != null ? session.getSourceType() : "unknown", chargerTimestamp);
 
             ObjectNode idTagInfo = objectMapper.createObjectNode();
             idTagInfo.put("status", "Accepted");
@@ -136,6 +155,32 @@ public class StopTransactionHandler implements OcppActionHandler {
                     log.error("Failed to reset charger {} status: {}",
                             session.getCharger().getOcppId(), chargerEx.getMessage());
                 }
+            }
+        }
+    }
+
+    /**
+     * Parse an OCPP ISO 8601 timestamp string to LocalDateTime.
+     * OCPP 1.6 spec uses ISO 8601 format (e.g., "2025-06-12T10:30:00Z" or "2025-06-12T10:30:00.000+05:30").
+     * Falls back to server time if the timestamp is null, empty, or unparseable.
+     */
+    private LocalDateTime parseOcppTimestamp(String rawTimestamp) {
+        if (rawTimestamp == null || rawTimestamp.isBlank()) {
+            log.debug("No timestamp in payload, using server time");
+            return LocalDateTime.now();
+        }
+        try {
+            // Try parsing as OffsetDateTime first (handles "Z" and "+05:30" suffixes)
+            OffsetDateTime odt = OffsetDateTime.parse(rawTimestamp);
+            return odt.toLocalDateTime();
+        } catch (DateTimeParseException e1) {
+            try {
+                // Fallback: try parsing as plain LocalDateTime (no timezone info)
+                return LocalDateTime.parse(rawTimestamp);
+            } catch (DateTimeParseException e2) {
+                log.warn("Failed to parse OCPP timestamp '{}', using server time. Error: {}",
+                        rawTimestamp, e2.getMessage());
+                return LocalDateTime.now();
             }
         }
     }

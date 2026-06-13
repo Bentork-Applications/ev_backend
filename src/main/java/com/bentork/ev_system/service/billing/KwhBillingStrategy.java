@@ -33,12 +33,9 @@ public class KwhBillingStrategy implements BillingStrategy {
         BigDecimal rate = BigDecimal.valueOf(session.getCharger().getRate());
         double selectedKwh = receipt.getSelectedKwh().doubleValue();
 
-        // Platform fee locked on selectedKwh — does NOT change with actual usage
-        Double feePerKwh = session.getCharger().getPlatformFeePerKwh() != null
-                ? session.getCharger().getPlatformFeePerKwh() : 0.0;
-        BigDecimal platformFee = BigDecimal.valueOf(selectedKwh)
-                .multiply(BigDecimal.valueOf(feePerKwh))
-                .setScale(2, RoundingMode.HALF_UP);
+        // Platform fee locked on selectedKwh (floored-unit logic) — does NOT change with actual usage
+        BigDecimal platformFee = taxService.calculatePlatformFee(
+                selectedKwh, session.getCharger().getPlatformFeePerKwh());
 
         // Energy cost based on ACTUAL usage
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)

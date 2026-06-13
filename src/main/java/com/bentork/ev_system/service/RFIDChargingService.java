@@ -186,12 +186,9 @@ public class RFIDChargingService implements IRFIDChargingService {
 
             Session saved = sessionRepo.save(session);
 
-            // 🔹 Final cost including platform fee and PST
-            Double feePerKwh = saved.getCharger().getPlatformFeePerKwh() != null
-                    ? saved.getCharger().getPlatformFeePerKwh() : 0.0;
-            BigDecimal platformFee = BigDecimal.valueOf(saved.getEnergyKwh())
-                    .multiply(BigDecimal.valueOf(feePerKwh))
-                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            // 🔹 Final cost including platform fee (floored-unit logic) and PST
+            BigDecimal platformFee = taxService.calculatePlatformFee(
+                    saved.getEnergyKwh(), saved.getCharger().getPlatformFeePerKwh());
             BigDecimal subtotal = BigDecimal.valueOf(saved.getCost()).add(platformFee);
             
             BigDecimal pst = taxService.calculatePstPerKwh(saved.getEnergyKwh(), saved.getCharger().getPstPerKwh());

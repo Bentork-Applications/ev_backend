@@ -45,6 +45,9 @@ public class MeterValuesHandler implements OcppActionHandler {
                 return objectMapper.createObjectNode();
             }
 
+            // Log charger-reported timestamps from meterValue entries for audit trail
+            logMeterValueTimestamps(payload, ocppId, transactionId);
+
             log.info("MeterValues received - Raw payload: {}", payload.toString());
             logAllMeasurands(payload);
 
@@ -244,6 +247,29 @@ public class MeterValuesHandler implements OcppActionHandler {
             log.info(sb.toString());
         } catch (Exception e) {
             log.error("Error logging measurands: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Log charger-reported timestamps from MeterValues entries.
+     * Per OCPP 1.6, each meterValue entry contains a "timestamp" field
+     * indicating when the charger took the measurement.
+     * This provides an audit trail and helps detect clock drift.
+     */
+    private void logMeterValueTimestamps(JsonNode payload, String ocppId, int transactionId) {
+        try {
+            if (!payload.has("meterValue")) return;
+            JsonNode meterValues = payload.get("meterValue");
+            if (!meterValues.isArray()) return;
+
+            for (JsonNode meterValue : meterValues) {
+                String timestamp = meterValue.has("timestamp")
+                        ? meterValue.get("timestamp").asText() : "N/A";
+                log.info("MeterValues charger timestamp - OCPP_ID: {}, TxId: {}, ChargerTime: {}",
+                        ocppId, transactionId, timestamp);
+            }
+        } catch (Exception e) {
+            log.debug("Error reading meter value timestamps: {}", e.getMessage());
         }
     }
 }

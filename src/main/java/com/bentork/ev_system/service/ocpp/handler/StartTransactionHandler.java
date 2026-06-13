@@ -19,6 +19,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -43,9 +47,11 @@ public class StartTransactionHandler implements OcppActionHandler {
             String idTag = payload.has("idTag") ? payload.get("idTag").asText() : null;
             int connectorId = payload.has("connectorId") ? payload.get("connectorId").asInt() : 1;
             double meterStart = payload.has("meterStart") ? payload.get("meterStart").asDouble() : 0.0;
+            String rawTimestamp = payload.has("timestamp") ? payload.get("timestamp").asText() : null;
+            LocalDateTime chargerTimestamp = parseOcppTimestamp(rawTimestamp);
 
-            log.info("StartTransaction - OCPP_ID: {}, IdTag: {}, ConnectorId: {}, MeterStart: {}",
-                    ocppId, idTag, connectorId, meterStart);
+            log.info("StartTransaction - OCPP_ID: {}, IdTag: {}, ConnectorId: {}, MeterStart: {}, Timestamp: {} (raw: {})",
+                    ocppId, idTag, connectorId, meterStart, chargerTimestamp, rawTimestamp);
 
             Charger charger = chargerRepository.findByOcppId(ocppId)
                     .orElseThrow(() -> new ChargerNotFoundException(ocppId));
@@ -120,10 +126,16 @@ public class StartTransactionHandler implements OcppActionHandler {
                 throw new RuntimeException("No valid payment method found. Please use RFID card or prepay via app.");
             }
 
-            // Store meter start value
+            // Store meter start value and charger-reported timestamp
             double startKwh = meterStart / 1000.0;
             session.setStartMeterReading(startKwh);
             session.setLastMeterReading(startKwh);
+
+            // Use charger-reported timestamp instead of server time for accurate start time.
+            // This is critical for offline-queued messages or clock drift scenarios.
+            session.setStartTime(chargerTimestamp);
+            log.info("Session {} startTime set from charger timestamp: {}", session.getId(), chargerTimestamp);
+
             sessionRepository.save(session);
 
             connectionManager.setMeterStart(session.getId(), meterStart);
@@ -153,6 +165,32 @@ public class StartTransactionHandler implements OcppActionHandler {
         } catch (Exception e) {
             log.error("Error starting transaction: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to start transaction: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parse an OCPP ISO 8601 timestamp string to LocalDateTime.
+     * OCPP 1.6 spec uses ISO 8601 format (e.g., "2025-06-12T10:30:00Z" or "2025-06-12T10:30:00.000+05:30").
+     * Falls back to server time if the timestamp is null, empty, or unparseable.
+     */
+    private LocalDateTime parseOcppTimestamp(String rawTimestamp) {
+        if (rawTimestamp == null || rawTimestamp.isBlank()) {
+            log.debug("No timestamp in payload, using server time");
+            return LocalDateTime.now();
+        }
+        try {
+            // Try parsing as OffsetDateTime first (handles "Z" and "+05:30" suffixes)
+            OffsetDateTime odt = OffsetDateTime.parse(rawTimestamp);
+            return odt.toLocalDateTime();
+        } catch (DateTimeParseException e1) {
+            try {
+                // Fallback: try parsing as plain LocalDateTime (no timezone info)
+                return LocalDateTime.parse(rawTimestamp);
+            } catch (DateTimeParseException e2) {
+                log.warn("Failed to parse OCPP timestamp '{}', using server time. Error: {}",
+                        rawTimestamp, e2.getMessage());
+                return LocalDateTime.now();
+            }
         }
     }
 }

@@ -32,12 +32,9 @@ public class PlanBillingStrategy implements BillingStrategy {
     public BillingResult calculate(Session session, Receipt receipt, double energyUsed) {
         BigDecimal rate = BigDecimal.valueOf(session.getCharger().getRate());
 
-        // Platform fee based on ACTUAL energy used (plans have no selectedKwh)
-        Double feePerKwh = session.getCharger().getPlatformFeePerKwh() != null
-                ? session.getCharger().getPlatformFeePerKwh() : 0.0;
-        BigDecimal platformFee = BigDecimal.valueOf(energyUsed)
-                .multiply(BigDecimal.valueOf(feePerKwh))
-                .setScale(2, RoundingMode.HALF_UP);
+        // Platform fee based on ACTUAL energy used (floored-unit logic)
+        BigDecimal platformFee = taxService.calculatePlatformFee(
+                energyUsed, session.getCharger().getPlatformFeePerKwh());
 
         BigDecimal energyCost = BigDecimal.valueOf(energyUsed).multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
