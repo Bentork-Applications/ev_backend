@@ -11,4 +11,11 @@ public interface StationRepository extends JpaRepository<Station, Long> {
     
     // Custom query to fetch stations by location
     List<Station> findByLocationId(Long locationId);
+
+    // Active-aware queries for soft-delete support
+    List<Station> findByActiveTrue();
+
+    long countByActiveTrue();
+
+    List<Station> findByLocationIdAndActiveTrue(Long locationId);
 }

@@ -68,6 +68,10 @@ public class Charger implements Serializable {
 	@Builder.Default
 	private LocalDateTime createdAt = LocalDateTime.now();
 
+	@Column(name = "active", columnDefinition = "boolean default true")
+	@Builder.Default
+	private Boolean active = true;
+
 	public Long getId() {
 		return id;
 	}
@@ -170,5 +174,13 @@ public class Charger implements Serializable {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public Boolean getActive() {
+		return active;
+	}
+
+	public void setActive(Boolean active) {
+		this.active = active;
 	}
 }

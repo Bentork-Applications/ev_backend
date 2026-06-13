@@ -8,6 +8,7 @@ import com.bentork.ev_system.service.interfaces.IAdminAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,5 +50,27 @@ public class AdminAuthController {
             @RequestParam String otp, @RequestParam String newPassword) {
         adminAuthService.resetPassword(email, otp, newPassword);
         return ResponseEntity.ok("Password reset successful.");
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/deactivate/{id}")
+    public ResponseEntity<?> deactivateAdmin(@PathVariable Long id) {
+        try {
+            adminAuthService.deactivateAdmin(id);
+            return ResponseEntity.ok("Admin/Dealer deactivated successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/reactivate/{id}")
+    public ResponseEntity<?> reactivateAdmin(@PathVariable Long id) {
+        try {
+            adminAuthService.reactivateAdmin(id);
+            return ResponseEntity.ok("Admin/Dealer reactivated successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
     }
 }

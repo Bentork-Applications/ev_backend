@@ -14,6 +14,7 @@ public class StationMapper {
         dto.setStatus(station.getStatus());
         dto.setDirectionLink(station.getDirectionLink());
         dto.setCreatedAt(station.getCreatedAt());
+        dto.setActive(station.getActive());
         return dto;
     }
 

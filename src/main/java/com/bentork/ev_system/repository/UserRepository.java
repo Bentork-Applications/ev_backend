@@ -1,6 +1,7 @@
 package com.bentork.ev_system.repository;
 
 import com.bentork.ev_system.model.User;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -23,6 +24,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByReferralCode(String referralCode);
 
     boolean existsByReferralCode(String referralCode);
+
+    // Active-aware queries for soft-delete support
+    List<User> findByActiveTrue();
+
+    long countByActiveTrue();
+
+    Optional<User> findByEmailAndActiveTrue(String email);
+
+    Optional<User> findByMobileAndActiveTrue(String mobile);
 
     /**
      * Find user by ID with PESSIMISTIC_WRITE lock.

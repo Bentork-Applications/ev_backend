@@ -18,4 +18,6 @@ public interface IUserAuthService {
     User getUserDetailsByEmail(String email) throws Exception;
     List<User> getAllUsers();
     User getUserById(Long id) throws Exception;
+    void deactivateUser(Long id);
+    void reactivateUser(Long id);
 }

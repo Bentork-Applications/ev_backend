@@ -57,12 +57,12 @@ public class ChargerService implements IChargerService {
     @Cacheable(value = "chargers", key = "'all-chargers'")
     public List<ChargerDTO> getAllChargers() {
         try {
-            List<ChargerDTO> chargers = chargerRepository.findAll()
+            List<ChargerDTO> chargers = chargerRepository.findByActiveTrue()
                 .stream()
                 .map(ChargerMapper::toDto)
                 .collect(Collectors.toList());
 
-                log.info("Retrived {} chargers", chargers.size());
+                log.info("Retrieved {} active chargers", chargers.size());
                 return chargers;
         } catch (Exception e) {
             log.error("Failed to retrieve chargers: {}", e.getMessage(), e);
@@ -130,17 +130,17 @@ public class ChargerService implements IChargerService {
     })
     public String deleteCharger(Long id) {
        try {
-            if (!chargerRepository.existsById(id)) {
-                throw new EntityNotFoundException("Charger not found with ID: " + id);
-            }
-            chargerRepository.deleteById(id);
-            log.info("Charger deleted: id={}", id);
-            return "Charger Deleted";
+            Charger charger = chargerRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Charger not found with ID: " + id));
+            charger.setActive(false);
+            chargerRepository.save(charger);
+            log.info("Charger soft-deleted (deactivated): id={}", id);
+            return "Charger Deactivated";
         } catch (EntityNotFoundException e) {
-            log.warn("Failed to delete charger - Not found: id={}", id);
+            log.warn("Failed to deactivate charger - Not found: id={}", id);
             throw e;
         } catch (Exception e) {
-            log.error("Failed to delete charger: id={}: {}", id, e.getMessage(), e);
+            log.error("Failed to deactivate charger: id={}: {}", id, e.getMessage(), e);
             throw e;
         }
     }
@@ -149,8 +149,8 @@ public class ChargerService implements IChargerService {
     @Cacheable(value = "dashboard-stats", key = "'total-chargers'")
     public Long getTotalChargers() {
        try {
-            Long total = chargerRepository.count();
-            log.debug("Total chargers: {}", total);
+            Long total = chargerRepository.countByActiveTrue();
+            log.debug("Total active chargers: {}", total);
             return total;
         } catch (Exception e) {
             log.error("Failed to get total chargers: {}", e.getMessage(), e);
@@ -160,8 +160,8 @@ public class ChargerService implements IChargerService {
     @Cacheable(value = "dashboard-stats", key = "'available-chargers'")
     public Long getAvailableChargers() {
         try {
-            Long available = chargerRepository.countByAvailabilityTrueAndOccupiedFalse();
-            log.debug("Available chargers: {}", available);
+            Long available = chargerRepository.countByAvailabilityTrueAndOccupiedFalseAndActiveTrue();
+            log.debug("Available active chargers: {}", available);
             return available;
         } catch (Exception e) {
             log.error("Failed to get available chargers: {}", e.getMessage(), e);
@@ -173,8 +173,8 @@ public class ChargerService implements IChargerService {
     @Cacheable(value = "dashboard-stats", key = "'ac-chargers'")
     public Long getACChargers() {
         try {
-            Long acCount = chargerRepository.countByChargerTypeIgnoreCase("AC");
-            log.debug("Total AC chargers: {}", acCount);
+            Long acCount = chargerRepository.countByChargerTypeIgnoreCaseAndActiveTrue("AC");
+            log.debug("Total active AC chargers: {}", acCount);
             return acCount;
         } catch (Exception e) {
             log.error("Failed to get AC chargers: {}", e.getMessage(), e);
@@ -186,8 +186,8 @@ public class ChargerService implements IChargerService {
     @Cacheable(value = "dashboard-stats", key = "'dc-chargers'")
     public Long getDCChargers() {
         try {
-            Long dcCount = chargerRepository.countByChargerTypeIgnoreCase("DC");
-            log.debug("Total DC chargers: {}", dcCount);
+            Long dcCount = chargerRepository.countByChargerTypeIgnoreCaseAndActiveTrue("DC");
+            log.debug("Total active DC chargers: {}", dcCount);
             return dcCount;
         } catch (Exception e) {
             log.error("Failed to get DC chargers: {}", e.getMessage(), e);
@@ -203,6 +203,48 @@ public class ChargerService implements IChargerService {
             return ChargerMapper.toDto(charger);
         } catch (Exception e) {
             log.error("Failed to get chargers: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public String deactivateCharger(Long id) {
+        try {
+            Charger charger = chargerRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Charger not found with ID: " + id));
+            charger.setActive(false);
+            chargerRepository.save(charger);
+            log.info("Charger deactivated: id={}", id);
+            return "Charger Deactivated";
+        } catch (EntityNotFoundException e) {
+            log.warn("Failed to deactivate charger - Not found: id={}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to deactivate charger: id={}: {}", id, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public String reactivateCharger(Long id) {
+        try {
+            Charger charger = chargerRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Charger not found with ID: " + id));
+            charger.setActive(true);
+            chargerRepository.save(charger);
+            log.info("Charger reactivated: id={}", id);
+            return "Charger Reactivated";
+        } catch (EntityNotFoundException e) {
+            log.warn("Failed to reactivate charger - Not found: id={}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to reactivate charger: id={}: {}", id, e.getMessage(), e);
             throw e;
         }
     }

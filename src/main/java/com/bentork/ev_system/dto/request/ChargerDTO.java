@@ -29,6 +29,7 @@ public class ChargerDTO {
 
 	private LocalDateTime createdAt; // Optional for response
 	private String status; // busy, available, offline
+	private Boolean active;
 
 	public Long getId() {
 		return id;
@@ -132,6 +133,14 @@ public class ChargerDTO {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public Boolean getActive() {
+		return active;
+	}
+
+	public void setActive(Boolean active) {
+		this.active = active;
 	}
 
 }

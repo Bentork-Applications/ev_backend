@@ -103,16 +103,17 @@ public class UserAuthService implements IUserAuthService {
     }
 
     @Override
-    @CacheEvict(value = "user-data", allEntries = true)
+    @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
     public void deleteAccount(String email) {
         User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        userRepo.delete(user);
+        user.setActive(false);
+        userRepo.save(user);
     }
 
     @Override
     @Cacheable(value = "dashboard-stats", key = "'total-users'")
     public long getTotalUsers() {
-        return userRepo.count();
+        return userRepo.countByActiveTrue();
     }
 
     @Override
@@ -125,7 +126,23 @@ public class UserAuthService implements IUserAuthService {
     @Override
     @Cacheable(value = "user-data", key = "'all-users'")
     public List<User> getAllUsers() {
-        return userRepo.findAll();
+        return userRepo.findByActiveTrue();
+    }
+
+    @Override
+    @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
+    public void deactivateUser(Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(false);
+        userRepo.save(user);
+    }
+
+    @Override
+    @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
+    public void reactivateUser(Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(true);
+        userRepo.save(user);
     }
 
     @Override

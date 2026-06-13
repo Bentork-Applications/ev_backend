@@ -20,6 +20,12 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -148,7 +154,19 @@ class CacheValueWrapper {
 }
 
 class WrapperSerializer implements RedisSerializer<Object> {
-    private final GenericJackson2JsonRedisSerializer delegate = new GenericJackson2JsonRedisSerializer();
+    private final GenericJackson2JsonRedisSerializer delegate;
+
+    public WrapperSerializer() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.activateDefaultTyping(
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                JsonTypeInfo.As.PROPERTY
+        );
+        this.delegate = new GenericJackson2JsonRedisSerializer(mapper);
+    }
 
     @Override
     public byte[] serialize(Object t) throws SerializationException {

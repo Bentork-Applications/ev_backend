@@ -41,6 +41,9 @@ public class Station implements Serializable {
         this.createdAt = LocalDateTime.now();
     }
 
+    @Column(name = "active", columnDefinition = "boolean default true")
+    private Boolean active = true;
+
     // Getters & Setters
     
 	public Long getId() {
@@ -105,6 +108,14 @@ public class Station implements Serializable {
 
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public Boolean getActive() {
+		return active;
+	}
+
+	public void setActive(Boolean active) {
+		this.active = active;
 	}
     
 }

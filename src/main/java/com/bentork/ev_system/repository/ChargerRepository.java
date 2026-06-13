@@ -43,4 +43,16 @@ public interface ChargerRepository extends JpaRepository<Charger, Long> {
 
     @Query("SELECT COUNT(c) FROM Charger c WHERE c.availability = true AND c.isOccupied = false")
     long countByAvailabilityTrueAndOccupiedFalse();
+
+    // Active-aware queries for soft-delete support
+    List<Charger> findByActiveTrue();
+
+    List<Charger> findByStationIdAndActiveTrue(Long stationId);
+
+    long countByActiveTrue();
+
+    long countByChargerTypeIgnoreCaseAndActiveTrue(String chargerType);
+
+    @Query("SELECT COUNT(c) FROM Charger c WHERE c.availability = true AND c.isOccupied = false AND c.active = true")
+    long countByAvailabilityTrueAndOccupiedFalseAndActiveTrue();
 }

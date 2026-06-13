@@ -14,4 +14,6 @@ public interface IAdminAuthService {
     String updateRole(com.bentork.ev_system.dto.request.UpdateRoleRequest request);
     void sendOtp(String email);
     void resetPassword(String email, String otp, String newPassword);
+    void deactivateAdmin(Long id);
+    void reactivateAdmin(Long id);
 }

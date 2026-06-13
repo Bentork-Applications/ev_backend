@@ -109,15 +109,53 @@ public class StationController {
 
         try {
             stationService.deleteStation(id);
-            log.info("DELETE /api/stations/delete/{} - Success", id);
-            return ResponseEntity.ok("Station Deleted");
+            log.info("DELETE /api/stations/delete/{} - Success (deactivated)", id);
+            return ResponseEntity.ok("Station Deactivated");
         } catch (EntityNotFoundException e) {
             log.warn("DELETE /api/stations/delete/{} - Station not found", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             log.error("DELETE /api/stations/delete/{} - Failed: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to delete station");
+                    .body("Failed to deactivate station");
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/deactivate/{id}")
+    public ResponseEntity<String> deactivateStation(@PathVariable Long id) {
+        log.info("PUT /api/stations/deactivate/{} - Request received", id);
+
+        try {
+            stationService.deactivateStation(id);
+            log.info("PUT /api/stations/deactivate/{} - Success", id);
+            return ResponseEntity.ok("Station Deactivated (chargers cascaded)");
+        } catch (EntityNotFoundException e) {
+            log.warn("PUT /api/stations/deactivate/{} - Station not found", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("PUT /api/stations/deactivate/{} - Failed: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to deactivate station");
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/reactivate/{id}")
+    public ResponseEntity<String> reactivateStation(@PathVariable Long id) {
+        log.info("PUT /api/stations/reactivate/{} - Request received", id);
+
+        try {
+            stationService.reactivateStation(id);
+            log.info("PUT /api/stations/reactivate/{} - Success", id);
+            return ResponseEntity.ok("Station Reactivated");
+        } catch (EntityNotFoundException e) {
+            log.warn("PUT /api/stations/reactivate/{} - Station not found", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("PUT /api/stations/reactivate/{} - Failed: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to reactivate station");
         }
     }
 

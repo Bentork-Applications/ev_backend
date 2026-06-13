@@ -25,6 +25,9 @@ public class Admin {
     @Column(name = "fcm_token", length = 500)
     private String fcmToken;
 
+    @Column(name = "active", columnDefinition = "boolean default true")
+    private Boolean active = true;
+
     // Getters and Setters
 
     public Long getId() {
@@ -89,6 +92,14 @@ public class Admin {
 
     public void setFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
 }

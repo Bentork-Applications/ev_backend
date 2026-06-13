@@ -10,6 +10,7 @@ import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -100,7 +101,7 @@ public class UserAuthController {
     public ResponseEntity<?> deleteAccount(
             @AuthenticationPrincipal UserDetails userDetails) {
         userAuthService.deleteAccount(userDetails.getUsername());
-        return ResponseEntity.ok("Account deleted successfully.");
+        return ResponseEntity.ok("Account deactivated successfully.");
     }
 
     @GetMapping("/total")
@@ -121,5 +122,27 @@ public class UserAuthController {
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) throws Exception {
         return ResponseEntity.ok(userAuthService.getUserById(id));
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/deactivate/{id}")
+    public ResponseEntity<?> deactivateUser(@PathVariable Long id) {
+        try {
+            userAuthService.deactivateUser(id);
+            return ResponseEntity.ok("User deactivated successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/reactivate/{id}")
+    public ResponseEntity<?> reactivateUser(@PathVariable Long id) {
+        try {
+            userAuthService.reactivateUser(id);
+            return ResponseEntity.ok("User reactivated successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
     }
 }

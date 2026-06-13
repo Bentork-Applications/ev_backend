@@ -114,4 +114,15 @@ public class StationDTO {
 		this.totalReviews = totalReviews;
 	}
 
+	// Active status for soft-delete
+	private Boolean active;
+
+	public Boolean getActive() {
+		return active;
+	}
+
+	public void setActive(Boolean active) {
+		this.active = active;
+	}
+
 }

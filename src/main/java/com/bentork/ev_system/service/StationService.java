@@ -72,7 +72,7 @@ public class StationService {
     @Cacheable(value = "stations", key = "'all-stations'")
     public List<StationDTO> getAllStations() {
         try {
-            List<StationDTO> stations = stationRepository.findAll().stream()
+            List<StationDTO> stations = stationRepository.findByActiveTrue().stream()
                     .map(station -> {
                         StationDTO dto = StationMapper.toDTO(station);
                         enrichWithRatingData(dto, station.getId());
@@ -81,7 +81,7 @@ public class StationService {
                     .collect(Collectors.toList());
 
             if (log.isDebugEnabled()) {
-                log.debug("Retrieved {} stations", stations.size());
+                log.debug("Retrieved {} active stations", stations.size());
             }
 
             return stations;
@@ -171,16 +171,26 @@ public class StationService {
     })
     public void deleteStation(Long id) {
         try {
-            if (!stationRepository.existsById(id)) {
-                throw new EntityNotFoundException("Station not found with ID: " + id);
+            Station station = stationRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Station not found with ID: " + id));
+            
+            // Soft-delete the station
+            station.setActive(false);
+            stationRepository.save(station);
+            
+            // Cascade: deactivate all chargers at this station
+            List<Charger> chargers = chargerRepository.findByStationId(id);
+            for (Charger charger : chargers) {
+                charger.setActive(false);
+                chargerRepository.save(charger);
             }
-            stationRepository.deleteById(id);
-            log.info("Station deleted: id={}", id);
+            
+            log.info("Station soft-deleted (deactivated): id={}, cascaded to {} chargers", id, chargers.size());
         } catch (EntityNotFoundException e) {
-            log.warn("Failed to delete station - Station not found: id={}", id);
+            log.warn("Failed to deactivate station - Station not found: id={}", id);
             throw e;
         } catch (Exception e) {
-            log.error("Failed to delete station: id={}: {}", id, e.getMessage(), e);
+            log.error("Failed to deactivate station: id={}: {}", id, e.getMessage(), e);
             throw e;
         }
     }
@@ -188,10 +198,10 @@ public class StationService {
     @Cacheable(value = "dashboard-stats", key = "'total-stations'")
     public Long getTotalStations() {
         try {
-            Long total = stationRepository.count();
+            Long total = stationRepository.countByActiveTrue();
 
             if (log.isDebugEnabled()) {
-                log.debug("Total stations count: {}", total);
+                log.debug("Total active stations count: {}", total);
             }
 
             return total;
@@ -204,7 +214,7 @@ public class StationService {
     @Cacheable(value = "dashboard-stats", key = "'active-stations'")
     public Long getActiveStations() {
         try {
-            Long activeCount = stationRepository.findAll().stream()
+            Long activeCount = stationRepository.findByActiveTrue().stream()
                     .filter(station -> "ACTIVE".equalsIgnoreCase(station.getStatus()))
                     .count();
 
@@ -222,10 +232,10 @@ public class StationService {
     @Cacheable(value = "dashboard-stats", key = "'avg-uptime'")
     public Double getAverageUptime() {
         try {
-            List<Station> stations = stationRepository.findAll();
+            List<Station> stations = stationRepository.findByActiveTrue();
 
             if (stations.isEmpty()) {
-                log.warn("No stations found for uptime calculation");
+                log.warn("No active stations found for uptime calculation");
                 return 0.0;
             }
 
@@ -233,7 +243,7 @@ public class StationService {
             int stationCount = 0;
 
             for (Station station : stations) {
-                List<Charger> chargers = chargerRepository.findByStationId(station.getId());
+                List<Charger> chargers = chargerRepository.findByStationIdAndActiveTrue(station.getId());
 
                 if (!chargers.isEmpty()) {
                     long availableChargers = chargers.stream()
@@ -249,7 +259,7 @@ public class StationService {
             double avgUptime = stationCount > 0 ? totalUptime / stationCount : 0.0;
             double roundedUptime = Math.round(avgUptime * 100.0) / 100.0;
 
-            log.info("Average uptime calculated: {}% across {} stations",
+            log.info("Average uptime calculated: {}% across {} active stations",
                     roundedUptime, stationCount);
 
             return roundedUptime;
@@ -267,8 +277,8 @@ public class StationService {
             LocalDateTime startOfDay = today.atStartOfDay();
             LocalDateTime endOfDay = today.atTime(23, 59, 59, 999999999);
 
-            log.debug("Getting all station to count todays errors");
-            List<Station> allStations = stationRepository.findAll();
+            log.debug("Getting all active stations to count todays errors");
+            List<Station> allStations = stationRepository.findByActiveTrue();
 
             return allStations.stream()
                     .filter(station -> station.getCreatedAt() != null
@@ -285,6 +295,59 @@ public class StationService {
         } catch (Exception e) {
             log.error("Unexpected error in getTodaysErrorCount ", e);
             throw new RuntimeException("Failed to calculate today's error count", e);
+        }
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "stations", allEntries = true),
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public void deactivateStation(Long id) {
+        try {
+            Station station = stationRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Station not found with ID: " + id));
+            
+            station.setActive(false);
+            stationRepository.save(station);
+            
+            // Cascade: deactivate all chargers at this station
+            List<Charger> chargers = chargerRepository.findByStationId(id);
+            for (Charger charger : chargers) {
+                charger.setActive(false);
+                chargerRepository.save(charger);
+            }
+            
+            log.info("Station deactivated: id={}, cascaded to {} chargers", id, chargers.size());
+        } catch (EntityNotFoundException e) {
+            log.warn("Failed to deactivate station - Station not found: id={}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to deactivate station: id={}: {}", id, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "stations", allEntries = true),
+        @CacheEvict(value = "chargers", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public void reactivateStation(Long id) {
+        try {
+            Station station = stationRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Station not found with ID: " + id));
+            
+            station.setActive(true);
+            stationRepository.save(station);
+            
+            log.info("Station reactivated: id={}", id);
+        } catch (EntityNotFoundException e) {
+            log.warn("Failed to reactivate station - Station not found: id={}", id);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to reactivate station: id={}: {}", id, e.getMessage(), e);
+            throw e;
         }
     }
 }

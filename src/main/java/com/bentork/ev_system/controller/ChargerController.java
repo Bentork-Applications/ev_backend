@@ -106,24 +106,24 @@ public class ChargerController {
     @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteCharger(@PathVariable Long id) {
-        log.info("DELETE /api/charges/delete/{} - Request recieved", id);
+        log.info("DELETE /api/chargers/delete/{} - Request received", id);
         try {
             chargerService.deleteCharger(id);
-            log.info("DELETE /api/charges/delete/{} - Success", id);
-            return ResponseEntity.ok("Charger Deleted");
+            log.info("DELETE /api/chargers/delete/{} - Success (deactivated)", id);
+            return ResponseEntity.ok("Charger Deactivated");
         } catch (EntityNotFoundException e) {
             log.warn("DELETE /api/chargers/delete/{} - Charger Not found", id);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             log.error("DELETE /api/chargers/delete/{} - Failed: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to delete charger");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to deactivate charger");
         }
     }
 
     // Total Chargers
     @GetMapping("/total")
     public ResponseEntity<Long> getTotalChargers() {
-        log.info("GET /api/chargers/total - Request recieved");
+        log.info("GET /api/chargers/total - Request received");
         try {
             Long total = chargerService.getTotalChargers();
             log.info("GET /api/chargers/total - Success, total={}", total);
@@ -138,7 +138,7 @@ public class ChargerController {
     @GetMapping("/available")
     public ResponseEntity<Long> getAvailableChargers() {
 
-        log.info("GET /api/chargers/available - Request recieved");
+        log.info("GET /api/chargers/available - Request received");
         try {
             Long available = chargerService.getAvailableChargers();
             log.info("GET /api/chargers/available - Success, available={}", available);
@@ -152,7 +152,7 @@ public class ChargerController {
     // AC Chargers
     @GetMapping("/ac")
     public ResponseEntity<Long> getACChargers() {
-        log.info("GET /api/chargers/ac - Request recieved");
+        log.info("GET /api/chargers/ac - Request received");
         try {
             Long acChargers = chargerService.getACChargers();
             log.info("GET /api/chargers/ac - Success, acChargers={}", acChargers);
@@ -166,7 +166,7 @@ public class ChargerController {
     // DC Chargers
     @GetMapping("/dc")
     public ResponseEntity<Long> getDCChargers() {
-        log.info("GET /api/chargers/dc - Request recieved");
+        log.info("GET /api/chargers/dc - Request received");
         try {
             Long dcChargers = chargerService.getDCChargers();
             log.info("GET /api/chargers/dc - Success, dcChargers={}", dcChargers);
@@ -174,6 +174,40 @@ public class ChargerController {
         } catch (Exception e) {
             log.error("GET /api/chargers/dc - Failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/deactivate/{id}")
+    public ResponseEntity<String> deactivateCharger(@PathVariable Long id) {
+        log.info("PUT /api/chargers/deactivate/{} - Request received", id);
+        try {
+            chargerService.deactivateCharger(id);
+            log.info("PUT /api/chargers/deactivate/{} - Success", id);
+            return ResponseEntity.ok("Charger Deactivated");
+        } catch (EntityNotFoundException e) {
+            log.warn("PUT /api/chargers/deactivate/{} - Not found", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("PUT /api/chargers/deactivate/{} - Failed: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to deactivate charger");
+        }
+    }
+
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PutMapping("/reactivate/{id}")
+    public ResponseEntity<String> reactivateCharger(@PathVariable Long id) {
+        log.info("PUT /api/chargers/reactivate/{} - Request received", id);
+        try {
+            chargerService.reactivateCharger(id);
+            log.info("PUT /api/chargers/reactivate/{} - Success", id);
+            return ResponseEntity.ok("Charger Reactivated");
+        } catch (EntityNotFoundException e) {
+            log.warn("PUT /api/chargers/reactivate/{} - Not found", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("PUT /api/chargers/reactivate/{} - Failed: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to reactivate charger");
         }
     }
 

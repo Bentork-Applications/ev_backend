@@ -56,7 +56,7 @@ public class AdminAuthService implements IAdminAuthService {
 
     @Override
     public List<Admin> getAllAdmins() {
-        return adminRepo.findAll();
+        return adminRepo.findByActiveTrue();
     }
 
     @Override
@@ -86,5 +86,21 @@ public class AdminAuthService implements IAdminAuthService {
         admin.setPassword(passwordEncoder.encode(newPassword));
         adminRepo.save(admin);
         otpService.clearOtp(email);
+    }
+
+    @Override
+    public void deactivateAdmin(Long id) {
+        Admin admin = adminRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Admin not found with ID: " + id));
+        admin.setActive(false);
+        adminRepo.save(admin);
+    }
+
+    @Override
+    public void reactivateAdmin(Long id) {
+        Admin admin = adminRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Admin not found with ID: " + id));
+        admin.setActive(true);
+        adminRepo.save(admin);
     }
 }

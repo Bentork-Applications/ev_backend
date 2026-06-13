@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -34,6 +35,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+
+            // Block deactivated users from logging in
+            if (user.getActive() != null && !user.getActive()) {
+                throw new DisabledException("Your account has been deactivated. Please contact support.");
+            }
+
             // Handle Google OAuth users who may have no password set
             String password = user.getPassword();
             if (password == null || password.isEmpty()) {
@@ -53,6 +60,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         if (adminOpt.isPresent()) {
             Admin admin = adminOpt.get();
+
+            // Block deactivated admins/dealers from logging in
+            if (admin.getActive() != null && !admin.getActive()) {
+                throw new DisabledException("Your account has been deactivated. Please contact support.");
+            }
+
             String role = admin.getRole();
             return new org.springframework.security.core.userdetails.User(
                     admin.getEmail(),

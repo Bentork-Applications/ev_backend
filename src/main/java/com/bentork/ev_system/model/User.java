@@ -40,6 +40,9 @@ public class User implements Serializable {
     @Column(name = "coin_balance", columnDefinition = "int default 0")
     private Integer coinBalance = 0;
 
+    @Column(name = "active", columnDefinition = "boolean default true")
+    private Boolean active = true;
+
     // === Getters and Setters ===
 
     public Long getId() {
@@ -128,6 +131,14 @@ public class User implements Serializable {
 
     public void setCoinBalance(Integer coinBalance) {
         this.coinBalance = coinBalance;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
 }

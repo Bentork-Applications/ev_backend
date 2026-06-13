@@ -18,4 +18,6 @@ public interface IChargerService {
     Long getACChargers();
     Long getDCChargers();
     ChargerDTO getChargerByOcppId(String ocppId);
+    String deactivateCharger(Long id);
+    String reactivateCharger(Long id);
 }
