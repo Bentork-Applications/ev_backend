@@ -15,6 +15,7 @@ import com.bentork.ev_system.exception.domain.RFIDCardException;
 import com.bentork.ev_system.exception.domain.SessionNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.model.Charger;
@@ -106,6 +107,7 @@ public class RFIDChargingService implements IRFIDChargingService {
     }
 
     // Update energy
+    @CacheEvict(value = "user-data", allEntries = true)
     public Session updateEnergy(Long sessionId, BigDecimal currentKwh) {
         try {
             if (log.isDebugEnabled()) {
@@ -166,6 +168,7 @@ public class RFIDChargingService implements IRFIDChargingService {
     }
 
     // Stop charging
+    @CacheEvict(value = "user-data", allEntries = true)
     public Session stopCharging(Long sessionId) {
         try {
             log.info("Stopping charging session: sessionId={}", sessionId);

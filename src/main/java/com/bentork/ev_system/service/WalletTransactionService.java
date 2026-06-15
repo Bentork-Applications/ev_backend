@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -56,6 +57,7 @@ public class WalletTransactionService implements IWalletTransactionService {
      * This method is transactional and uses findByIdWithLock to ensure atomic
      * updates.
      */
+    @CacheEvict(value = "user-data", allEntries = true)
     @Transactional
     public WalletTransaction save(WalletTransaction tx) {
         WalletTransaction saved = repo.save(tx);
@@ -119,6 +121,7 @@ public class WalletTransactionService implements IWalletTransactionService {
      * FIXED: Entire operation is transactional with pessimistic locking.
      * Balance check and debit are atomic.
      */
+    @CacheEvict(value = "user-data", allEntries = true)
     @Transactional
     public WalletTransaction debit(Long userId, Long sessionId, BigDecimal amount, String method) {
         if (amount == null)
@@ -170,6 +173,7 @@ public class WalletTransactionService implements IWalletTransactionService {
         repo.save(tx);
     }
 
+    @CacheEvict(value = "user-data", allEntries = true)
     @Transactional
     public WalletTransaction credit(Long userId, Long sessionId, BigDecimal amount, String method) {
 
