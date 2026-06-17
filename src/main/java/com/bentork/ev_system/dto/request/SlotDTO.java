@@ -9,7 +9,7 @@ public class SlotDTO {
     private Long chargerId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private boolean isBooked;
+    private boolean booked;
     private LocalDateTime createdAt;
 
     // Time-only fields for all-day slots (e.g. "09:00")
@@ -56,11 +56,11 @@ public class SlotDTO {
     }
 
     public boolean isBooked() {
-        return isBooked;
+        return booked;
     }
 
-    public void setBooked(boolean isBooked) {
-        this.isBooked = isBooked;
+    public void setBooked(boolean booked) {
+        this.booked = booked;
     }
 
     public LocalDateTime getCreatedAt() {
