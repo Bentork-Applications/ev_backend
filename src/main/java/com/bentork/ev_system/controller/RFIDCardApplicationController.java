@@ -116,4 +116,23 @@ public class RFIDCardApplicationController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    // User marks their RFID card application as received
+    @PutMapping("/{id}/receive")
+    public ResponseEntity<RFIDCardApplication> markAsReceived(
+            @PathVariable Long id,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        log.info("User {} is marking application ID: {} as received", userDetails.getUsername(), id);
+        try {
+            User user = userAuthService.getUserDetailsByEmail(userDetails.getUsername());
+            RFIDCardApplication application = applicationService.markAsReceived(id, user.getId());
+            return ResponseEntity.ok(application);
+        } catch (RuntimeException e) {
+            log.error("Error marking application {} as received: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error marking application {} as received: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

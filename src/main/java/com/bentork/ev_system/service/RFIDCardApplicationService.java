@@ -14,6 +14,7 @@ import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.enums.RFIDApplicationStatus;
 import com.bentork.ev_system.repository.RFIDCardApplicationRepository;
 import com.bentork.ev_system.repository.UserRepository;
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class RFIDCardApplicationService {
     private final RFIDCardApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final RFIDCardService rfidCardService;
+    private final IAdminNotificationService adminNotificationService;
 
     @Transactional
     public RFIDCardApplication submitApplication(Long userId, RFIDApplicationRequest request) {
@@ -88,5 +90,24 @@ public class RFIDCardApplicationService {
         log.info("Approved Application ID: {}, Assigned Card ID: {}", applicationId, newCard.getId());
 
         return applicationRepository.save(application);
+    }
+
+    @Transactional
+    public RFIDCardApplication markAsReceived(Long applicationId, Long userId) {
+        RFIDCardApplication application = getApplicationById(applicationId);
+
+        if (!application.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized: Application does not belong to the user.");
+        }
+
+        application.setStatus(RFIDApplicationStatus.DELIVERED);
+        RFIDCardApplication saved = applicationRepository.save(application);
+
+        String message = "the rfid card recieved pls active the Rfid card . (App ID: " + applicationId + ")";
+        adminNotificationService.createSystemNotification(message, "RFID_RECEIVED");
+
+        log.info("User {} marked RFID application {} as received", userId, applicationId);
+
+        return saved;
     }
 }
