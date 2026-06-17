@@ -15,10 +15,10 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
         List<Slot> findByChargerId(Long chargerId);
 
         // Find available (unbooked) slots for a charger
-        List<Slot> findByChargerIdAndIsBookedFalse(Long chargerId);
+        List<Slot> findByChargerIdAndBookedFalse(Long chargerId);
 
         // Find available slots for a charger that are in the future
-        List<Slot> findByChargerIdAndIsBookedFalseAndStartTimeAfter(Long chargerId, LocalDateTime after);
+        List<Slot> findByChargerIdAndBookedFalseAndStartTimeAfter(Long chargerId, LocalDateTime after);
 
         // Find slots within a time range for a charger (for overlap detection)
         @Query("SELECT s FROM Slot s WHERE s.charger.id = :chargerId " +
@@ -39,5 +39,5 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
         List<Slot> findByChargerIdAndAllDayTrue(Long chargerId);
 
         // Find unbooked all-day (recurring everyday) slots for a charger
-        List<Slot> findByChargerIdAndAllDayTrueAndIsBookedFalse(Long chargerId);
+        List<Slot> findByChargerIdAndAllDayTrueAndBookedFalse(Long chargerId);
 }

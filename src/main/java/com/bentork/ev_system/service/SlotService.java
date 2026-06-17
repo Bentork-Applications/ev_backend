@@ -218,11 +218,11 @@ public class SlotService {
                                 .orElseThrow(() -> new RuntimeException("Charger not found with id: " + chargerId));
 
                 // Get future date-specific unbooked slots
-                List<Slot> dateSpecificSlots = slotRepository.findByChargerIdAndIsBookedFalseAndStartTimeAfter(
+                List<Slot> dateSpecificSlots = slotRepository.findByChargerIdAndBookedFalseAndStartTimeAfter(
                                 chargerId, LocalDateTime.now());
 
                 // Get all-day (recurring everyday) unbooked slots
-                List<Slot> allDaySlots = slotRepository.findByChargerIdAndAllDayTrueAndIsBookedFalse(chargerId);
+                List<Slot> allDaySlots = slotRepository.findByChargerIdAndAllDayTrueAndBookedFalse(chargerId);
 
                 // Combine both lists
                 List<Slot> allSlots = new ArrayList<>();
