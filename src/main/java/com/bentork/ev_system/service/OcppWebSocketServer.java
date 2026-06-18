@@ -400,9 +400,17 @@ public class OcppWebSocketServer extends WebSocketServer {
 
             if (resourceDescriptor != null && resourceDescriptor.length() > 1) {
                 String path = resourceDescriptor.substring(1).split("\\?")[0];
+                
+                // Sanitize path: remove whitespace/newlines and trailing slashes
+                path = path.trim().replaceAll("/+$", "");
+                
                 if (!path.isEmpty() && !path.equals("/")) {
-                    log.info("onOpen: Successfully extracted OCPP ID from path: {}", path);
-                    return path;
+                    // Extract the last segment in case the path is like /ocpp/1.6/CHARGER_ID
+                    String[] segments = path.split("/");
+                    String ocppId = segments[segments.length - 1];
+                    
+                    log.info("onOpen: Successfully extracted OCPP ID from path: {}", ocppId);
+                    return ocppId;
                 }
             }
 
