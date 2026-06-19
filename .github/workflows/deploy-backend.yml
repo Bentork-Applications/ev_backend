@@ -20,11 +20,9 @@ jobs:
       - name: Create Firebase Service Account File
         run: |
           echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" | base64 -d > src/main/resources/firebase-service-account.json
-
       - name: Build JAR
         run: |
           mvn clean package -DskipTests
-
       - name: Copy to EC2
         uses: appleboy/scp-action@master
         with:
@@ -44,27 +42,23 @@ jobs:
           envs: GOOGLE_MAPS_API_KEY,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD
           script: |
             ENV_FILE="/home/ubuntu/app/.env"
-
             # Google Maps
             if grep -q "^GOOGLE_MAPS_API_KEY=" "$ENV_FILE" 2>/dev/null; then
               sed -i "s|^GOOGLE_MAPS_API_KEY=.*|GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}|" "$ENV_FILE"
             else
               echo "GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}" >> "$ENV_FILE"
             fi
-
             # Redis
             if grep -q "^REDIS_HOST=" "$ENV_FILE" 2>/dev/null; then
               sed -i "s|^REDIS_HOST=.*|REDIS_HOST=${REDIS_HOST}|" "$ENV_FILE"
             else
               echo "REDIS_HOST=${REDIS_HOST}" >> "$ENV_FILE"
             fi
-
             if grep -q "^REDIS_PORT=" "$ENV_FILE" 2>/dev/null; then
               sed -i "s|^REDIS_PORT=.*|REDIS_PORT=${REDIS_PORT}|" "$ENV_FILE"
             else
               echo "REDIS_PORT=${REDIS_PORT}" >> "$ENV_FILE"
             fi
-
             if grep -q "^REDIS_PASSWORD=" "$ENV_FILE" 2>/dev/null; then
               sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${REDIS_PASSWORD}|" "$ENV_FILE"
             else
@@ -89,10 +83,8 @@ jobs:
               sudo apt-get update -y && sudo apt-get install -y redis-server
               sudo systemctl enable redis-server
             fi
-
             # Read password from .env
             REDIS_PASSWORD=$(grep "^REDIS_PASSWORD=" /home/ubuntu/app/.env | cut -d '=' -f2)
-
             # Apply password to redis.conf
             if [ -n "$REDIS_PASSWORD" ]; then
               if grep -q "^requirepass" /etc/redis/redis.conf; then
@@ -101,13 +93,10 @@ jobs:
                 sudo sed -i "s|^# requirepass.*|requirepass ${REDIS_PASSWORD}|" /etc/redis/redis.conf
               fi
             fi
-
             # Ensure Redis is bound to localhost only (security)
             sudo sed -i "s|^bind .*|bind 127.0.0.1|" /etc/redis/redis.conf
-
             # Restart Redis to apply config changes
             sudo systemctl restart redis 2>/dev/null || sudo systemctl restart redis-server
-
             # Verify Redis is responding
             sleep 1
             if redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG; then
@@ -116,7 +105,6 @@ jobs:
               echo "⚠️ Redis ping failed — check /etc/redis/redis.conf"
               exit 1
             fi
-
       - name: Restart Service
         uses: appleboy/ssh-action@master
         with:
