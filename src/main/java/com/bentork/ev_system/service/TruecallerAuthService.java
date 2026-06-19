@@ -80,22 +80,38 @@ public class TruecallerAuthService {
 
         if (existingUser.isPresent()) {
             user = existingUser.get();
-            log.info("Existing user found for Truecaller login: {}", user.getEmail());
+            log.info("Existing user found by mobile for Truecaller login: {}", user.getEmail());
 
             // Update profile picture if changed
-            if (userInfo.getPicture() != null
-                    && !userInfo.getPicture().equals(user.getImageUrl())) {
+            if (userInfo.getPicture() != null && !userInfo.getPicture().equals(user.getImageUrl())) {
                 user.setImageUrl(userInfo.getPicture());
                 user = userRepo.save(user);
             }
         } else {
-            // Auto-register new user
-            user = createUserFromTruecaller(userInfo, normalizedMobile);
-            isNewUser = true;
-            log.info("New user auto-registered via Truecaller: {}", normalizedMobile);
+            // Check if user exists by email from Truecaller profile
+            Optional<User> existingUserByEmail = Optional.empty();
+            if (userInfo.getEmail() != null && !userInfo.getEmail().isBlank()) {
+                existingUserByEmail = userRepo.findByEmail(userInfo.getEmail());
+            }
 
-            // Notify admin of new registration
-            adminNotificationService.notifyNewUserRegistration(user.getName());
+            if (existingUserByEmail.isPresent()) {
+                // Link Truecaller phone number to the existing Google account
+                user = existingUserByEmail.get();
+                log.info("Existing user found by email; linking Truecaller phone: {}", normalizedMobile);
+                user.setMobile(normalizedMobile);
+                if (userInfo.getPicture() != null) {
+                    user.setImageUrl(userInfo.getPicture());
+                }
+                user = userRepo.save(user);
+            } else {
+                // Auto-register new user if neither mobile nor email exists
+                user = createUserFromTruecaller(userInfo, normalizedMobile);
+                isNewUser = true;
+                log.info("New user auto-registered via Truecaller: {}", normalizedMobile);
+
+                // Notify admin of new registration
+                adminNotificationService.notifyNewUserRegistration(user.getName());
+            }
         }
 
         // Step 4: Generate JWT
@@ -291,8 +307,23 @@ public class TruecallerAuthService {
             if (existingUser.isPresent()) {
                 user = existingUser.get();
             } else {
-                user = createUserFromTruecaller(userInfo, normalizedMobile);
-                adminNotificationService.notifyNewUserRegistration(user.getName());
+                Optional<User> existingUserByEmail = Optional.empty();
+                if (userInfo.getEmail() != null && !userInfo.getEmail().isBlank()) {
+                    existingUserByEmail = userRepo.findByEmail(userInfo.getEmail());
+                }
+                
+                if (existingUserByEmail.isPresent()) {
+                    user = existingUserByEmail.get();
+                    log.info("Webhook: Existing user found by email; linking Truecaller phone: {}", normalizedMobile);
+                    user.setMobile(normalizedMobile);
+                    if (userInfo.getPicture() != null) {
+                        user.setImageUrl(userInfo.getPicture());
+                    }
+                    user = userRepo.save(user);
+                } else {
+                    user = createUserFromTruecaller(userInfo, normalizedMobile);
+                    adminNotificationService.notifyNewUserRegistration(user.getName());
+                }
             }
 
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()

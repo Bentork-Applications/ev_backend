@@ -45,11 +45,10 @@ public class ChargerCommandService implements IChargerCommandService {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("idTag", "SESSION_" + session.getId());
-            payload.put("connectorId", 1);
 
             String messageId = UUID.randomUUID().toString();
 
-            log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, connectorId=1, messageId={}",
+            log.info("Sending RemoteStartTransaction to {}: idTag=SESSION_{}, messageId={}",
                     ocppId, session.getId(), messageId);
 
             // Track the pending command so we can correlate the charger's CALL_RESULT
