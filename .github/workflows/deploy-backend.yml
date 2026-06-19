@@ -117,13 +117,72 @@ jobs:
               exit 1
             fi
 
-      - name: Restart Service
+      - name: Configure JVM Tuning & Restart Service
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # --- Find the deployed JAR ---
+            JAR_FILE=$(ls -t /home/ubuntu/app/*.jar 2>/dev/null | head -1)
+            if [ -z "$JAR_FILE" ]; then
+              echo "❌ No JAR file found in /home/ubuntu/app/"
+              exit 1
+            fi
+            echo "✅ Found JAR: $JAR_FILE"
+
+            # --- Write optimized systemd service with JVM memory tuning ---
+            sudo tee /etc/systemd/system/ocpp.service > /dev/null <<EOF
+            [Unit]
+            Description=Bentork EV Charging Backend (OCPP)
+            After=network.target redis-server.service
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/app
+            EnvironmentFile=/home/ubuntu/app/.env
+
+            # ========== JVM MEMORY TUNING (Optimization 1) ==========
+            # -Xms512m / -Xmx512m : Fix heap at 512 MB (prevents OOM on t3.micro 1 GB RAM)
+            # -XX:+UseG1GC         : G1 garbage collector — best for low-latency apps
+            # -XX:MaxGCPauseMillis  : Target max 200ms GC pauses
+            # -XX:+HeapDumpOnOOM    : Auto-dump heap on crash for debugging
+            # -XX:MaxMetaspaceSize  : Cap metaspace to prevent unbounded class loading
+            ExecStart=/usr/bin/java \
+              -Xms512m \
+              -Xmx512m \
+              -XX:+UseG1GC \
+              -XX:MaxGCPauseMillis=200 \
+              -XX:+HeapDumpOnOutOfMemoryError \
+              -XX:HeapDumpPath=/home/ubuntu/app/heapdump.hprof \
+              -XX:MaxMetaspaceSize=128m \
+              -jar ${JAR_FILE}
+
+            Restart=always
+            RestartSec=10
+            StandardOutput=journal
+            StandardError=journal
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            echo "✅ systemd service updated with JVM tuning"
+
+            # --- Reload and restart ---
+            sudo systemctl daemon-reload
             sudo systemctl restart ocpp.service
             sleep 3
             sudo systemctl status ocpp.service --no-pager
+
+            # --- Verify JVM flags are active ---
+            echo ""
+            echo "--- Verifying JVM flags ---"
+            PID=$(pgrep -f "evchargingsystem" || true)
+            if [ -n "$PID" ]; then
+              echo "✅ App running with PID: $PID"
+              ps -p $PID -o args= | head -1
+            else
+              echo "⚠️  App may still be starting..."
+            fi
