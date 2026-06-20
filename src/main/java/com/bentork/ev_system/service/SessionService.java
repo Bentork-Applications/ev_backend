@@ -214,17 +214,55 @@ public class SessionService implements ISessionService {
 
 			log.info("Session created in DB: sessionId={}, status=INITIATED", session.getId());
 
-			// Send RemoteStartTransaction via ChargerCommandService
-			boolean sent = chargerCommandService.sendRemoteStart(session);
-			if (sent) {
-				userNotificationService.createNotification(
-						session.getUser().getId(),
-						"Charging Command Sent",
-						"Start command sent to charger. Please ensure cable is connected.",
-						"INFO");
-			} else {
-				handleOfflineSession(session, receipt);
-			}
+			// ★ FIX: Send RemoteStartTransaction AFTER the DB transaction commits
+			// This prevents the race condition where the charger responds before
+			// the session is visible in the database to the WebSocket thread.
+			final Long sessionId = session.getId();
+			final Long userId = session.getUser().getId();
+			final Long chargerId = receipt.getCharger().getId();
+			final BigDecimal receiptAmount = receipt.getAmount();
+
+			org.springframework.transaction.support.TransactionSynchronizationManager
+					.registerSynchronization(
+							new org.springframework.transaction.support.TransactionSynchronization() {
+								@Override
+								public void afterCommit() {
+									try {
+										Session s = sessionRepository.findById(sessionId).orElse(null);
+										if (s == null || !SessionStatus.INITIATED.matches(s.getStatus())) {
+											log.warn("Session {} not found or no longer INITIATED after commit", sessionId);
+											return;
+										}
+
+										boolean sent = chargerCommandService.sendRemoteStart(s);
+										if (sent) {
+											userNotificationService.createNotification(
+													userId,
+													"Charging Command Sent",
+													"Start command sent to charger. Please ensure cable is connected.",
+													"INFO");
+										} else {
+											log.warn("Charger offline after commit for sessionId={}", sessionId);
+											// Mark session failed and refund
+											s.setStatus(SessionStatus.FAILED.getValue());
+											s.setEndTime(LocalDateTime.now());
+											sessionRepository.save(s);
+
+											if (receiptAmount != null && receiptAmount.compareTo(BigDecimal.ZERO) > 0) {
+												walletTransactionService.credit(userId, sessionId, receiptAmount,
+														"Refund: Charger Offline");
+											}
+											userNotificationService.createNotification(userId,
+													"Charger Offline",
+													"Cannot start charging - charger is offline. Amount refunded.",
+													"ERROR");
+										}
+									} catch (Exception e) {
+										log.error("Post-commit RemoteStart failed for session {}: {}",
+												sessionId, e.getMessage(), e);
+									}
+								}
+							});
 
 			// Schedule auto-stop
 			if (receipt.getPlan() != null) {
@@ -258,7 +296,9 @@ public class SessionService implements ISessionService {
 	}
 
 	/**
-	 * Manual stop (by user) - Also sends RemoteStopTransaction to charger
+	 * Manual stop (by user) - Also sends RemoteStopTransaction to charger.
+	 * Handles both ACTIVE sessions (normal stop) and INITIATED sessions
+	 * (charger firmware didn't respond — cancel and refund).
 	 */
 	public Map<String, Object> stopSession(Long userId, SessionDTO request) {
 		try {
@@ -273,12 +313,32 @@ public class SessionService implements ISessionService {
 				throw new UnauthorizedSessionAccessException(userId, request.getSessionId());
 			}
 
-			if (!SessionStatus.ACTIVE.matches(session.getStatus())) {
-				log.info("Session already completed: sessionId={}, status={}",
+			// ★ Handle INITIATED sessions: charger firmware didn't respond with StartTransaction
+			// The user should be able to cancel these — fail the session and refund.
+			if (SessionStatus.INITIATED.matches(session.getStatus())) {
+				log.info("Cancelling INITIATED session (charger did not respond): sessionId={}", request.getSessionId());
+
+				// Send RemoteStop just in case the charger did start physically
+				chargerCommandService.sendRemoteStop(session);
+
+				// Fail the session and refund via stale session cleanup logic
+				staleSessionCleanupService.failStaleSession(session);
+
+				return Map.of(
+						"sessionId", session.getId(),
+						"energyUsed", 0.0,
+						"finalCost", BigDecimal.ZERO,
+						"message", "Session cancelled — charger did not respond. Amount refunded to wallet.");
+			}
+
+			// ★ Handle already-ended sessions (completed or failed)
+			if (SessionStatus.isEndedStatus(session.getStatus())) {
+				log.info("Session already ended: sessionId={}, status={}",
 						request.getSessionId(), session.getStatus());
 				return sessionFinalizationService.buildAlreadyCompletedResponse(session);
 			}
 
+			// ★ Handle ACTIVE sessions: normal stop flow
 			// Send RemoteStopTransaction via ChargerCommandService
 			chargerCommandService.sendRemoteStop(session);
 
