@@ -78,9 +78,12 @@ public class OcppWebSocketServer extends WebSocketServer {
         this.sessionRepository = sessionRepository;
         this.receiptRepository = receiptRepository;
 
-        // Configure ping-pong keep-alive for lost connection detection.
-        // We use the pong.timeout as the connectionLostTimeout.
-        setConnectionLostTimeout(pongTimeout);
+        // ★ FIX: Completely disable automatic WebSocket pings.
+        // The charger firmware corrupts messages if a Ping frame and Text frame 
+        // arrive together. Since 4G network buffering can delay packets and deliver 
+        // them all at once, server-side delays aren't enough. 
+        // Disabling pings completely prevents the bug from ever happening.
+        setConnectionLostTimeout(0);
         
         // Allow rapid restarts by reusing the port even if stuck in TIME_WAIT
         setReuseAddr(true);

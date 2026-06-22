@@ -157,6 +157,11 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/coins/**").authenticated()
                                                 .requestMatchers("/api/referral/**").authenticated()
 
+                                                // Support Requests - role-specific access
+                                                .requestMatchers("/api/support-requests/user/**").hasAuthority("ROLE_USER")
+                                                .requestMatchers("/api/support-requests/dealer/**").hasAuthority("DEALER")
+                                                .requestMatchers("/api/support-requests/admin/**").hasAuthority("ADMIN")
+
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
