@@ -234,6 +234,17 @@ public class OcppWebSocketServer extends WebSocketServer {
             message.add(payload);
 
             String messageStr = objectMapper.writeValueAsString(message);
+
+            // ★ FIX: Guard against charger firmware bug where a WebSocket ping frame
+            // and a text frame arriving at the same instant cause message corruption.
+            // The charger sees garbled binary (��) instead of the JSON command.
+            // A small delay ensures our command never collides with the auto-ping.
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+
             conn.send(messageStr);
             log.info("Sent remote command to {}: {} (messageId={})", ocppId, action, messageId);
             return true;
