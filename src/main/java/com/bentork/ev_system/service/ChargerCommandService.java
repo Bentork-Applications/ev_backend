@@ -45,6 +45,7 @@ public class ChargerCommandService implements IChargerCommandService {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.put("idTag", "SESSION_" + session.getId());
+            payload.put("connectorId", 1); // Required by many charger firmwares
 
             String messageId = UUID.randomUUID().toString();
 
