@@ -37,7 +37,7 @@ public class SessionReminderService {
     private final IUserNotificationService userNotificationService;
     private final PushNotificationService pushNotificationService;
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(8);
 
     public SessionReminderService(
             SessionRepository sessionRepository,

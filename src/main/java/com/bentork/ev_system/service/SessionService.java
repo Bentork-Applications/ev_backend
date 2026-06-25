@@ -70,7 +70,7 @@ public class SessionService implements ISessionService {
 	private final StaleSessionCleanupService staleSessionCleanupService;
 	private final SessionReminderService sessionReminderService;
 
-	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
+	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(15);
 
 	public SessionService(
 			SessionRepository sessionRepository,
