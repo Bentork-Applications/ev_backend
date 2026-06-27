@@ -41,6 +41,9 @@ public class Slot {
     private LocalTime endTimeOnly;
 
     @Column(name = "is_booked", nullable = false)
+    private boolean legacyIsBooked = false;
+
+    @Column(name = "booked", nullable = false)
     private boolean booked = false;
 
     @Column(nullable = false)
@@ -110,6 +113,7 @@ public class Slot {
 
     public void setBooked(boolean booked) {
         this.booked = booked;
+        this.legacyIsBooked = booked;
     }
 
     public boolean isAllDay() {
