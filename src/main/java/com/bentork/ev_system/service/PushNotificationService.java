@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
@@ -85,6 +86,37 @@ public class PushNotificationService {
 
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send Data Notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sends a data-only FCM message (no Notification wrapper).
+     * This bypasses the OS notification tray and is delivered directly
+     * to the app's background message handler (Headless JS / onMessage).
+     * Used for real-time session progress bar updates and session completion events.
+     * Uses HIGH priority on Android to wake the app from Doze.
+     *
+     * @param token The FCM device token of the user.
+     * @param data  Map of key-value pairs (e.g., {"type": "SESSION_UPDATE", "progress": "65"}).
+     */
+    public void sendDataOnlyNotification(String token, Map<String, String> data) {
+        if (token == null || token.isEmpty()) {
+            log.warn("Cannot send data-only notification: FCM Token is null or empty.");
+            return;
+        }
+        try {
+            Message message = Message.builder()
+                    .setToken(token)
+                    .putAllData(data)
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .build())
+                    .build();
+
+            String response = FirebaseMessaging.getInstance().send(message);
+            log.info("Data-only notification sent successfully. Response ID: {}", response);
+        } catch (FirebaseMessagingException e) {
+            log.error("Failed to send data-only notification: {}", e.getMessage());
         }
     }
 }

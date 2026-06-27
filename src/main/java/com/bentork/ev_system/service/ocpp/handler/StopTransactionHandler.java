@@ -7,6 +7,7 @@ import com.bentork.ev_system.model.Session;
 import com.bentork.ev_system.repository.ChargerRepository;
 import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
+import com.bentork.ev_system.service.PushNotificationService;
 import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 import com.bentork.ev_system.service.interfaces.ISessionService;
 import com.bentork.ev_system.service.ocpp.OcppActionHandler;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -34,6 +36,7 @@ public class StopTransactionHandler implements OcppActionHandler {
     private final SessionRepository sessionRepository;
     private final OcppConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
+    private final PushNotificationService pushNotificationService;
 
     @Override
     public String getAction() {
@@ -155,6 +158,25 @@ public class StopTransactionHandler implements OcppActionHandler {
                     log.error("Failed to reset charger {} status: {}",
                             session.getCharger().getOcppId(), chargerEx.getMessage());
                 }
+            }
+
+            // === FCM: Dismiss progress bar — session completed ===
+            try {
+                if (session != null && session.getUser() != null
+                        && session.getUser().getFcmToken() != null) {
+                    pushNotificationService.sendDataOnlyNotification(
+                        session.getUser().getFcmToken(),
+                        Map.of(
+                            "type",       "SESSION_COMPLETED",
+                            "sessionId",  String.valueOf(sessionId),
+                            "energyKwh",  String.valueOf(session.getEnergyKwh()),
+                            "status",     "COMPLETED"
+                        )
+                    );
+                }
+            } catch (Exception fcmEx) {
+                log.error("Failed to send session-completed FCM for session {}: {}",
+                        sessionId, fcmEx.getMessage());
             }
         }
     }

@@ -1,8 +1,11 @@
 package com.bentork.ev_system.service.ocpp.handler;
 
 import com.bentork.ev_system.enums.SessionStatus;
+import com.bentork.ev_system.model.Receipt;
 import com.bentork.ev_system.model.Session;
+import com.bentork.ev_system.repository.ReceiptRepository;
 import com.bentork.ev_system.repository.SessionRepository;
+import com.bentork.ev_system.service.PushNotificationService;
 import com.bentork.ev_system.service.interfaces.IRFIDChargingService;
 import com.bentork.ev_system.service.interfaces.ISessionService;
 import com.bentork.ev_system.service.SessionReminderService;
@@ -17,6 +20,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -29,6 +35,8 @@ public class MeterValuesHandler implements OcppActionHandler {
     private final OcppConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
     private final SessionReminderService sessionReminderService;
+    private final PushNotificationService pushNotificationService;
+    private final ReceiptRepository receiptRepository;
 
     @Override
     public String getAction() {
@@ -89,6 +97,9 @@ public class MeterValuesHandler implements OcppActionHandler {
                     log.info("RFID Duration Update: SessionId={}, DurationSeconds={}", sessionId, durationSeconds);
                 }
 
+                // === FCM: Real-time session progress update (RFID) ===
+                calculateAndSendSessionUpdate(updated, sessionId, currentSoc);
+
                 if (SessionStatus.COMPLETED.matches(updated.getStatus())) {
                     log.warn("RFID session {} auto-stopped due to low balance", sessionId);
                     connectionManager.removeTransaction(transactionId);
@@ -130,6 +141,9 @@ public class MeterValuesHandler implements OcppActionHandler {
                 sessionRepository.save(session);
                 sessionReminderService.checkAndSendKwhReminder(sessionId, consumedKwh);
                 sessionService.checkAndStopIfReachedKwh(sessionId, consumedKwh);
+
+                // === FCM: Real-time session progress update (APP session) ===
+                calculateAndSendSessionUpdate(session, sessionId, currentSoc);
             }
             } // end if (currentAbsKwh != null)
 
@@ -139,6 +153,85 @@ public class MeterValuesHandler implements OcppActionHandler {
             log.error("Error handling MeterValues: {}", e.getMessage(), e);
             return objectMapper.createObjectNode();
         }
+    }
+
+    /**
+     * Calculates session progress and sends a data-only FCM update for the
+     * persistent progress bar notification on the mobile app.
+     *
+     * Progress is computed differently based on session type:
+     *   - Plan (time-based): elapsed / totalDuration × 100
+     *   - Custom kWh:        consumed / targetKwh × 100
+     *   - RFID:              SoC if available, else indeterminate (-1)
+     */
+    private void calculateAndSendSessionUpdate(
+            Session session, Long sessionId, Double currentSoc) {
+
+        if (session.getUser() == null || session.getUser().getFcmToken() == null) {
+            return;
+        }
+
+        int progress = -1;  // -1 = indeterminate (app shows pulsing bar)
+        String progressType = "INDETERMINATE";
+        String targetValue = "0";
+
+        try {
+            if ("RFID".equals(session.getSourceType())) {
+                // RFID: no prepaid target — use SoC if available
+                if (currentSoc != null && currentSoc > 0) {
+                    progress = Math.min(currentSoc.intValue(), 100);
+                    progressType = "SOC";
+                    targetValue = "100";
+                }
+                // else stays indeterminate
+            } else {
+                // APP session — look up receipt for target
+                Receipt receipt = receiptRepository.findBySession(session).orElse(null);
+                if (receipt != null) {
+                    if (receipt.getSelectedKwh() != null) {
+                        // kWh-based session
+                        double target = receipt.getSelectedKwh().doubleValue();
+                        double consumed = session.getEnergyKwh();
+                        progress = (int) Math.min((consumed / target) * 100, 100);
+                        progressType = "KWH";
+                        targetValue = receipt.getSelectedKwh().toPlainString();
+                    } else if (receipt.getPlan() != null
+                            && receipt.getPlan().getDurationMin() != null) {
+                        // Time-based plan session
+                        int totalSeconds = receipt.getPlan().getDurationMin() * 60;
+                        long elapsed = Duration.between(
+                                session.getStartTime(),
+                                LocalDateTime.now()).getSeconds();
+                        progress = (int) Math.min(
+                                (elapsed * 100) / totalSeconds, 100);
+                        progressType = "TIME";
+                        targetValue = String.valueOf(
+                                receipt.getPlan().getDurationMin());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to calculate progress for session {}: {}",
+                    sessionId, e.getMessage());
+        }
+
+        pushNotificationService.sendDataOnlyNotification(
+            session.getUser().getFcmToken(),
+            Map.of(
+                "type",             "SESSION_UPDATE",
+                "sessionId",        String.valueOf(sessionId),
+                "progress",         String.valueOf(progress),
+                "progressType",     progressType,
+                "targetValue",      targetValue,
+                "soc",              String.valueOf(
+                                        currentSoc != null ? currentSoc.intValue() : 0),
+                "energyKwh",        String.valueOf(session.getEnergyKwh()),
+                "durationSeconds",  String.valueOf(
+                                        session.getChargingDurationSeconds() != null
+                                            ? session.getChargingDurationSeconds() : 0),
+                "status",           "CHARGING"
+            )
+        );
     }
 
     private BigDecimal extractEnergyFromMeterValues(JsonNode payload) {

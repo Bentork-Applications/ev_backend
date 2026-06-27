@@ -45,6 +45,7 @@ public class SessionFinalizationService implements ISessionFinalizationService {
     private final ReferralService referralService;
     private final IEnergyCalculationService energyCalculationService;
     private final BillingStrategyFactory billingStrategyFactory;
+    private final PushNotificationService pushNotificationService;
 
     @Override
     @Caching(evict = {
@@ -113,6 +114,25 @@ public class SessionFinalizationService implements ISessionFinalizationService {
                 session.setPstAmount(billing.getPstAmount().doubleValue());
             }
             sessionRepository.save(session);
+
+            // === FCM: Dismiss progress bar — session completed ===
+            try {
+                if (session.getUser() != null && session.getUser().getFcmToken() != null) {
+                    pushNotificationService.sendDataOnlyNotification(
+                        session.getUser().getFcmToken(),
+                        Map.of(
+                            "type",       "SESSION_COMPLETED",
+                            "sessionId",  String.valueOf(session.getId()),
+                            "energyKwh",  String.valueOf(energyUsed),
+                            "finalCost",  billing.getFinalCost().toPlainString(),
+                            "status",     "COMPLETED"
+                        )
+                    );
+                }
+            } catch (Exception fcmEx) {
+                log.error("Failed to send session-completed FCM for session {}: {}",
+                        session.getId(), fcmEx.getMessage());
+            }
 
             if (receipt != null) {
                 receiptService.finalizeReceipt(session, billing.getFinalCost());

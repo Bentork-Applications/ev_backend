@@ -8,6 +8,7 @@ import com.bentork.ev_system.service.interfaces.IUserNotificationService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import com.bentork.ev_system.exception.domain.ChargerNotFoundException;
 import com.bentork.ev_system.exception.domain.InsufficientBalanceException;
@@ -47,6 +48,7 @@ public class RFIDChargingService implements IRFIDChargingService {
     private final IWalletTransactionService walletTxService;
     private final RevenueRepository revenueRepo;
     private final TaxCalculationService taxService;
+    private final PushNotificationService pushNotificationService;
 
     // Start charging
     public Session startCharging(String cardNumber, Long chargerId, String boxId) {
@@ -201,6 +203,25 @@ public class RFIDChargingService implements IRFIDChargingService {
             saved.setPlatformFee(platformFee.doubleValue());
             saved.setPstAmount(pst.doubleValue());
             sessionRepo.save(saved);
+
+            // === FCM: Dismiss progress bar — RFID session completed ===
+            try {
+                if (saved.getUser() != null && saved.getUser().getFcmToken() != null) {
+                    pushNotificationService.sendDataOnlyNotification(
+                        saved.getUser().getFcmToken(),
+                        Map.of(
+                            "type",       "SESSION_COMPLETED",
+                            "sessionId",  String.valueOf(saved.getId()),
+                            "energyKwh",  String.valueOf(saved.getEnergyKwh()),
+                            "finalCost",  String.valueOf(saved.getCost()),
+                            "status",     "COMPLETED"
+                        )
+                    );
+                }
+            } catch (Exception fcmEx) {
+                log.error("Failed to send session-completed FCM for RFID session {}: {}",
+                        saved.getId(), fcmEx.getMessage());
+            }
 
             if (finalCost.compareTo(BigDecimal.ZERO) > 0) {
                 log.info("Processing payment for session: sessionId={}, finalCost={}, platformFee={}, pst={}",
