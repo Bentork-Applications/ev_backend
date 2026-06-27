@@ -40,7 +40,7 @@ public class Slot {
     @Column(name = "end_time_only")
     private LocalTime endTimeOnly;
 
-    @Column(nullable = false)
+    @Column(name = "is_booked", nullable = false)
     private boolean booked = false;
 
     @Column(nullable = false)
