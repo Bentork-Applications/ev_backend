@@ -69,6 +69,7 @@ public class SessionService implements ISessionService {
 	private final IMaintenanceService maintenanceService;
 	private final StaleSessionCleanupService staleSessionCleanupService;
 	private final SessionReminderService sessionReminderService;
+	private final MoneyCalculationService moneyCalculationService;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(15);
 
@@ -87,7 +88,8 @@ public class SessionService implements ISessionService {
 			ISessionQueryService sessionQueryService,
 			IMaintenanceService maintenanceService,
 			StaleSessionCleanupService staleSessionCleanupService,
-			SessionReminderService sessionReminderService) {
+			SessionReminderService sessionReminderService,
+			MoneyCalculationService moneyCalculationService) {
 		this.sessionRepository = sessionRepository;
 		this.receiptRepository = receiptRepository;
 		this.chargerRepository = chargerRepository;
@@ -103,14 +105,15 @@ public class SessionService implements ISessionService {
 		this.maintenanceService = maintenanceService;
 		this.staleSessionCleanupService = staleSessionCleanupService;
 		this.sessionReminderService = sessionReminderService;
+		this.moneyCalculationService = moneyCalculationService;
 	}
 
 	// ===================== LIFECYCLE METHODS =====================
 
 	@Transactional
 	public Map<String, Object> startSession(String email, SessionDTO request) {
-		log.info("Starting session for user: {}, chargerId={}, planId={}, selectedKwh={}",
-				email, request.getChargerId(), request.getPlanId(), request.getSelectedKwh());
+		log.info("Starting session for user: {}, chargerId={}, amountEntered={}, selectedKwh={}",
+				email, request.getChargerId(), request.getAmountEntered(), request.getSelectedKwh());
 
 		User user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new RuntimeException("User not found"));
@@ -118,15 +121,43 @@ public class SessionService implements ISessionService {
 		Charger charger = chargerRepository.findById(request.getChargerId())
 				.orElseThrow(() -> new RuntimeException("Charger not found"));
 
-		Plan plan = null;
-		if (request.getPlanId() != null) {
-			plan = planRepository.findById(request.getPlanId())
-					.orElseThrow(() -> new RuntimeException("Plan not found"));
+		Receipt receipt;
+		if (request.getAmountEntered() != null) {
+			MoneyCalculationService.MoneyCalculationResult calc = moneyCalculationService.calculate(
+					request.getAmountEntered(),
+					BigDecimal.valueOf(charger.getRate()),
+					BigDecimal.valueOf(charger.getPstPerKwh())
+			);
+			receipt = receiptService.createMoneyBasedReceipt(user, charger, request.getAmountEntered(), calc);
+		} else {
+			receipt = receiptService.createReceipt(user, charger, request.getSelectedKwh());
 		}
 
-		Receipt receipt = receiptService.createReceipt(user, plan, charger, request.getSelectedKwh());
 		Receipt paidReceipt = receiptService.payReceipt(receipt.getId(), request.getBoxId());
 		Session session = paidReceipt.getSession();
+
+		if (request.getAmountEntered() != null) {
+			MoneyCalculationService.MoneyCalculationResult calc = moneyCalculationService.calculate(
+					request.getAmountEntered(),
+					BigDecimal.valueOf(charger.getRate()),
+					BigDecimal.valueOf(charger.getPstPerKwh())
+			);
+			
+			// Instant refund of remainder
+			if (calc.getRefundAmount().compareTo(BigDecimal.ZERO) > 0) {
+				walletTransactionService.credit(user.getId(), session.getId(),
+						calc.getRefundAmount(), "MONEY_BASED instant refund - remainder");
+			}
+
+			// Populate audit fields
+			session.setAmountEntered(calc.getAmountEntered());
+			session.setEffectiveRateApplied(calc.getEffectiveRate());
+			session.setAllocatedKwh(calc.getAllocatedKwh());
+			session.setChargeableAmount(calc.getChargeableAmount());
+			session.setRefundAmount(calc.getRefundAmount());
+			session.setRefundStatus("INSTANT_REFUNDED");
+			sessionRepository.save(session);
+		}
 
 		return Map.of(
 				"receiptId", paidReceipt.getId(),
@@ -264,19 +295,10 @@ public class SessionService implements ISessionService {
 								}
 							});
 
-			// Schedule auto-stop
-			if (receipt.getPlan() != null) {
-				int durationMin = receipt.getPlan().getDurationMin();
-				log.info("Scheduling auto-stop for TIME plan: sessionId={}, durationMin={}",
-						session.getId(), durationMin);
-				scheduleAutoStop(session.getId(), durationMin);
-
-				// Schedule reminder notification before session ends
-				sessionReminderService.scheduleTimeReminder(session.getId(), durationMin);
-
-			} else if (receipt.getSelectedKwh() != null) {
+			// Schedule auto-stop (kWh-based fallback)
+			if (receipt.getSelectedKwh() != null) {
 				int safetyBufferMinutes = 24 * 60;
-				log.info("Scheduling safety fallback for kWh session: sessionId={}, selectedKwh={}, safetyTimeout={} mins",
+				log.info("Scheduling safety fallback for session: sessionId={}, selectedKwh={}, safetyTimeout={} mins",
 						session.getId(), receipt.getSelectedKwh(), safetyBufferMinutes);
 				scheduleAutoStop(session.getId(), safetyBufferMinutes);
 			}

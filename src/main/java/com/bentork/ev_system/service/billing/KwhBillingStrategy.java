@@ -25,7 +25,7 @@ public class KwhBillingStrategy implements BillingStrategy {
 
     @Override
     public boolean supports(Receipt receipt) {
-        return receipt != null && receipt.getSelectedKwh() != null;
+        return receipt != null && "CUSTOM".equals(receipt.getSessionType()) && receipt.getSelectedKwh() != null;
     }
 
     @Override

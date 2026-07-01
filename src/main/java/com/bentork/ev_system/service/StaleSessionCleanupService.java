@@ -107,14 +107,23 @@ public class StaleSessionCleanupService {
         if (receipt != null && receipt.getAmount() != null
                 && receipt.getAmount().compareTo(BigDecimal.ZERO) > 0) {
 
-            walletTransactionService.credit(
-                    session.getUser().getId(),
-                    session.getId(),
-                    receipt.getAmount(),
-                    "Refund: Session timed out (charger did not respond)");
+            // Double-refund guard
+            if (session.getRefundStatus() == null || "INSTANT_REFUNDED".equals(session.getRefundStatus())) {
+                walletTransactionService.credit(
+                        session.getUser().getId(),
+                        session.getId(),
+                        receipt.getAmount(),
+                        "Refund: Session timed out (charger did not respond)");
 
-            log.info("Refunded ₹{} to userId={} for stale session {}",
-                    receipt.getAmount(), session.getUser().getId(), session.getId());
+                session.setRefundStatus("FULL_REFUNDED");
+                sessionRepository.save(session);
+                
+                log.info("Refunded ₹{} to userId={} for stale session {}",
+                        receipt.getAmount(), session.getUser().getId(), session.getId());
+            } else {
+                log.warn("Duplicate full refund attempt blocked for stale session {}, refundStatus={}",
+                        session.getId(), session.getRefundStatus());
+            }
         }
 
         // 3. Notify user

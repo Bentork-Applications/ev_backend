@@ -68,7 +68,7 @@ public class StartTransactionHandler implements OcppActionHandler {
                     session = sessionService.activateOrRejectSession(ocppId);
                     if (session != null) {
                         Receipt linkedReceipt = receiptRepository.findBySession(session).orElse(null);
-                        sessionType = linkedReceipt != null && linkedReceipt.getPlan() != null ? "PLAN" : "KWH_PACKAGE";
+                        sessionType = linkedReceipt != null && "MONEY_BASED".equals(linkedReceipt.getSessionType()) ? "MONEY_BASED" : "CUSTOM";
                         log.info("{} session activated under lock (sessionId: {})", sessionType, session.getId());
                     } else {
                         log.warn("No initiated/active session found for app idTag {} on charger {}", idTag, ocppId);
@@ -95,7 +95,7 @@ public class StartTransactionHandler implements OcppActionHandler {
                     session = sessionService.activateOrRejectSession(ocppId);
                     if (session != null) {
                         Receipt linkedReceipt = receiptRepository.findBySession(session).orElse(null);
-                        sessionType = linkedReceipt != null && linkedReceipt.getPlan() != null ? "PLAN" : "KWH_PACKAGE";
+                        sessionType = linkedReceipt != null && "MONEY_BASED".equals(linkedReceipt.getSessionType()) ? "MONEY_BASED" : "CUSTOM";
                         log.info("{} session activated under lock (sessionId: {})", sessionType, session.getId());
                     }
                 } catch (Exception ex) {
@@ -112,7 +112,7 @@ public class StartTransactionHandler implements OcppActionHandler {
 
                     if (receipt != null && receipt.getSession() == null) {
                         session = sessionService.startSessionFromReceipt(receipt, ocppId);
-                        sessionType = receipt.getPlan() != null ? "PLAN" : "KWH_PACKAGE";
+                        sessionType = "MONEY_BASED".equals(receipt.getSessionType()) ? "MONEY_BASED" : "CUSTOM";
                         log.info("{} session started from receipt (sessionId: {})", sessionType, session.getId());
                     }
                 } catch (Exception ex) {

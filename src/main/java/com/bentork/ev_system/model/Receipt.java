@@ -16,10 +16,10 @@ public class Receipt {
 	private User user;
 
 	@ManyToOne
-	private Plan plan;
-
-	@ManyToOne
 	private Charger charger;
+
+	@Column(name = "session_type")
+	private String sessionType; // "MONEY_BASED" or "CUSTOM"
 
 	private BigDecimal amount; // Total prepaid amount
 
@@ -48,14 +48,6 @@ public class Receipt {
 
 	public void setUser(User user) {
 		this.user = user;
-	}
-
-	public Plan getPlan() {
-		return plan;
-	}
-
-	public void setPlan(Plan plan) {
-		this.plan = plan;
 	}
 
 	public Charger getCharger() {
@@ -112,6 +104,14 @@ public class Receipt {
 
 	public void setSelectedKwh(BigDecimal selectedKwh) {
 		this.selectedKwh = selectedKwh;
+	}
+
+	public String getSessionType() {
+		return sessionType;
+	}
+
+	public void setSessionType(String sessionType) {
+		this.sessionType = sessionType;
 	}
 
 }

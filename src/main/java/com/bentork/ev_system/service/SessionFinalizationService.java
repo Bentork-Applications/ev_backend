@@ -85,23 +85,38 @@ public class SessionFinalizationService implements ISessionFinalizationService {
 
             // ========== Apply Wallet Refund/Debit ==========
             if (billing.isRefundIssued() && billing.getRefundAmount() != null) {
-                walletTransactionService.credit(session.getUser().getId(), session.getId(),
-                        billing.getRefundAmount(),
-                        receipt.getSelectedKwh() != null ? "power session refund - unused energy" : "Plan session refund");
-                log.info("Refund issued: sessionId={}, refund={}", session.getId(), billing.getRefundAmount());
-
-                userNotificationService.createNotification(
-                        session.getUser().getId(), "Refund Issued",
-                        billing.getDescription(), "REFUND");
+                // Double-refund guard: only refund if refundStatus hasn't been set yet (or is INSTANT_REFUNDED for MONEY_BASED)
+                if (session.getRefundStatus() == null || "INSTANT_REFUNDED".equals(session.getRefundStatus())) {
+                    walletTransactionService.credit(session.getUser().getId(), session.getId(),
+                            billing.getRefundAmount(),
+                            receipt != null && "MONEY_BASED".equals(receipt.getSessionType()) 
+                                ? "MONEY_BASED early stop refund" 
+                                : "CUSTOM session refund - unused energy");
+                    
+                    log.info("Refund issued: sessionId={}, refund={}", session.getId(), billing.getRefundAmount());
+                    session.setRefundStatus("EARLY_STOP_REFUNDED");
+                    
+                    userNotificationService.createNotification(
+                            session.getUser().getId(), "Refund Issued",
+                            billing.getDescription(), "REFUND");
+                } else {
+                    log.warn("Duplicate refund attempt blocked for session {}, refundStatus={}",
+                            session.getId(), session.getRefundStatus());
+                }
             } else if (billing.isExtraDebited() && billing.getExtraDebit() != null) {
                 walletTransactionService.debit(session.getUser().getId(), session.getId(),
                         billing.getExtraDebit(),
-                        receipt.getSelectedKwh() != null ? "kWh Session Extra Debit - exceeded selected energy" : "Plan Session Extra Debit");
+                        "Session Extra Debit - exceeded selected energy");
                 log.info("Extra debit: sessionId={}, extra={}", session.getId(), billing.getExtraDebit());
 
                 userNotificationService.createNotification(
                         session.getUser().getId(), "Extra Debit",
                         billing.getDescription(), "Debit");
+            } else if (receipt != null && "MONEY_BASED".equals(receipt.getSessionType())) {
+                // Full delivery completed with no extra refund needed
+                if ("INSTANT_REFUNDED".equals(session.getRefundStatus())) {
+                    session.setRefundStatus("COMPLETED_FULL_DELIVERY");
+                }
             }
 
             // ========== Persist Session ==========

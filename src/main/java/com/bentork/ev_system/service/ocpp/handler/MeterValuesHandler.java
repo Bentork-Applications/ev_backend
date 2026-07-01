@@ -195,18 +195,6 @@ public class MeterValuesHandler implements OcppActionHandler {
                         progress = (int) Math.min((consumed / target) * 100, 100);
                         progressType = "KWH";
                         targetValue = receipt.getSelectedKwh().toPlainString();
-                    } else if (receipt.getPlan() != null
-                            && receipt.getPlan().getDurationMin() != null) {
-                        // Time-based plan session
-                        int totalSeconds = receipt.getPlan().getDurationMin() * 60;
-                        long elapsed = Duration.between(
-                                session.getStartTime(),
-                                LocalDateTime.now()).getSeconds();
-                        progress = (int) Math.min(
-                                (elapsed * 100) / totalSeconds, 100);
-                        progressType = "TIME";
-                        targetValue = String.valueOf(
-                                receipt.getPlan().getDurationMin());
                     }
                 }
             }

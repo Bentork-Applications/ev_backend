@@ -52,6 +52,24 @@ public class Session {
     @Column(name = "fully_charged_notified")
     private Boolean fullyChargedNotified = false;
 
+    @Column(name = "amount_entered", precision = 10, scale = 2)
+    private java.math.BigDecimal amountEntered;
+
+    @Column(name = "effective_rate_applied", precision = 10, scale = 4)
+    private java.math.BigDecimal effectiveRateApplied;
+
+    @Column(name = "allocated_kwh", precision = 10, scale = 2)
+    private java.math.BigDecimal allocatedKwh;
+
+    @Column(name = "chargeable_amount", precision = 10, scale = 2)
+    private java.math.BigDecimal chargeableAmount;
+
+    @Column(name = "refund_amount", precision = 10, scale = 2)
+    private java.math.BigDecimal refundAmount;
+
+    @Column(name = "refund_status")
+    private String refundStatus;
+
     // Getters and Setters
 
     public Long getId() {
@@ -196,5 +214,53 @@ public class Session {
 
     public void setFullyChargedNotified(Boolean fullyChargedNotified) {
         this.fullyChargedNotified = fullyChargedNotified;
+    }
+
+    public java.math.BigDecimal getAmountEntered() {
+        return amountEntered;
+    }
+
+    public void setAmountEntered(java.math.BigDecimal amountEntered) {
+        this.amountEntered = amountEntered;
+    }
+
+    public java.math.BigDecimal getEffectiveRateApplied() {
+        return effectiveRateApplied;
+    }
+
+    public void setEffectiveRateApplied(java.math.BigDecimal effectiveRateApplied) {
+        this.effectiveRateApplied = effectiveRateApplied;
+    }
+
+    public java.math.BigDecimal getAllocatedKwh() {
+        return allocatedKwh;
+    }
+
+    public void setAllocatedKwh(java.math.BigDecimal allocatedKwh) {
+        this.allocatedKwh = allocatedKwh;
+    }
+
+    public java.math.BigDecimal getChargeableAmount() {
+        return chargeableAmount;
+    }
+
+    public void setChargeableAmount(java.math.BigDecimal chargeableAmount) {
+        this.chargeableAmount = chargeableAmount;
+    }
+
+    public java.math.BigDecimal getRefundAmount() {
+        return refundAmount;
+    }
+
+    public void setRefundAmount(java.math.BigDecimal refundAmount) {
+        this.refundAmount = refundAmount;
+    }
+
+    public String getRefundStatus() {
+        return refundStatus;
+    }
+
+    public void setRefundStatus(String refundStatus) {
+        this.refundStatus = refundStatus;
     }
 }

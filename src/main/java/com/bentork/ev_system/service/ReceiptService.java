@@ -54,10 +54,10 @@ public class ReceiptService implements IReceiptService {
     }
 
     /**
-     * Creates a new receipt (PENDING) for either a plan or a kWh package/custom.
+     * Creates a new receipt (PENDING) for a kWh package/custom.
      */
     @Transactional
-    public Receipt createReceipt(User user, Plan plan, Charger charger, BigDecimal selectedKwh) {
+    public Receipt createReceipt(User user, Charger charger, BigDecimal selectedKwh) {
         // ★ MAINTENANCE GUARD: Block receipt creation if charger is under maintenance
         if (maintenanceService.isChargerUnderMaintenance(charger.getId())) {
             throw new StationUnderMaintenanceException(charger.getId(), "charger");
@@ -65,25 +65,44 @@ public class ReceiptService implements IReceiptService {
 
         Receipt receipt = new Receipt();
         receipt.setUser(user);
-        receipt.setPlan(plan);
         receipt.setCharger(charger);
 
-        BigDecimal amount;
-        if (plan != null) {
-            amount = plan.getWalletDeduction(); // prepaid amount from plan — platform fee handled at finalization
-        } else {
-            BigDecimal energyCost = selectedKwh.multiply(BigDecimal.valueOf(charger.getRate()));
-            BigDecimal platformFee = taxService.calculatePlatformFee(
-                    selectedKwh.doubleValue(), charger.getPlatformFeePerKwh());
-            
-            BigDecimal subtotal = energyCost.add(platformFee);
-            BigDecimal pst = taxService.calculatePstPerKwh(selectedKwh.doubleValue(), charger.getPstPerKwh());
-            
-            amount = subtotal.add(pst);
-            receipt.setSelectedKwh(selectedKwh);
-        }
+        BigDecimal energyCost = selectedKwh.multiply(BigDecimal.valueOf(charger.getRate()));
+        BigDecimal platformFee = taxService.calculatePlatformFee(
+                selectedKwh.doubleValue(), charger.getPlatformFeePerKwh());
+        
+        BigDecimal subtotal = energyCost.add(platformFee);
+        BigDecimal pst = taxService.calculatePstPerKwh(selectedKwh.doubleValue(), charger.getPstPerKwh());
+        
+        BigDecimal amount = subtotal.add(pst);
+        receipt.setSelectedKwh(selectedKwh);
+        receipt.setSessionType("CUSTOM");
 
         receipt.setAmount(amount);
+        receipt.setStatus("Pending");
+        receipt.setCreatedAt(LocalDateTime.now());
+        return receiptRepository.save(receipt);
+    }
+
+    /**
+     * Creates a new receipt for a MONEY_BASED session.
+     */
+    @Transactional
+    public Receipt createMoneyBasedReceipt(User user, Charger charger, BigDecimal amountEntered, 
+                                           com.bentork.ev_system.service.MoneyCalculationService.MoneyCalculationResult calc) {
+        if (maintenanceService.isChargerUnderMaintenance(charger.getId())) {
+            throw new StationUnderMaintenanceException(charger.getId(), "charger");
+        }
+
+        Receipt receipt = new Receipt();
+        receipt.setUser(user);
+        receipt.setCharger(charger);
+        
+        // Debit the chargeable amount (instant refund handles the remainder)
+        receipt.setAmount(amountEntered);
+        receipt.setSelectedKwh(calc.getAllocatedKwh());
+        receipt.setSessionType("MONEY_BASED");
+
         receipt.setStatus("Pending");
         receipt.setCreatedAt(LocalDateTime.now());
         return receiptRepository.save(receipt);

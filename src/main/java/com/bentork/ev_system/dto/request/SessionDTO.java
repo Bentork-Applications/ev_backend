@@ -8,13 +8,13 @@ public class SessionDTO {
     private Long chargerId;
     private String boxId;
     private Long sessionId;
-    private Long planId;
 
     private String message;
     private double energyUsed;
     private double cost;
     private String status;
     private BigDecimal selectedKwh; // ✅ NEW - for package/custom input
+    private BigDecimal amountEntered; // ✅ NEW - for MONEY_BASED input
 
     // Getters and Setters
 
@@ -82,13 +82,6 @@ public class SessionDTO {
         this.status = status;
     }
 
-    public Long getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(Long planId) {
-        this.planId = planId;
-    }
 
     public BigDecimal getSelectedKwh() {
         return selectedKwh;
@@ -96,6 +89,14 @@ public class SessionDTO {
 
     public void setSelectedKwh(BigDecimal selectedKwh) {
         this.selectedKwh = selectedKwh;
+    }
+
+    public BigDecimal getAmountEntered() {
+        return amountEntered;
+    }
+
+    public void setAmountEntered(BigDecimal amountEntered) {
+        this.amountEntered = amountEntered;
     }
 
 }
