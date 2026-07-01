@@ -280,8 +280,14 @@ public class SessionService implements ISessionService {
 											sessionRepository.save(s);
 
 											if (receiptAmount != null && receiptAmount.compareTo(BigDecimal.ZERO) > 0) {
-												walletTransactionService.credit(userId, sessionId, receiptAmount,
-														"Refund: Charger Offline");
+												scheduler.submit(() -> {
+													try {
+														walletTransactionService.credit(userId, sessionId, receiptAmount,
+																"Refund: Charger Offline");
+													} catch (Exception e) {
+														log.error("Failed to process offline refund for sessionId={}: {}", sessionId, e.getMessage());
+													}
+												});
 											}
 											userNotificationService.createNotification(userId,
 													"Charger Offline",
