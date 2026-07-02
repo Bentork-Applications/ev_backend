@@ -157,6 +157,14 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/coins/**").authenticated()
                                                 .requestMatchers("/api/referral/**").authenticated()
 
+                                                // Battery Data - Admin & Staff manage, Users can search
+                                                .requestMatchers("/api/battery-data/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
+                                                .requestMatchers("/api/battery-data/user/**").hasAuthority("ROLE_USER")
+
+                                                // Warranty Claims - role-specific access
+                                                .requestMatchers("/api/warranty-claims/user/**").hasAuthority("ROLE_USER")
+                                                .requestMatchers("/api/warranty-claims/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
+
                                                 // Support Requests - role-specific access
                                                 .requestMatchers("/api/support-requests/user/**").hasAuthority("ROLE_USER")
                                                 .requestMatchers("/api/support-requests/dealer/**").hasAuthority("DEALER")
