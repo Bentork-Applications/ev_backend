@@ -13,9 +13,13 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
+/**
+ * Entity for end-user support requests.
+ * Stored in a dedicated table separate from dealer requests.
+ */
 @Entity
-@Table(name = "support_requests")
-public class SupportRequest {
+@Table(name = "user_support_requests")
+public class UserSupportRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,9 +34,6 @@ public class SupportRequest {
 
     @Column(nullable = false)
     private String status = RequestStatus.PENDING.getValue();
-
-    @Column(nullable = false)
-    private String customerType; // "END_USER" or "DEALER"
 
     @Column(nullable = false)
     private String submitterEmail;
@@ -97,14 +98,6 @@ public class SupportRequest {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getCustomerType() {
-        return customerType;
-    }
-
-    public void setCustomerType(String customerType) {
-        this.customerType = customerType;
     }
 
     public String getSubmitterEmail() {
