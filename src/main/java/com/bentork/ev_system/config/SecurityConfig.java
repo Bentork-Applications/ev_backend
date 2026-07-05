@@ -77,9 +77,10 @@ public class SecurityConfig {
                                                                 "/error",
                                                                 "/favicon.ico")
                                                 .permitAll()
-                                                // Allow authenticated users to READ stations
-                                                .requestMatchers(HttpMethod.GET, "/api/stations/**").authenticated()
-                                                // Only ADMIN can create/update/delete stations
+
+                                                // ===== GUEST MODE: Read-only public endpoints =====
+                                                // Stations — Guest can browse, only ADMIN can modify
+                                                .requestMatchers(HttpMethod.GET, "/api/stations/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/stations/**")
                                                 .hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/stations/**")
@@ -87,9 +88,8 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/stations/**")
                                                 .hasAuthority("ADMIN")
 
-                                                // Allow authenticated users to READ chargers
-                                                .requestMatchers(HttpMethod.GET, "/api/chargers/**").authenticated()
-                                                // Only ADMIN can create/update/delete chargers
+                                                // Chargers — Guest can browse, only ADMIN can modify
+                                                .requestMatchers(HttpMethod.GET, "/api/chargers/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/chargers/**")
                                                 .hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/chargers/**")
@@ -97,9 +97,8 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/chargers/**")
                                                 .hasAuthority("ADMIN")
 
-                                                // Allow authenticated users to READ locations
-                                                .requestMatchers(HttpMethod.GET, "/api/location/**").authenticated()
-                                                // Only ADMIN can create/update/delete locations
+                                                // Locations — Guest can browse, only ADMIN can modify
+                                                .requestMatchers(HttpMethod.GET, "/api/location/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/location/**")
                                                 .hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/location/**")
@@ -107,18 +106,16 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/location/**")
                                                 .hasAuthority("ADMIN")
 
-                                                // Allow authenticated users to READ plans
-                                                .requestMatchers(HttpMethod.GET, "/api/plans/**").authenticated()
-                                                // Only ADMIN can create/update/delete plans
+                                                // Plans — Guest can browse, only ADMIN can modify
+                                                .requestMatchers(HttpMethod.GET, "/api/plans/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/plans/**").hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/plans/**").hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.DELETE, "/api/plans/**")
                                                 .hasAuthority("ADMIN")
 
-                                                // Allow authenticated users to READ emergency contacts
+                                                // Emergency Contacts — Guest can read, only ADMIN can modify
                                                 .requestMatchers(HttpMethod.GET, "/api/emergency-contacts/**")
-                                                .authenticated()
-                                                // Only ADMIN can create/update/delete emergency contacts
+                                                .permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/emergency-contacts/**")
                                                 .hasAuthority("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/emergency-contacts/**")
@@ -126,6 +123,25 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/emergency-contacts/**")
                                                 .hasAuthority("ADMIN")
 
+                                                // Cafes — Guest can browse nearby/details, only ADMIN can modify
+                                                .requestMatchers(HttpMethod.GET, "/api/cafes/**").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/cafes/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/api/cafes/**").hasAuthority("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/cafes/**").hasAuthority("ADMIN")
+
+                                                // Station Reviews — Guest can read reviews & summaries, login required to write
+                                                .requestMatchers(HttpMethod.GET, "/api/station-reviews/**").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/station-reviews/**").authenticated()
+                                                .requestMatchers(HttpMethod.PUT, "/api/station-reviews/**").authenticated()
+                                                .requestMatchers(HttpMethod.DELETE, "/api/station-reviews/**").authenticated()
+
+                                                // Slots — Guest can view available slots for a charger
+                                                .requestMatchers(HttpMethod.GET, "/api/slots/charger/*/available").permitAll()
+
+                                                // User Plan Selection — already public
+                                                .requestMatchers("/api/user-plan-selection/**").permitAll()
+
+                                                // ===== PROTECTED: Login required =====
                                                 // Admin-only endpoints
                                                 .requestMatchers("/api/revenue/**").hasAuthority("ADMIN")
 
@@ -135,25 +151,15 @@ public class SecurityConfig {
                                                 // Dealer endpoints (Dealer can access their own data)
                                                 .requestMatchers("/api/dealer/**").hasAuthority("DEALER")
 
-                                                .requestMatchers("/api/user-plan-selection/**").permitAll()
-
-                                                // Add this line to allow authenticated users to access sessions
+                                                // Sessions — login required (user identity needed for billing)
                                                 .requestMatchers("/api/sessions/**").authenticated()
                                                 .requestMatchers("/api/user/charger/**").authenticated()
                                                 .requestMatchers("/api/user/plans/**").authenticated()
+
+                                                // Wallet — login required (financial data)
                                                 .requestMatchers("/api/wallet/**").authenticated()
 
-                                                // Station Reviews - All authenticated users can read and write reviews
-                                                .requestMatchers("/api/station-reviews/**").authenticated()
-
-                                                // Cafes - All authenticated users can search nearby cafes
-                                                .requestMatchers(HttpMethod.GET, "/api/cafes/**").authenticated()
-                                                // Only ADMIN can create/update/delete cafes
-                                                .requestMatchers(HttpMethod.POST, "/api/cafes/**").hasAuthority("ADMIN")
-                                                .requestMatchers(HttpMethod.PUT, "/api/cafes/**").hasAuthority("ADMIN")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/cafes/**").hasAuthority("ADMIN")
-
-                                                // Coins & Referrals - All authenticated users
+                                                // Coins & Referrals — login required (user-specific rewards)
                                                 .requestMatchers("/api/coins/**").authenticated()
                                                 .requestMatchers("/api/referral/**").authenticated()
 
@@ -170,6 +176,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/support-requests/dealer/**").hasAuthority("DEALER")
                                                 .requestMatchers("/api/support-requests/admin/**").hasAuthority("ADMIN")
 
+                                                // Everything else requires login
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
