@@ -17,7 +17,7 @@ public class CorsConfig {
                         .allowedOrigins(
                                 "https://web.bentork.in",
                                 "http://localhost:5173", // React frontend (Vite)
-                                "http://ev-admin-ui-2025.s3-website-us-east-1.amazonaws.com" // Admin panel
+                                "https://admin.bentork.in" // Admin panel
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
