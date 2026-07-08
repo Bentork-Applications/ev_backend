@@ -14,11 +14,11 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("https://web.bentork.in",
-                                "http://localhost:5173"), // React frontend
-                                 "http://ev-admin-ui-2025.s3-website-us-east-1.amazonaws.com" // Admin panel
-
-                        // (Vite)
+                        .allowedOrigins(
+                                "https://web.bentork.in",
+                                "http://localhost:5173", // React frontend (Vite)
+                                "http://ev-admin-ui-2025.s3-website-us-east-1.amazonaws.com" // Admin panel
+                        )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
