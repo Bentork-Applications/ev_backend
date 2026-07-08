@@ -15,7 +15,8 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins("https://web.bentork.in",
-                                "http://localhost:5173") // React frontend
+                                "http://localhost:5173"), // React frontend
+                                 "http://ev-admin-ui-2025.s3-website-us-east-1.amazonaws.com" // Admin panel
 
                         // (Vite)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
