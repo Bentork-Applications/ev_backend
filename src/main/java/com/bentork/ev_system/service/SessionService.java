@@ -70,6 +70,7 @@ public class SessionService implements ISessionService {
 	private final StaleSessionCleanupService staleSessionCleanupService;
 	private final SessionReminderService sessionReminderService;
 	private final MoneyCalculationService moneyCalculationService;
+	private final SlotBookingService slotBookingService;
 
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(15);
 
@@ -89,7 +90,8 @@ public class SessionService implements ISessionService {
 			IMaintenanceService maintenanceService,
 			StaleSessionCleanupService staleSessionCleanupService,
 			SessionReminderService sessionReminderService,
-			MoneyCalculationService moneyCalculationService) {
+			MoneyCalculationService moneyCalculationService,
+			SlotBookingService slotBookingService) {
 		this.sessionRepository = sessionRepository;
 		this.receiptRepository = receiptRepository;
 		this.chargerRepository = chargerRepository;
@@ -106,6 +108,7 @@ public class SessionService implements ISessionService {
 		this.staleSessionCleanupService = staleSessionCleanupService;
 		this.sessionReminderService = sessionReminderService;
 		this.moneyCalculationService = moneyCalculationService;
+		this.slotBookingService = slotBookingService;
 	}
 
 	// ===================== LIFECYCLE METHODS =====================
@@ -204,6 +207,9 @@ public class SessionService implements ISessionService {
 				log.warn("Cannot start session — charger {} is under maintenance", lockedCharger.getId());
 				throw new StationUnderMaintenanceException(lockedCharger.getId(), "charger");
 			}
+
+			// ★ SLOT BOOKING GUARD: Block session if charger is reserved by another user
+			slotBookingService.validateAndHandleBooking(receipt.getUser().getId(), lockedCharger.getId());
 
 			// Check if charger already has an active or initiated session
 			List<String> activeStatuses = List.of(

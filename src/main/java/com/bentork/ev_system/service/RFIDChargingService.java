@@ -49,6 +49,7 @@ public class RFIDChargingService implements IRFIDChargingService {
     private final RevenueRepository revenueRepo;
     private final TaxCalculationService taxService;
     private final PushNotificationService pushNotificationService;
+    private final SlotBookingService slotBookingService;
 
     // Start charging
     public Session startCharging(String cardNumber, Long chargerId, String boxId) {
@@ -73,6 +74,9 @@ public class RFIDChargingService implements IRFIDChargingService {
 
             Charger charger = chargerRepo.findById(chargerId)
                     .orElseThrow(() -> new ChargerNotFoundException(chargerId));
+
+            // ★ SLOT BOOKING GUARD: Block session if charger is reserved by another user
+            slotBookingService.validateAndHandleBooking(user.getId(), charger.getId());
 
             Session session = new Session();
             session.setUser(user);

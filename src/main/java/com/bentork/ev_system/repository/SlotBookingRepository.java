@@ -77,4 +77,24 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
         List<SlotBooking> findOverlappingBookedSlots(@Param("chargerId") Long chargerId,
                         @Param("startTime") LocalDateTime startTime,
                         @Param("endTime") LocalDateTime endTime);
+
+        /**
+         * Find any active (status='booked') booking on a charger at the current time.
+         * Covers both:
+         * - Date-specific slots: slot.startTime <= now AND slot.endTime >= now
+         * - All-day (recurring) slots: slot.allDay = true AND slot.startTimeOnly <= currentTime AND slot.endTimeOnly >= currentTime
+         *
+         * Used by the slot booking guard to block non-booking users from starting sessions.
+         */
+        @Query("SELECT sb FROM SlotBooking sb " +
+                        "WHERE sb.charger.id = :chargerId " +
+                        "AND sb.status = 'booked' " +
+                        "AND (" +
+                        "  (sb.slot.allDay = false AND sb.slot.startTime <= :now AND sb.slot.endTime >= :now) " +
+                        "  OR " +
+                        "  (sb.slot.allDay = true AND sb.slot.startTimeOnly <= :currentTime AND sb.slot.endTimeOnly >= :currentTime)" +
+                        ")")
+        Optional<SlotBooking> findActiveBookingOnChargerAtTime(@Param("chargerId") Long chargerId,
+                        @Param("now") LocalDateTime now,
+                        @Param("currentTime") LocalTime currentTime);
 }

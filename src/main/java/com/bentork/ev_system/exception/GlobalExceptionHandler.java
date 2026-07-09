@@ -40,6 +40,7 @@ import com.bentork.ev_system.exception.domain.InvalidReceiptStateException;
 import com.bentork.ev_system.exception.domain.UnauthorizedSessionAccessException;
 import com.bentork.ev_system.exception.domain.RFIDCardException;
 import com.bentork.ev_system.exception.domain.StationUnderMaintenanceException;
+import com.bentork.ev_system.exception.domain.SlotReservedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -280,6 +281,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> stationUnderMaintenance(StationUnderMaintenanceException ex) {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()), HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(SlotReservedException.class)
+    public ResponseEntity<ErrorResponse> slotReserved(SlotReservedException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.FORBIDDEN, ex.getMessage()), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(RFIDCardException.class)

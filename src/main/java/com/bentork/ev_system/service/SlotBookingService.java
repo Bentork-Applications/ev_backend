@@ -1,7 +1,9 @@
 package com.bentork.ev_system.service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bentork.ev_system.dto.request.SlotBookingDTO;
 import com.bentork.ev_system.enums.BookingStatus;
 import com.bentork.ev_system.exception.SlotAlreadyBookedException;
+import com.bentork.ev_system.exception.domain.SlotReservedException;
 import com.bentork.ev_system.mapper.SlotBookingMapper;
 import com.bentork.ev_system.model.Charger;
 import com.bentork.ev_system.model.Slot;
@@ -219,5 +222,59 @@ public class SlotBookingService {
                                         log.info("Booking completed: bookingId={}, userId={}, chargerId={}",
                                                         booking.getId(), userId, chargerId);
                                 });
+        }
+
+        /**
+         * ★ SLOT BOOKING GUARD — Called before starting any session (App or RFID).
+         *
+         * Checks if the charger has an active slot booking at the current time:
+         * - No active booking → allow session (return silently)
+         * - Active booking belongs to the requesting user → auto-complete booking, allow session
+         * - Active booking belongs to a DIFFERENT user → throw SlotReservedException (HTTP 403)
+         *
+         * This method handles both date-specific and all-day (recurring) slots.
+         */
+        @Transactional
+        public void validateAndHandleBooking(Long userId, Long chargerId) {
+                LocalDateTime now = LocalDateTime.now();
+                LocalTime currentTime = now.toLocalTime();
+
+                Optional<SlotBooking> activeBooking = slotBookingRepository
+                                .findActiveBookingOnChargerAtTime(chargerId, now, currentTime);
+
+                if (activeBooking.isEmpty()) {
+                        // No active booking on this charger right now — allow session
+                        return;
+                }
+
+                SlotBooking booking = activeBooking.get();
+                Slot slot = booking.getSlot();
+
+                if (booking.getUser().getId().equals(userId)) {
+                        // The requesting user IS the booking owner — auto-complete the booking
+                        log.info("Booking owner starting session — auto-completing booking: bookingId={}, userId={}, chargerId={}",
+                                        booking.getId(), userId, chargerId);
+
+                        booking.setStatus(BookingStatus.COMPLETED.getValue());
+                        slotBookingRepository.save(booking);
+
+                        // Release the slot so it shows as available after the session
+                        slot.setBooked(false);
+                        slotRepository.save(slot);
+                        return;
+                }
+
+                // Another user holds the booking — block this session
+                String timeRange;
+                if (slot.isAllDay()) {
+                        timeRange = slot.getStartTimeOnly() + " - " + slot.getEndTimeOnly();
+                } else {
+                        timeRange = slot.getStartTime().toLocalTime() + " - " + slot.getEndTime().toLocalTime();
+                }
+
+                log.warn("Session blocked by slot booking: chargerId={}, requestingUserId={}, bookingOwnerId={}, timeRange={}",
+                                chargerId, userId, booking.getUser().getId(), timeRange);
+
+                throw new SlotReservedException(chargerId, booking.getUser().getId(), timeRange);
         }
 }
