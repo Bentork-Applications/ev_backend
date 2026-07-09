@@ -1,5 +1,7 @@
 package com.bentork.ev_system.controller;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -13,11 +15,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.ClaimRejectDTO;
 import com.bentork.ev_system.dto.request.DispatchDetailsDTO;
 import com.bentork.ev_system.dto.request.WarrantyClaimDTO;
+import com.bentork.ev_system.dto.response.AverageProcessingTimeResponse;
 import com.bentork.ev_system.dto.response.WarrantyClaimResponse;
 import com.bentork.ev_system.service.WarrantyClaimService;
 
@@ -100,6 +104,30 @@ public class WarrantyClaimController {
     public ResponseEntity<List<WarrantyClaimResponse>> getAllClaims() {
         log.info("Admin/Staff fetching all warranty claims");
         return ResponseEntity.ok(warrantyClaimService.getAllClaims());
+    }
+
+    /**
+     * Get average processing time across completed warranty claims.
+     * Supports optional date-range filtering via 'from' and 'to' query params (ISO format: yyyy-MM-dd'T'HH:mm:ss).
+     */
+    @GetMapping("/admin/average-processing-time")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    public ResponseEntity<AverageProcessingTimeResponse> getAverageProcessingTime(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        log.info("Admin fetching average warranty processing time (from={}, to={})", from, to);
+
+        LocalDateTime fromDate = null;
+        LocalDateTime toDate = null;
+
+        if (from != null && !from.isEmpty()) {
+            fromDate = LocalDateTime.parse(from, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        }
+        if (to != null && !to.isEmpty()) {
+            toDate = LocalDateTime.parse(to, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        }
+
+        return ResponseEntity.ok(warrantyClaimService.getAverageProcessingTime(fromDate, toDate));
     }
 
     /**

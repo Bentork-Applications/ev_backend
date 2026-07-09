@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.bentork.ev_system.dto.request.ClaimRejectDTO;
 import com.bentork.ev_system.dto.request.DispatchDetailsDTO;
 import com.bentork.ev_system.dto.request.WarrantyClaimDTO;
+import com.bentork.ev_system.dto.response.AverageProcessingTimeResponse;
 import com.bentork.ev_system.dto.response.WarrantyClaimResponse;
 import com.bentork.ev_system.enums.WarrantyClaimStatus;
 import com.bentork.ev_system.model.BatteryData;
@@ -344,6 +346,48 @@ public class WarrantyClaimService {
         }
     }
 
+    /**
+     * Compute average processing time across completed claims.
+     * Supports optional date-range filtering on completedAt.
+     */
+    public AverageProcessingTimeResponse getAverageProcessingTime(LocalDateTime from, LocalDateTime to) {
+        List<WarrantyClaim> completedClaims;
+
+        if (from != null && to != null) {
+            completedClaims = warrantyClaimRepository.findByCompletedAtBetween(from, to);
+        } else {
+            completedClaims = warrantyClaimRepository.findByCompletedAtIsNotNull();
+        }
+
+        AverageProcessingTimeResponse response = new AverageProcessingTimeResponse();
+        response.setFromDate(from);
+        response.setToDate(to);
+
+        if (completedClaims.isEmpty()) {
+            response.setAverageProcessingTimeHours(0.0);
+            response.setTotalCompletedClaims(0L);
+            return response;
+        }
+
+        double totalHours = completedClaims.stream()
+                .filter(claim -> claim.getCreatedAt() != null && claim.getCompletedAt() != null)
+                .mapToDouble(claim -> {
+                    long minutes = Duration.between(claim.getCreatedAt(), claim.getCompletedAt()).toMinutes();
+                    return minutes / 60.0;
+                })
+                .sum();
+
+        long count = completedClaims.stream()
+                .filter(claim -> claim.getCreatedAt() != null && claim.getCompletedAt() != null)
+                .count();
+
+        double average = count > 0 ? Math.round((totalHours / count) * 100.0) / 100.0 : 0.0;
+
+        response.setAverageProcessingTimeHours(average);
+        response.setTotalCompletedClaims(count);
+        return response;
+    }
+
     private WarrantyClaimResponse mapToResponse(WarrantyClaim claim) {
         WarrantyClaimResponse response = new WarrantyClaimResponse();
         response.setId(claim.getId());
@@ -372,6 +416,13 @@ public class WarrantyClaimService {
         response.setDeliveredAt(claim.getDeliveredAt());
         response.setUserConfirmedAt(claim.getUserConfirmedAt());
         response.setClosedAt(claim.getClosedAt());
+
+        // Compute per-claim processing duration (createdAt -> completedAt)
+        if (claim.getCreatedAt() != null && claim.getCompletedAt() != null) {
+            long minutes = Duration.between(claim.getCreatedAt(), claim.getCompletedAt()).toMinutes();
+            response.setProcessingDurationHours(Math.round(minutes / 60.0 * 100.0) / 100.0);
+        }
+
         return response;
     }
 }

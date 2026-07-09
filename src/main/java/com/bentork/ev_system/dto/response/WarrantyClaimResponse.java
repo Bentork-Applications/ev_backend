@@ -34,6 +34,9 @@ public class WarrantyClaimResponse {
     private LocalDateTime userConfirmedAt;
     private LocalDateTime closedAt;
 
+    // Computed: hours from claim creation to processing completion
+    private Double processingDurationHours;
+
     // Getters and Setters
 
     public Long getId() {
@@ -242,5 +245,13 @@ public class WarrantyClaimResponse {
 
     public void setClosedAt(LocalDateTime closedAt) {
         this.closedAt = closedAt;
+    }
+
+    public Double getProcessingDurationHours() {
+        return processingDurationHours;
+    }
+
+    public void setProcessingDurationHours(Double processingDurationHours) {
+        this.processingDurationHours = processingDurationHours;
     }
 }

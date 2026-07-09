@@ -1,5 +1,6 @@
 package com.bentork.ev_system.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,4 +19,9 @@ public interface WarrantyClaimRepository extends JpaRepository<WarrantyClaim, Lo
     List<WarrantyClaim> findByStatusOrderByCreatedAtDesc(String status);
 
     Optional<WarrantyClaim> findByIdAndSubmitterEmail(Long id, String email);
+
+    List<WarrantyClaim> findByCompletedAtIsNotNull();
+
+    List<WarrantyClaim> findByCompletedAtBetween(LocalDateTime from, LocalDateTime to);
 }
+
