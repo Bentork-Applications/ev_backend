@@ -97,4 +97,25 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
         Optional<SlotBooking> findActiveBookingOnChargerAtTime(@Param("chargerId") Long chargerId,
                         @Param("now") LocalDateTime now,
                         @Param("currentTime") LocalTime currentTime);
+
+        /**
+         * Find no-show date-specific bookings: slot start time + buffer has passed,
+         * booking is still "booked". The cutoff = now - NO_SHOW_TIMEOUT_MINUTES.
+         */
+        @Query("SELECT sb FROM SlotBooking sb " +
+                        "WHERE sb.status = 'booked' " +
+                        "AND sb.slot.allDay = false " +
+                        "AND sb.slot.startTime IS NOT NULL " +
+                        "AND sb.slot.startTime <= :cutoff")
+        List<SlotBooking> findNoShowDateSpecificBookings(@Param("cutoff") LocalDateTime cutoff);
+
+        /**
+         * Find no-show all-day bookings: slot start time + buffer has passed today,
+         * booking is still "booked". The cutoffTime = now - NO_SHOW_TIMEOUT_MINUTES.
+         */
+        @Query("SELECT sb FROM SlotBooking sb " +
+                        "WHERE sb.status = 'booked' " +
+                        "AND sb.slot.allDay = true " +
+                        "AND sb.slot.startTimeOnly <= :cutoffTime")
+        List<SlotBooking> findNoShowAllDayBookings(@Param("cutoffTime") LocalTime cutoffTime);
 }
