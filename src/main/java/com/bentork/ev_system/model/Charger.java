@@ -50,9 +50,9 @@ public class Charger implements Serializable {
 	@Builder.Default
 	private Double platformFeePerKwh = 0.0;
 
-	@Column(name = "pst_per_kwh")
+	@Column(name = "pst_percent")
 	@Builder.Default
-	private Double pstPerKwh = 0.0;
+	private Double pstPercent = 0.0; // PST as percentage, e.g., 12.5 means 12.5%
 
 	@Column(name = "kw_output")
 	private Double kwOutput; // e.g., 7.4, 11.0, 22.0, 50.0
@@ -128,12 +128,12 @@ public class Charger implements Serializable {
 		this.platformFeePerKwh = platformFeePerKwh;
 	}
 
-	public Double getPstPerKwh() {
-		return pstPerKwh;
+	public Double getPstPercent() {
+		return pstPercent;
 	}
 
-	public void setPstPerKwh(Double pstPerKwh) {
-		this.pstPerKwh = pstPerKwh;
+	public void setPstPercent(Double pstPercent) {
+		this.pstPercent = pstPercent;
 	}
 
 	public boolean isOccupied() {

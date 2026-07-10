@@ -129,7 +129,8 @@ public class SessionService implements ISessionService {
 			MoneyCalculationService.MoneyCalculationResult calc = moneyCalculationService.calculate(
 					request.getAmountEntered(),
 					BigDecimal.valueOf(charger.getRate()),
-					BigDecimal.valueOf(charger.getPstPerKwh())
+					BigDecimal.valueOf(charger.getPstPercent() != null ? charger.getPstPercent() : 0.0),
+					BigDecimal.valueOf(charger.getPlatformFeePerKwh() != null ? charger.getPlatformFeePerKwh() : 0.0)
 			);
 			receipt = receiptService.createMoneyBasedReceipt(user, charger, request.getAmountEntered(), calc);
 		} else {
@@ -143,7 +144,8 @@ public class SessionService implements ISessionService {
 			MoneyCalculationService.MoneyCalculationResult calc = moneyCalculationService.calculate(
 					request.getAmountEntered(),
 					BigDecimal.valueOf(charger.getRate()),
-					BigDecimal.valueOf(charger.getPstPerKwh())
+					BigDecimal.valueOf(charger.getPstPercent() != null ? charger.getPstPercent() : 0.0),
+					BigDecimal.valueOf(charger.getPlatformFeePerKwh() != null ? charger.getPlatformFeePerKwh() : 0.0)
 			);
 			
 			// Instant refund of remainder

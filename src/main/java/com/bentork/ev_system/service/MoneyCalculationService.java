@@ -38,19 +38,22 @@ public class MoneyCalculationService {
     }
 
     /**
-     * @param amountEntered User's rupee input
-     * @param baseRate      Charger's base rate per kWh (₹)
-     * @param pstPercent    PST percentage (e.g., 12.5 for 12.5%)
+     * @param amountEntered     User's rupee input
+     * @param baseRate          Charger's base rate per kWh (₹)
+     * @param pstPercent        PST percentage (e.g., 12.5 for 12.5%)
+     * @param platformFeePerKwh Platform fee per kWh (₹, flat)
      * @return MoneyCalculationResult containing the exact allocations
      */
-    public MoneyCalculationResult calculate(BigDecimal amountEntered, BigDecimal baseRate, BigDecimal pstPercent) {
+    public MoneyCalculationResult calculate(BigDecimal amountEntered, BigDecimal baseRate,
+                                            BigDecimal pstPercent, BigDecimal platformFeePerKwh) {
         if (amountEntered == null || amountEntered.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount entered must be greater than zero");
         }
 
-        // effectiveRate = baseRate * (1 + pstPercent / 100)
+        // effectiveRate = baseRate * (1 + pstPercent / 100) + platformFeePerKwh
         BigDecimal onePlusPst = BigDecimal.ONE.add(pstPercent.divide(HUNDRED, 10, RoundingMode.HALF_UP));
-        BigDecimal effectiveRate = baseRate.multiply(onePlusPst).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal rateWithPst = baseRate.multiply(onePlusPst);
+        BigDecimal effectiveRate = rateWithPst.add(platformFeePerKwh).setScale(2, RoundingMode.HALF_UP);
 
         if (effectiveRate.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Effective rate must be positive");
