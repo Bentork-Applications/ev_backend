@@ -23,7 +23,7 @@ class MoneyCalculationServiceTest {
         BigDecimal baseRate = new BigDecimal("16.00");
         BigDecimal pstPercent = new BigDecimal("12.5");
 
-        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent);
+        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent, BigDecimal.ZERO);
 
         assertEquals(new BigDecimal("18.00"), result.getEffectiveRate());
         assertEquals(new BigDecimal("1"), result.getAllocatedKwh());
@@ -38,7 +38,7 @@ class MoneyCalculationServiceTest {
         BigDecimal baseRate = new BigDecimal("16.00");
         BigDecimal pstPercent = new BigDecimal("12.5");
 
-        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent);
+        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent, BigDecimal.ZERO);
 
         assertEquals(new BigDecimal("18.00"), result.getEffectiveRate());
         assertEquals(new BigDecimal("2"), result.getAllocatedKwh());
@@ -54,7 +54,7 @@ class MoneyCalculationServiceTest {
         BigDecimal pstPercent = new BigDecimal("12.5");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> 
-            service.calculate(amountEntered, baseRate, pstPercent)
+            service.calculate(amountEntered, baseRate, pstPercent, BigDecimal.ZERO)
         );
         assertTrue(ex.getMessage().contains("Minimum required for 1 kWh"));
     }
@@ -65,11 +65,11 @@ class MoneyCalculationServiceTest {
         BigDecimal pstPercent = new BigDecimal("12.5");
 
         assertThrows(IllegalArgumentException.class, () -> 
-            service.calculate(BigDecimal.ZERO, baseRate, pstPercent)
+            service.calculate(BigDecimal.ZERO, baseRate, pstPercent, BigDecimal.ZERO)
         );
 
         assertThrows(IllegalArgumentException.class, () -> 
-            service.calculate(new BigDecimal("-10"), baseRate, pstPercent)
+            service.calculate(new BigDecimal("-10"), baseRate, pstPercent, BigDecimal.ZERO)
         );
     }
 
@@ -80,7 +80,7 @@ class MoneyCalculationServiceTest {
         BigDecimal baseRate = new BigDecimal("16.00");
         BigDecimal pstPercent = new BigDecimal("12.5");
 
-        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent);
+        MoneyCalculationService.MoneyCalculationResult result = service.calculate(amountEntered, baseRate, pstPercent, BigDecimal.ZERO);
 
         assertEquals(new BigDecimal("18.00"), result.getEffectiveRate());
         assertEquals(new BigDecimal("5"), result.getAllocatedKwh());
