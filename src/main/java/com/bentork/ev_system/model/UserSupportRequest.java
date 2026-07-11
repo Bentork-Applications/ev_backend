@@ -32,7 +32,7 @@ public class UserSupportRequest {
     @Column(length = 1000)
     private String issueDescription;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "LONGTEXT")
     private String attachmentUrl;
 
     @Column(nullable = false)
