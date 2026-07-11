@@ -38,7 +38,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StaleSessionCleanupService {
 
-    private static final int STALE_TIMEOUT_MINUTES = 5;
+    private static final int STALE_TIMEOUT_MINUTES = 1;
 
     private final SessionRepository sessionRepository;
 

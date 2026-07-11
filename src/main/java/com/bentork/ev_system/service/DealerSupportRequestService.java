@@ -26,6 +26,7 @@ public class DealerSupportRequestService {
         request.setCustomerFullName(dto.getCustomerFullName());
         request.setProduct(dto.getProduct());
         request.setIssueDescription(dto.getIssueDescription());
+        request.setAttachmentUrl(dto.getAttachmentUrl());
         request.setStatus(RequestStatus.PENDING.getValue());
         request.setSubmitterEmail(submitterEmail);
 
@@ -47,6 +48,7 @@ public class DealerSupportRequestService {
         response.setCustomerFullName(request.getCustomerFullName());
         response.setProduct(request.getProduct());
         response.setIssueDescription(request.getIssueDescription());
+        response.setAttachmentUrl(request.getAttachmentUrl());
         response.setStatus(request.getStatus());
         response.setCustomerType("DEALER");
         response.setSubmitterEmail(request.getSubmitterEmail());

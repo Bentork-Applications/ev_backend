@@ -5,6 +5,7 @@ public class SupportRequestDTO {
     private String customerFullName;
     private String product;
     private String issueDescription;
+    private String attachmentUrl;
 
     // Getters and Setters
 
@@ -30,5 +31,13 @@ public class SupportRequestDTO {
 
     public void setIssueDescription(String issueDescription) {
         this.issueDescription = issueDescription;
+    }
+
+    public String getAttachmentUrl() {
+        return attachmentUrl;
+    }
+
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
     }
 }

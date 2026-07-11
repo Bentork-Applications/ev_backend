@@ -32,6 +32,9 @@ public class UserSupportRequest {
     @Column(length = 1000)
     private String issueDescription;
 
+    @Column(length = 1000)
+    private String attachmentUrl;
+
     @Column(nullable = false)
     private String status = RequestStatus.PENDING.getValue();
 
@@ -122,5 +125,13 @@ public class UserSupportRequest {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getAttachmentUrl() {
+        return attachmentUrl;
+    }
+
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
     }
 }

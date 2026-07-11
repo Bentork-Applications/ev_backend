@@ -11,6 +11,7 @@ public class SupportRequestResponse {
     private String status;
     private String customerType;
     private String submitterEmail;
+    private String attachmentUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -86,5 +87,13 @@ public class SupportRequestResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getAttachmentUrl() {
+        return attachmentUrl;
+    }
+
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
     }
 }

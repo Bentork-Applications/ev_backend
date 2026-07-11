@@ -187,6 +187,7 @@ public class SupportRequestAdminService {
         response.setCustomerFullName(request.getCustomerFullName());
         response.setProduct(request.getProduct());
         response.setIssueDescription(request.getIssueDescription());
+        response.setAttachmentUrl(request.getAttachmentUrl());
         response.setStatus(request.getStatus());
         response.setCustomerType("END_USER");
         response.setSubmitterEmail(request.getSubmitterEmail());
@@ -201,6 +202,7 @@ public class SupportRequestAdminService {
         response.setCustomerFullName(request.getCustomerFullName());
         response.setProduct(request.getProduct());
         response.setIssueDescription(request.getIssueDescription());
+        response.setAttachmentUrl(request.getAttachmentUrl());
         response.setStatus(request.getStatus());
         response.setCustomerType("DEALER");
         response.setSubmitterEmail(request.getSubmitterEmail());
