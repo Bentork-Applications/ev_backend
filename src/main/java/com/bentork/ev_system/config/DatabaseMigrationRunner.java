@@ -31,5 +31,28 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Could not alter dealer_support_requests (it might already be updated or column doesn't exist yet): {}", e.getMessage());
         }
+
+        // Migration: Replace serial number with barcode as primary battery identifier
+        try {
+            jdbcTemplate.execute("ALTER TABLE battery_data MODIFY COLUMN barcode VARCHAR(255) NOT NULL");
+            log.info("Made barcode column NOT NULL");
+        } catch (Exception e) {
+            log.warn("Could not modify barcode column (it might already be updated): {}", e.getMessage());
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE battery_data ADD UNIQUE INDEX idx_battery_barcode (barcode)");
+            log.info("Added unique index on barcode");
+        } catch (Exception e) {
+            log.warn("Could not add unique index on barcode (it might already exist): {}", e.getMessage());
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE battery_data DROP COLUMN product_serial_number");
+            log.info("Dropped product_serial_number column");
+        } catch (Exception e) {
+            log.warn("Could not drop product_serial_number (it might already be removed): {}", e.getMessage());
+        }
+
     }
 }

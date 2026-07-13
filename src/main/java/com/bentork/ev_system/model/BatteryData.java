@@ -15,7 +15,8 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "battery_data", indexes = {
-        @Index(name = "idx_battery_invoice_number", columnList = "invoiceNumber")
+        @Index(name = "idx_battery_invoice_number", columnList = "invoiceNumber"),
+        @Index(name = "idx_battery_barcode", columnList = "barcode")
 })
 public class BatteryData {
 
@@ -32,10 +33,8 @@ public class BatteryData {
     @Column(nullable = false)
     private String invoiceNumber;
 
-    private String barcode;
-
     @Column(nullable = false, unique = true)
-    private String productSerialNumber;
+    private String barcode;
 
     @Column(nullable = false)
     private LocalDate warrantyStartDate;
@@ -104,13 +103,7 @@ public class BatteryData {
         this.barcode = barcode;
     }
 
-    public String getProductSerialNumber() {
-        return productSerialNumber;
-    }
 
-    public void setProductSerialNumber(String productSerialNumber) {
-        this.productSerialNumber = productSerialNumber;
-    }
 
     public LocalDate getWarrantyStartDate() {
         return warrantyStartDate;

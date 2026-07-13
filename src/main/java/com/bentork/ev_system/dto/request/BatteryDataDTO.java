@@ -8,11 +8,10 @@ public class BatteryDataDTO {
     private String productDetails;
     private String invoiceNumber;
     private String barcode;
-    private String productSerialNumber;
 
-    // Optional: for series expansion
-    private String startSeriesNumber;
-    private String endSeriesNumber;
+    // Optional: for bulk barcode series expansion
+    private String startBarcode;
+    private String endBarcode;
 
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
@@ -51,28 +50,20 @@ public class BatteryDataDTO {
         this.barcode = barcode;
     }
 
-    public String getProductSerialNumber() {
-        return productSerialNumber;
+    public String getStartBarcode() {
+        return startBarcode;
     }
 
-    public void setProductSerialNumber(String productSerialNumber) {
-        this.productSerialNumber = productSerialNumber;
+    public void setStartBarcode(String startBarcode) {
+        this.startBarcode = startBarcode;
     }
 
-    public String getStartSeriesNumber() {
-        return startSeriesNumber;
+    public String getEndBarcode() {
+        return endBarcode;
     }
 
-    public void setStartSeriesNumber(String startSeriesNumber) {
-        this.startSeriesNumber = startSeriesNumber;
-    }
-
-    public String getEndSeriesNumber() {
-        return endSeriesNumber;
-    }
-
-    public void setEndSeriesNumber(String endSeriesNumber) {
-        this.endSeriesNumber = endSeriesNumber;
+    public void setEndBarcode(String endBarcode) {
+        this.endBarcode = endBarcode;
     }
 
     public LocalDate getWarrantyStartDate() {

@@ -13,9 +13,9 @@ public interface BatteryDataRepository extends JpaRepository<BatteryData, Long> 
 
     List<BatteryData> findByInvoiceNumber(String invoiceNumber);
 
-    Optional<BatteryData> findByProductSerialNumber(String serialNumber);
+    Optional<BatteryData> findByBarcode(String barcode);
 
     List<BatteryData> findAllByOrderByCreatedAtDesc();
 
-    boolean existsByProductSerialNumber(String serialNumber);
+    boolean existsByBarcode(String barcode);
 }

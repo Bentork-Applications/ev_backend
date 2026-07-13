@@ -23,28 +23,28 @@ public class BatteryDataService {
     private final BatteryDataRepository batteryDataRepository;
 
     /**
-     * Register battery data. If startSeriesNumber and endSeriesNumber are provided,
-     * expands the series into individual battery records.
-     * Otherwise, creates a single battery record using productSerialNumber.
+     * Register battery data. If startBarcode and endBarcode are provided,
+     * expands the range into individual battery records.
+     * Otherwise, creates a single battery record using the barcode field.
      */
     public List<BatteryDataResponse> registerBattery(BatteryDataDTO dto, String adminEmail) {
         List<BatteryData> savedBatteries = new ArrayList<>();
 
-        if (dto.getStartSeriesNumber() != null && !dto.getStartSeriesNumber().isEmpty()
-                && dto.getEndSeriesNumber() != null && !dto.getEndSeriesNumber().isEmpty()) {
-            // Series expansion mode
-            savedBatteries = expandAndSaveSeries(dto, adminEmail);
+        if (dto.getStartBarcode() != null && !dto.getStartBarcode().isEmpty()
+                && dto.getEndBarcode() != null && !dto.getEndBarcode().isEmpty()) {
+            // Bulk barcode expansion mode
+            savedBatteries = expandAndSaveBarcodes(dto, adminEmail);
         } else {
             // Single battery mode
-            if (batteryDataRepository.existsByProductSerialNumber(dto.getProductSerialNumber())) {
+            if (batteryDataRepository.existsByBarcode(dto.getBarcode())) {
                 throw new IllegalArgumentException(
-                        "Battery with serial number " + dto.getProductSerialNumber() + " already exists");
+                        "Battery with barcode " + dto.getBarcode() + " already exists");
             }
 
-            BatteryData battery = createBatteryFromDTO(dto, dto.getProductSerialNumber(), adminEmail);
+            BatteryData battery = createBatteryFromDTO(dto, dto.getBarcode(), adminEmail);
             BatteryData saved = batteryDataRepository.save(battery);
             savedBatteries.add(saved);
-            log.info("Registered single battery with serial {} by admin {}", saved.getProductSerialNumber(), adminEmail);
+            log.info("Registered single battery with barcode {} by admin {}", saved.getBarcode(), adminEmail);
         }
 
         return savedBatteries.stream()
@@ -87,63 +87,62 @@ public class BatteryDataService {
     // ==================== PRIVATE HELPERS ====================
 
     /**
-     * Expands a series range into individual battery records.
-     * Extracts the numeric suffix from startSeriesNumber and endSeriesNumber,
-     * preserves the alpha prefix, and creates one record per serial number.
+     * Expands a barcode range into individual battery records.
+     * Extracts the numeric suffix from startBarcode and endBarcode,
+     * preserves the alpha prefix, and creates one record per barcode.
      *
-     * Example: start="BAT001", end="BAT005" → creates BAT001, BAT002, BAT003, BAT004, BAT005
+     * Example: start="BAR001", end="BAR005" → creates BAR001, BAR002, BAR003, BAR004, BAR005
      */
-    private List<BatteryData> expandAndSaveSeries(BatteryDataDTO dto, String adminEmail) {
-        String startSeries = dto.getStartSeriesNumber();
-        String endSeries = dto.getEndSeriesNumber();
+    private List<BatteryData> expandAndSaveBarcodes(BatteryDataDTO dto, String adminEmail) {
+        String startBarcode = dto.getStartBarcode();
+        String endBarcode = dto.getEndBarcode();
 
         // Extract alpha prefix and numeric suffix
-        String prefix = extractPrefix(startSeries);
-        int startNum = extractNumericSuffix(startSeries);
-        int endNum = extractNumericSuffix(endSeries);
+        String prefix = extractPrefix(startBarcode);
+        int startNum = extractNumericSuffix(startBarcode);
+        int endNum = extractNumericSuffix(endBarcode);
 
         if (startNum > endNum) {
-            throw new IllegalArgumentException("Start series number must be less than or equal to end series number");
+            throw new IllegalArgumentException("Start barcode must be less than or equal to end barcode");
         }
 
         // Determine zero-padding width from the original input
-        String startNumStr = startSeries.substring(prefix.length());
+        String startNumStr = startBarcode.substring(prefix.length());
         int padWidth = startNumStr.length();
 
         List<BatteryData> savedBatteries = new ArrayList<>();
-        List<String> skippedSerials = new ArrayList<>();
+        List<String> skippedBarcodes = new ArrayList<>();
 
         for (int i = startNum; i <= endNum; i++) {
-            String serialNumber = prefix + String.format("%0" + padWidth + "d", i);
+            String barcodeValue = prefix + String.format("%0" + padWidth + "d", i);
 
-            if (batteryDataRepository.existsByProductSerialNumber(serialNumber)) {
-                skippedSerials.add(serialNumber);
-                log.warn("Skipping duplicate serial number: {}", serialNumber);
+            if (batteryDataRepository.existsByBarcode(barcodeValue)) {
+                skippedBarcodes.add(barcodeValue);
+                log.warn("Skipping duplicate barcode: {}", barcodeValue);
                 continue;
             }
 
-            BatteryData battery = createBatteryFromDTO(dto, serialNumber, adminEmail);
+            BatteryData battery = createBatteryFromDTO(dto, barcodeValue, adminEmail);
             savedBatteries.add(batteryDataRepository.save(battery));
         }
 
-        if (!skippedSerials.isEmpty()) {
-            log.warn("Skipped {} duplicate serial numbers during series expansion: {}",
-                    skippedSerials.size(), skippedSerials);
+        if (!skippedBarcodes.isEmpty()) {
+            log.warn("Skipped {} duplicate barcodes during bulk expansion: {}",
+                    skippedBarcodes.size(), skippedBarcodes);
         }
 
-        log.info("Series expansion complete: {} batteries registered ({}–{}) by admin {}",
-                savedBatteries.size(), dto.getStartSeriesNumber(), dto.getEndSeriesNumber(), adminEmail);
+        log.info("Bulk barcode expansion complete: {} batteries registered ({}–{}) by admin {}",
+                savedBatteries.size(), dto.getStartBarcode(), dto.getEndBarcode(), adminEmail);
 
         return savedBatteries;
     }
 
-    private BatteryData createBatteryFromDTO(BatteryDataDTO dto, String serialNumber, String adminEmail) {
+    private BatteryData createBatteryFromDTO(BatteryDataDTO dto, String barcode, String adminEmail) {
         BatteryData battery = new BatteryData();
         battery.setCustomerName(dto.getCustomerName());
         battery.setProductDetails(dto.getProductDetails());
         battery.setInvoiceNumber(dto.getInvoiceNumber());
-        battery.setBarcode(dto.getBarcode());
-        battery.setProductSerialNumber(serialNumber);
+        battery.setBarcode(barcode);
         battery.setWarrantyStartDate(dto.getWarrantyStartDate());
         battery.setWarrantyEndDate(dto.getWarrantyEndDate());
         battery.setCreatedByAdminEmail(adminEmail);
@@ -157,7 +156,6 @@ public class BatteryDataService {
         response.setProductDetails(battery.getProductDetails());
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
-        response.setProductSerialNumber(battery.getProductSerialNumber());
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
         response.setWarrantyActive(!LocalDate.now().isAfter(battery.getWarrantyEndDate()));
@@ -167,12 +165,12 @@ public class BatteryDataService {
     }
 
     /**
-     * Extracts the alphabetic prefix from a serial number.
-     * Example: "BAT001" → "BAT", "005" → ""
+     * Extracts the alphabetic prefix from a barcode.
+     * Example: "BAR001" → "BAR", "005" → ""
      */
-    private String extractPrefix(String serialNumber) {
+    private String extractPrefix(String barcode) {
         StringBuilder prefix = new StringBuilder();
-        for (char c : serialNumber.toCharArray()) {
+        for (char c : barcode.toCharArray()) {
             if (Character.isDigit(c)) {
                 break;
             }
@@ -182,19 +180,19 @@ public class BatteryDataService {
     }
 
     /**
-     * Extracts the numeric suffix from a serial number.
-     * Example: "BAT001" → 1, "005" → 5
+     * Extracts the numeric suffix from a barcode.
+     * Example: "BAR001" → 1, "005" → 5
      */
-    private int extractNumericSuffix(String serialNumber) {
-        String prefix = extractPrefix(serialNumber);
-        String numPart = serialNumber.substring(prefix.length());
+    private int extractNumericSuffix(String barcode) {
+        String prefix = extractPrefix(barcode);
+        String numPart = barcode.substring(prefix.length());
         if (numPart.isEmpty()) {
-            throw new IllegalArgumentException("Serial number must contain a numeric suffix: " + serialNumber);
+            throw new IllegalArgumentException("Barcode must contain a numeric suffix: " + barcode);
         }
         try {
             return Integer.parseInt(numPart);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid numeric suffix in serial number: " + serialNumber);
+            throw new IllegalArgumentException("Invalid numeric suffix in barcode: " + barcode);
         }
     }
 }

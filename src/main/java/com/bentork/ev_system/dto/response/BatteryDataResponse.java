@@ -10,7 +10,6 @@ public class BatteryDataResponse {
     private String productDetails;
     private String invoiceNumber;
     private String barcode;
-    private String productSerialNumber;
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
     private boolean warrantyActive;
@@ -59,13 +58,7 @@ public class BatteryDataResponse {
         this.barcode = barcode;
     }
 
-    public String getProductSerialNumber() {
-        return productSerialNumber;
-    }
 
-    public void setProductSerialNumber(String productSerialNumber) {
-        this.productSerialNumber = productSerialNumber;
-    }
 
     public LocalDate getWarrantyStartDate() {
         return warrantyStartDate;
