@@ -36,6 +36,10 @@ public class BatteryDataService {
             savedBatteries = expandAndSaveBarcodes(dto, adminEmail);
         } else {
             // Single battery mode
+            if (dto.getBarcode() == null || dto.getBarcode().trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Barcode is required. Provide either 'barcode' for single registration or 'startBarcode'/'endBarcode' for bulk registration.");
+            }
             if (batteryDataRepository.existsByBarcode(dto.getBarcode())) {
                 throw new IllegalArgumentException(
                         "Battery with barcode " + dto.getBarcode() + " already exists");
