@@ -41,6 +41,7 @@ import com.bentork.ev_system.exception.domain.UnauthorizedSessionAccessException
 import com.bentork.ev_system.exception.domain.RFIDCardException;
 import com.bentork.ev_system.exception.domain.StationUnderMaintenanceException;
 import com.bentork.ev_system.exception.domain.SlotReservedException;
+import com.bentork.ev_system.exception.domain.InvalidExcelFileException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -291,6 +292,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RFIDCardException.class)
     public ResponseEntity<ErrorResponse> rfidCard(RFIDCardException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.BAD_REQUEST, ex.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidExcelFileException.class)
+    public ResponseEntity<ErrorResponse> invalidExcel(InvalidExcelFileException ex) {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.BAD_REQUEST, ex.getMessage()), HttpStatus.BAD_REQUEST);
     }

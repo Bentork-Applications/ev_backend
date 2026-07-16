@@ -3,6 +3,7 @@ package com.bentork.ev_system.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -14,10 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.bentork.ev_system.dto.request.BatteryDataDTO;
 import com.bentork.ev_system.dto.response.BatteryDataResponse;
+import com.bentork.ev_system.dto.response.BatteryExcelUploadResponse;
 import com.bentork.ev_system.service.BatteryDataService;
+import com.bentork.ev_system.service.BatteryExcelService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class BatteryDataController {
 
     private final BatteryDataService batteryDataService;
+    private final BatteryExcelService batteryExcelService;
 
     // ==================== ADMIN/STAFF ENDPOINTS ====================
 
@@ -47,6 +52,24 @@ public class BatteryDataController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    /**
+     * Register batteries from uploaded Excel file.
+     * Accessible by ADMIN and ADMIN_STAFF.
+     *
+     * Expected Excel columns: customerName, productDetails, invoiceNumber,
+     * barcode, warrantyStartDate (yyyy-MM-dd), warrantyEndDate (yyyy-MM-dd)
+     */
+    @PostMapping(value = "/admin/register/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    public ResponseEntity<BatteryExcelUploadResponse> registerBatteriesFromExcel(
+            @RequestParam("file") MultipartFile file) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Admin/Staff {} uploading Excel file for battery registration: {}",
+                adminEmail, file.getOriginalFilename());
+        BatteryExcelUploadResponse response = batteryExcelService.registerBatteriesFromExcel(file, adminEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
