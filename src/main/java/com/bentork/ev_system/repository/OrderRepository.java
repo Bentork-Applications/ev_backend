@@ -11,17 +11,23 @@ import com.bentork.ev_system.model.Order;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // User queries
-    List<Order> findByAssignedToUserIdOrderByCreatedAtDesc(Long userId);
-    List<Order> findByAssignedToUserEmailOrderByCreatedAtDesc(String email);
-    Optional<Order> findByIdAndAssignedToUserEmail(Long id, String email);
+    // Sales Admin queries — orders created by a specific admin
+    List<Order> findByCreatedByAdminEmailOrderByCreatedAtDesc(String email);
 
-    // Admin queries
+    // Production Admin queries — orders by production status
+    List<Order> findByProductionStatusInOrderByCreatedAtDesc(List<String> statuses);
+    List<Order> findByProductionStatusOrderByCreatedAtDesc(String productionStatus);
+
+    // SCM Admin queries — orders where production is completed
+    List<Order> findByProductionStatusAndOrderStatusOrderByCreatedAtDesc(String productionStatus, String orderStatus);
+
+    // General queries
     List<Order> findAllByOrderByCreatedAtDesc();
-    List<Order> findByStatusOrderByCreatedAtDesc(String status);
+    List<Order> findByOrderStatusOrderByCreatedAtDesc(String orderStatus);
     Optional<Order> findByOrderNumber(String orderNumber);
+    Optional<Order> findByPiNumber(String piNumber);
 
     // Stats
-    long countByStatus(String status);
-    long countByAssignedToUserId(Long userId);
+    long countByOrderStatus(String orderStatus);
+    long countByProductionStatus(String productionStatus);
 }

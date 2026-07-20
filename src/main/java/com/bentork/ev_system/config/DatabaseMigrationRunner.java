@@ -54,5 +54,22 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             log.warn("Could not drop product_serial_number (it might already be removed): {}", e.getMessage());
         }
 
+        // ==================== Order Tracking Migration ====================
+        // The Order entity has been replaced with the new 3-stage order tracking system.
+        // JPA ddl-auto=update will add new columns, but old columns must be dropped manually.
+        String[] oldOrderColumns = {
+            "title", "description", "status", "assigned_to_user_id", "assigned_to_user_email",
+            "assigned_to_user_name", "last_updated_by_admin_email", "cancel_reason", "admin_notes",
+            "in_progress_at", "testing_at", "completed_at", "delivered_at", "cancelled_at"
+        };
+        for (String col : oldOrderColumns) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE orders DROP COLUMN " + col);
+                log.info("Dropped old orders column: {}", col);
+            } catch (Exception e) {
+                log.warn("Could not drop orders column '{}' (may already be removed): {}", col, e.getMessage());
+            }
+        }
+
     }
 }

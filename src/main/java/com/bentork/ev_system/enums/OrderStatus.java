@@ -1,22 +1,21 @@
 package com.bentork.ev_system.enums;
 
 /**
- * Enum representing the lifecycle states of an order.
+ * Enum representing the lifecycle states of a sales order.
  *
  * Status flow:
- * PENDING -> IN_PROGRESS -> TESTING -> COMPLETED -> DISPATCHED -> DELIVERED
+ * SALES_REGISTERED -> IN_PRODUCTION -> PRODUCTION_COMPLETE -> SCM_COMPLETE -> DISPATCHED
  * (Any non-terminal) -> CANCELLED
  *
  * All values are stored in LOWERCASE for consistency.
  */
 public enum OrderStatus {
 
-    PENDING("pending"),
-    IN_PROGRESS("in_progress"),
-    TESTING("testing"),
-    COMPLETED("completed"),
+    SALES_REGISTERED("sales_registered"),
+    IN_PRODUCTION("in_production"),
+    PRODUCTION_COMPLETE("production_complete"),
+    SCM_COMPLETE("scm_complete"),
     DISPATCHED("dispatched"),
-    DELIVERED("delivered"),
     CANCELLED("cancelled");
 
     private final String value;
@@ -40,18 +39,16 @@ public enum OrderStatus {
         String normalized = status.toLowerCase().trim();
 
         switch (normalized) {
-            case "pending":
-                return PENDING;
-            case "in_progress":
-                return IN_PROGRESS;
-            case "testing":
-                return TESTING;
-            case "completed":
-                return COMPLETED;
+            case "sales_registered":
+                return SALES_REGISTERED;
+            case "in_production":
+                return IN_PRODUCTION;
+            case "production_complete":
+                return PRODUCTION_COMPLETE;
+            case "scm_complete":
+                return SCM_COMPLETE;
             case "dispatched":
                 return DISPATCHED;
-            case "delivered":
-                return DELIVERED;
             case "cancelled":
                 return CANCELLED;
             default:
@@ -77,27 +74,25 @@ public enum OrderStatus {
             return false;
         }
 
-        // Cancelled and Delivered are terminal states
-        if (current == CANCELLED || current == DELIVERED) {
+        // Cancelled and Dispatched are terminal states
+        if (current == CANCELLED || current == DISPATCHED) {
             return false;
         }
-        
+
         // Allowed to cancel from any non-terminal state
         if (next == CANCELLED) {
             return true;
         }
 
         switch (current) {
-            case PENDING:
-                return next == IN_PROGRESS;
-            case IN_PROGRESS:
-                return next == TESTING;
-            case TESTING:
-                return next == COMPLETED;
-            case COMPLETED:
+            case SALES_REGISTERED:
+                return next == IN_PRODUCTION;
+            case IN_PRODUCTION:
+                return next == PRODUCTION_COMPLETE;
+            case PRODUCTION_COMPLETE:
+                return next == SCM_COMPLETE;
+            case SCM_COMPLETE:
                 return next == DISPATCHED;
-            case DISPATCHED:
-                return next == DELIVERED;
             default:
                 return false;
         }

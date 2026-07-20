@@ -1,35 +1,46 @@
 package com.bentork.ev_system.dto.response;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class OrderResponse {
 
     private Long id;
     private String orderNumber;
-    private String title;
-    private String description;
-    private String priority;
-    private String status;
-    private String assignedToUserName;
-    private String assignedToUserEmail;
-    private Long assignedToUserId;
-    private String createdByAdminEmail;
-    private String lastUpdatedByAdminEmail;
-    private String cancelReason;
-    private String adminNotes;
 
-    // Timeline timestamps
+    // Sales stage fields
+    private String customerName;
+    private String piNumber;
+    private String productDetails;
+    private String mobileNumber;
+    private LocalDate expectedDeliveryDate;
+    private String paymentStatus;
+    private String priority;
+
+    // Lifecycle status
+    private String orderStatus;
+
+    // Production stage fields
+    private String productionStatus;
+
+    // SCM stage fields
+    private String barcode;
+    private Integer serviceWarrantyMonths;
+    private Integer fullWarrantyMonths;
+    private Integer totalWarrantyMonths;
+    private String trackingId;
+
+    // Audit fields
+    private String createdByAdminEmail;
+    private String productionUpdatedByEmail;
+    private String scmUpdatedByEmail;
+
+    // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private LocalDateTime inProgressAt;
-    private LocalDateTime testingAt;
-    private LocalDateTime completedAt;
+    private LocalDateTime productionCompletedAt;
+    private LocalDateTime scmCompletedAt;
     private LocalDateTime dispatchedAt;
-    private LocalDateTime deliveredAt;
-    private LocalDateTime cancelledAt;
-
-    // Computed duration in hours (if completed)
-    private Double processingDurationHours;
 
     // Getters and Setters
 
@@ -49,20 +60,52 @@ public class OrderResponse {
         this.orderNumber = orderNumber;
     }
 
-    public String getTitle() {
-        return title;
+    public String getCustomerName() {
+        return customerName;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 
-    public String getDescription() {
-        return description;
+    public String getPiNumber() {
+        return piNumber;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setPiNumber(String piNumber) {
+        this.piNumber = piNumber;
+    }
+
+    public String getProductDetails() {
+        return productDetails;
+    }
+
+    public void setProductDetails(String productDetails) {
+        this.productDetails = productDetails;
+    }
+
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
+    }
+
+    public LocalDate getExpectedDeliveryDate() {
+        return expectedDeliveryDate;
+    }
+
+    public void setExpectedDeliveryDate(LocalDate expectedDeliveryDate) {
+        this.expectedDeliveryDate = expectedDeliveryDate;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
     }
 
     public String getPriority() {
@@ -73,36 +116,60 @@ public class OrderResponse {
         this.priority = priority;
     }
 
-    public String getStatus() {
-        return status;
+    public String getOrderStatus() {
+        return orderStatus;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setOrderStatus(String orderStatus) {
+        this.orderStatus = orderStatus;
     }
 
-    public String getAssignedToUserName() {
-        return assignedToUserName;
+    public String getProductionStatus() {
+        return productionStatus;
     }
 
-    public void setAssignedToUserName(String assignedToUserName) {
-        this.assignedToUserName = assignedToUserName;
+    public void setProductionStatus(String productionStatus) {
+        this.productionStatus = productionStatus;
     }
 
-    public String getAssignedToUserEmail() {
-        return assignedToUserEmail;
+    public String getBarcode() {
+        return barcode;
     }
 
-    public void setAssignedToUserEmail(String assignedToUserEmail) {
-        this.assignedToUserEmail = assignedToUserEmail;
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
     }
 
-    public Long getAssignedToUserId() {
-        return assignedToUserId;
+    public Integer getServiceWarrantyMonths() {
+        return serviceWarrantyMonths;
     }
 
-    public void setAssignedToUserId(Long assignedToUserId) {
-        this.assignedToUserId = assignedToUserId;
+    public void setServiceWarrantyMonths(Integer serviceWarrantyMonths) {
+        this.serviceWarrantyMonths = serviceWarrantyMonths;
+    }
+
+    public Integer getFullWarrantyMonths() {
+        return fullWarrantyMonths;
+    }
+
+    public void setFullWarrantyMonths(Integer fullWarrantyMonths) {
+        this.fullWarrantyMonths = fullWarrantyMonths;
+    }
+
+    public Integer getTotalWarrantyMonths() {
+        return totalWarrantyMonths;
+    }
+
+    public void setTotalWarrantyMonths(Integer totalWarrantyMonths) {
+        this.totalWarrantyMonths = totalWarrantyMonths;
+    }
+
+    public String getTrackingId() {
+        return trackingId;
+    }
+
+    public void setTrackingId(String trackingId) {
+        this.trackingId = trackingId;
     }
 
     public String getCreatedByAdminEmail() {
@@ -113,28 +180,20 @@ public class OrderResponse {
         this.createdByAdminEmail = createdByAdminEmail;
     }
 
-    public String getLastUpdatedByAdminEmail() {
-        return lastUpdatedByAdminEmail;
+    public String getProductionUpdatedByEmail() {
+        return productionUpdatedByEmail;
     }
 
-    public void setLastUpdatedByAdminEmail(String lastUpdatedByAdminEmail) {
-        this.lastUpdatedByAdminEmail = lastUpdatedByAdminEmail;
+    public void setProductionUpdatedByEmail(String productionUpdatedByEmail) {
+        this.productionUpdatedByEmail = productionUpdatedByEmail;
     }
 
-    public String getCancelReason() {
-        return cancelReason;
+    public String getScmUpdatedByEmail() {
+        return scmUpdatedByEmail;
     }
 
-    public void setCancelReason(String cancelReason) {
-        this.cancelReason = cancelReason;
-    }
-
-    public String getAdminNotes() {
-        return adminNotes;
-    }
-
-    public void setAdminNotes(String adminNotes) {
-        this.adminNotes = adminNotes;
+    public void setScmUpdatedByEmail(String scmUpdatedByEmail) {
+        this.scmUpdatedByEmail = scmUpdatedByEmail;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -153,28 +212,20 @@ public class OrderResponse {
         this.updatedAt = updatedAt;
     }
 
-    public LocalDateTime getInProgressAt() {
-        return inProgressAt;
+    public LocalDateTime getProductionCompletedAt() {
+        return productionCompletedAt;
     }
 
-    public void setInProgressAt(LocalDateTime inProgressAt) {
-        this.inProgressAt = inProgressAt;
+    public void setProductionCompletedAt(LocalDateTime productionCompletedAt) {
+        this.productionCompletedAt = productionCompletedAt;
     }
 
-    public LocalDateTime getTestingAt() {
-        return testingAt;
+    public LocalDateTime getScmCompletedAt() {
+        return scmCompletedAt;
     }
 
-    public void setTestingAt(LocalDateTime testingAt) {
-        this.testingAt = testingAt;
-    }
-
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
+    public void setScmCompletedAt(LocalDateTime scmCompletedAt) {
+        this.scmCompletedAt = scmCompletedAt;
     }
 
     public LocalDateTime getDispatchedAt() {
@@ -183,29 +234,5 @@ public class OrderResponse {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
-    }
-
-    public LocalDateTime getDeliveredAt() {
-        return deliveredAt;
-    }
-
-    public void setDeliveredAt(LocalDateTime deliveredAt) {
-        this.deliveredAt = deliveredAt;
-    }
-
-    public LocalDateTime getCancelledAt() {
-        return cancelledAt;
-    }
-
-    public void setCancelledAt(LocalDateTime cancelledAt) {
-        this.cancelledAt = cancelledAt;
-    }
-
-    public Double getProcessingDurationHours() {
-        return processingDurationHours;
-    }
-
-    public void setProcessingDurationHours(Double processingDurationHours) {
-        this.processingDurationHours = processingDurationHours;
     }
 }

@@ -1,37 +1,83 @@
 package com.bentork.ev_system.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
 public class CreateOrderDTO {
 
-    private Long assignToUserId;
-    private String title;
-    private String description;
-    private String priority = "medium"; // low, medium, high, urgent
-    private String adminNotes;
+    @NotBlank(message = "Customer name is required")
+    private String customerName;
+
+    @NotBlank(message = "P.I. Number is required")
+    private String piNumber;
+
+    @NotBlank(message = "Product details are required")
+    private String productDetails;
+
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(regexp = "^[0-9]{10}$", message = "Mobile number must be 10 digits")
+    private String mobileNumber;
+
+    @NotNull(message = "Expected delivery date is required")
+    private String expectedDeliveryDate; // ISO date format: yyyy-MM-dd
+
+    @NotBlank(message = "Payment status is required")
+    @Pattern(regexp = "^(pending|paid)$", message = "Payment status must be 'pending' or 'paid'")
+    private String paymentStatus;
+
+    @NotBlank(message = "Priority is required")
+    @Pattern(regexp = "^(low|medium|high)$", message = "Priority must be 'low', 'medium', or 'high'")
+    private String priority;
 
     // Getters and Setters
 
-    public Long getAssignToUserId() {
-        return assignToUserId;
+    public String getCustomerName() {
+        return customerName;
     }
 
-    public void setAssignToUserId(Long assignToUserId) {
-        this.assignToUserId = assignToUserId;
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 
-    public String getTitle() {
-        return title;
+    public String getPiNumber() {
+        return piNumber;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setPiNumber(String piNumber) {
+        this.piNumber = piNumber;
     }
 
-    public String getDescription() {
-        return description;
+    public String getProductDetails() {
+        return productDetails;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setProductDetails(String productDetails) {
+        this.productDetails = productDetails;
+    }
+
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
+    }
+
+    public String getExpectedDeliveryDate() {
+        return expectedDeliveryDate;
+    }
+
+    public void setExpectedDeliveryDate(String expectedDeliveryDate) {
+        this.expectedDeliveryDate = expectedDeliveryDate;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
     }
 
     public String getPriority() {
@@ -40,13 +86,5 @@ public class CreateOrderDTO {
 
     public void setPriority(String priority) {
         this.priority = priority;
-    }
-
-    public String getAdminNotes() {
-        return adminNotes;
-    }
-
-    public void setAdminNotes(String adminNotes) {
-        this.adminNotes = adminNotes;
     }
 }

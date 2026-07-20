@@ -15,12 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bentork.ev_system.dto.request.AssignOrderDTO;
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
-import com.bentork.ev_system.dto.request.UpdateOrderStatusDTO;
+import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
+import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
 import com.bentork.ev_system.dto.response.OrderResponse;
 import com.bentork.ev_system.service.OrderService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,43 +33,16 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    // ==================== USER (MOBILE APP) ENDPOINTS ====================
+    // ==================== SALES ADMIN ENDPOINTS ====================
 
     /**
-     * List user's own assigned orders.
+     * Create a new order (Sales Admin only).
      */
-    @GetMapping("/user/my-orders")
-    @PreAuthorize("hasAuthority('ROLE_USER')")
-    public ResponseEntity<List<OrderResponse>> getMyOrders() {
-        String userEmail = getCurrentUserEmail();
-        log.info("Fetching orders for user {}", userEmail);
-        return ResponseEntity.ok(orderService.getMyOrders(userEmail));
-    }
-
-    /**
-     * View a specific order detail (user must own the order).
-     */
-    @GetMapping("/user/{id}")
-    @PreAuthorize("hasAuthority('ROLE_USER')")
-    public ResponseEntity<?> getMyOrderDetail(@PathVariable Long id) {
-        String userEmail = getCurrentUserEmail();
-        try {
-            return ResponseEntity.ok(orderService.getMyOrderDetail(id, userEmail));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
-    }
-
-    // ==================== ADMIN/STAFF ENDPOINTS ====================
-
-    /**
-     * Create and assign a new order.
-     */
-    @PostMapping("/admin/create")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<?> createOrder(@RequestBody CreateOrderDTO dto) {
+    @PostMapping("/sales/create")
+    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    public ResponseEntity<?> createOrder(@Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} creating a new order", adminEmail);
+        log.info("Sales Admin {} creating a new order", adminEmail);
         try {
             OrderResponse response = orderService.createOrder(dto, adminEmail);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -78,65 +52,162 @@ public class OrderController {
     }
 
     /**
-     * Get all orders.
+     * List orders created by the current Sales Admin.
      */
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<List<OrderResponse>> getAllOrders() {
-        log.info("Admin/Staff fetching all orders");
-        return ResponseEntity.ok(orderService.getAllOrders());
+    @GetMapping("/sales/my-orders")
+    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getSalesAdminOrders() {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Sales Admin {} fetching their orders", adminEmail);
+        return ResponseEntity.ok(orderService.getSalesAdminOrders(adminEmail));
     }
 
     /**
-     * Filter orders by status.
+     * View a specific order detail (Sales Admin — must be the creator).
      */
-    @GetMapping("/admin/status/{status}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<List<OrderResponse>> getOrdersByStatus(@PathVariable String status) {
-        log.info("Admin/Staff fetching orders by status: {}", status);
-        return ResponseEntity.ok(orderService.getOrdersByStatus(status));
-    }
-
-    /**
-     * Get a specific order detail (admin view).
-     */
-    @GetMapping("/admin/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<?> getOrderDetail(@PathVariable Long id) {
+    @GetMapping("/sales/{id}")
+    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    public ResponseEntity<?> getSalesAdminOrderDetail(@PathVariable Long id) {
+        String adminEmail = getCurrentUserEmail();
         try {
-            return ResponseEntity.ok(orderService.getOrderDetail(id));
+            return ResponseEntity.ok(orderService.getSalesAdminOrderDetail(id, adminEmail));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 
     /**
-     * Update order status.
+     * Update sales-stage fields on an order (Sales Admin — must be the creator, order still in SALES_REGISTERED).
      */
-    @PutMapping("/admin/{id}/update-status")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, @RequestBody UpdateOrderStatusDTO dto) {
+    @PutMapping("/sales/{id}/update")
+    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    public ResponseEntity<?> updateSalesOrder(@PathVariable Long id, @Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} updating status for order {}", adminEmail, id);
+        log.info("Sales Admin {} updating order {}", adminEmail, id);
         try {
-            return ResponseEntity.ok(orderService.updateOrderStatus(id, dto, adminEmail));
+            return ResponseEntity.ok(orderService.updateSalesOrder(id, dto, adminEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== PRODUCTION ADMIN ENDPOINTS ====================
+
+    /**
+     * List orders in the production pipeline (pending or in_progress).
+     */
+    @GetMapping("/production/orders")
+    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getProductionOrders() {
+        log.info("Production Admin fetching production orders");
+        return ResponseEntity.ok(orderService.getProductionOrders());
+    }
+
+    /**
+     * View a specific order detail (Production Admin).
+     */
+    @GetMapping("/production/{id}")
+    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    public ResponseEntity<?> getProductionOrderDetail(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(orderService.getProductionOrderDetail(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Update production status only (Production Admin).
+     */
+    @PutMapping("/production/{id}/status")
+    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    public ResponseEntity<?> updateProductionStatus(@PathVariable Long id, @Valid @RequestBody UpdateProductionStatusDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Production Admin {} updating production status for order {}", adminEmail, id);
+        try {
+            return ResponseEntity.ok(orderService.updateProductionStatus(id, dto, adminEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== SCM ADMIN ENDPOINTS ====================
+
+    /**
+     * List orders where production is completed (ready for SCM).
+     */
+    @GetMapping("/scm/orders")
+    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getScmOrders() {
+        log.info("SCM Admin fetching SCM-ready orders");
+        return ResponseEntity.ok(orderService.getScmOrders());
+    }
+
+    /**
+     * View a specific order detail (SCM Admin).
+     */
+    @GetMapping("/scm/{id}")
+    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    public ResponseEntity<?> getScmOrderDetail(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(orderService.getScmOrderDetail(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Fill SCM details (barcode, warranty, tracking) and mark order as SCM_COMPLETE.
+     */
+    @PutMapping("/scm/{id}/complete")
+    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    public ResponseEntity<?> updateScmDetails(@PathVariable Long id, @Valid @RequestBody UpdateScmDetailsDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("SCM Admin {} filling SCM details for order {}", adminEmail, id);
+        try {
+            return ResponseEntity.ok(orderService.updateScmDetails(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     /**
-     * Reassign an order to a different user.
+     * Mark an SCM-complete order as dispatched.
      */
-    @PutMapping("/admin/{id}/reassign")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<?> reassignOrder(@PathVariable Long id, @RequestBody AssignOrderDTO dto) {
+    @PutMapping("/scm/{id}/dispatch")
+    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    public ResponseEntity<?> markDispatched(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} reassigning order {}", adminEmail, id);
+        log.info("SCM Admin {} dispatching order {}", adminEmail, id);
         try {
-            return ResponseEntity.ok(orderService.reassignOrder(id, dto, adminEmail));
+            return ResponseEntity.ok(orderService.markDispatched(id, adminEmail));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==================== ADMIN (SUPER) ENDPOINTS ====================
+
+    /**
+     * Get all orders (Super Admin view).
+     */
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getAllOrders() {
+        log.info("Admin fetching all orders");
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    /**
+     * Get a specific order detail (Super Admin view).
+     */
+    @GetMapping("/admin/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> getOrderDetail(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(orderService.getOrderDetail(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 

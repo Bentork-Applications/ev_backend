@@ -176,9 +176,11 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/support-requests/dealer/**").hasAuthority("DEALER")
                                                 .requestMatchers("/api/support-requests/admin/**").hasAuthority("ADMIN")
 
-                                                // Order Tracking - role-specific access
-                                                .requestMatchers("/api/orders/user/**").hasAuthority("ROLE_USER")
-                                                .requestMatchers("/api/orders/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
+                                                // Order Tracking - role-specific access (3-stage workflow)
+                                                .requestMatchers("/api/orders/sales/**").hasAuthority("SALES_ADMIN")
+                                                .requestMatchers("/api/orders/production/**").hasAuthority("PRODUCTION_ADMIN")
+                                                .requestMatchers("/api/orders/scm/**").hasAuthority("SCM_ADMIN")
+                                                .requestMatchers("/api/orders/admin/**").hasAuthority("ADMIN")
 
                                                 // Everything else requires login
                                                 .anyRequest().authenticated())

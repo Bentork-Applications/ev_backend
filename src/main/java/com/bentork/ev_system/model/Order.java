@@ -1,20 +1,29 @@
 package com.bentork.ev_system.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.bentork.ev_system.enums.OrderStatus;
+import com.bentork.ev_system.enums.PaymentStatus;
+import com.bentork.ev_system.enums.ProductionStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+        @Index(name = "idx_order_pi_number", columnList = "piNumber"),
+        @Index(name = "idx_order_status", columnList = "orderStatus"),
+        @Index(name = "idx_order_production_status", columnList = "productionStatus"),
+        @Index(name = "idx_order_created_by", columnList = "createdByAdminEmail")
+})
 public class Order {
 
     @Id
@@ -24,61 +33,85 @@ public class Order {
     @Column(unique = true, nullable = false)
     private String orderNumber;
 
-    @Column(nullable = false)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    // ==================== SALES STAGE FIELDS ====================
 
     @Column(nullable = false)
-    private String priority = "medium"; // low, medium, high, urgent
+    private String customerName;
 
     @Column(nullable = false)
-    private String status = OrderStatus.PENDING.getValue();
+    private String piNumber;
 
     @Column(nullable = false)
-    private Long assignedToUserId;
+    private String productDetails;
 
     @Column(nullable = false)
-    private String assignedToUserEmail;
+    private String mobileNumber;
 
-    private String assignedToUserName;
+    @Column(nullable = false)
+    private LocalDate expectedDeliveryDate;
+
+    @Column(nullable = false)
+    private String paymentStatus = PaymentStatus.PENDING.getValue();
+
+    @Column(nullable = false)
+    private String priority = "medium"; // low, medium, high
+
+    // ==================== LIFECYCLE STATUS ====================
+
+    @Column(nullable = false)
+    private String orderStatus = OrderStatus.SALES_REGISTERED.getValue();
+
+    // ==================== PRODUCTION STAGE FIELDS ====================
+
+    private String productionStatus = ProductionStatus.PENDING.getValue();
+
+    // ==================== SCM STAGE FIELDS ====================
+
+    private String barcode;
+
+    private Integer serviceWarrantyMonths;
+
+    private Integer fullWarrantyMonths;
+
+    private Integer totalWarrantyMonths;
+
+    private String trackingId;
+
+    // ==================== AUDIT FIELDS ====================
 
     @Column(nullable = false)
     private String createdByAdminEmail;
 
-    private String lastUpdatedByAdminEmail;
+    private String productionUpdatedByEmail;
 
-    private String cancelReason;
+    private String scmUpdatedByEmail;
 
-    @Column(columnDefinition = "TEXT")
-    private String adminNotes;
+    // ==================== TIMESTAMPS ====================
 
-    // Lifecycle timestamps
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    private LocalDateTime inProgressAt;
+    private LocalDateTime productionCompletedAt;
 
-    private LocalDateTime testingAt;
-
-    private LocalDateTime completedAt;
+    private LocalDateTime scmCompletedAt;
 
     private LocalDateTime dispatchedAt;
-
-    private LocalDateTime deliveredAt;
-
-    private LocalDateTime cancelledAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        if (this.status == null) {
-            this.status = OrderStatus.PENDING.getValue();
+        if (this.orderStatus == null) {
+            this.orderStatus = OrderStatus.SALES_REGISTERED.getValue();
+        }
+        if (this.productionStatus == null) {
+            this.productionStatus = ProductionStatus.PENDING.getValue();
+        }
+        if (this.paymentStatus == null) {
+            this.paymentStatus = PaymentStatus.PENDING.getValue();
         }
     }
 
@@ -87,7 +120,7 @@ public class Order {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
+    // ==================== GETTERS AND SETTERS ====================
 
     public Long getId() {
         return id;
@@ -105,20 +138,52 @@ public class Order {
         this.orderNumber = orderNumber;
     }
 
-    public String getTitle() {
-        return title;
+    public String getCustomerName() {
+        return customerName;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 
-    public String getDescription() {
-        return description;
+    public String getPiNumber() {
+        return piNumber;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setPiNumber(String piNumber) {
+        this.piNumber = piNumber;
+    }
+
+    public String getProductDetails() {
+        return productDetails;
+    }
+
+    public void setProductDetails(String productDetails) {
+        this.productDetails = productDetails;
+    }
+
+    public String getMobileNumber() {
+        return mobileNumber;
+    }
+
+    public void setMobileNumber(String mobileNumber) {
+        this.mobileNumber = mobileNumber;
+    }
+
+    public LocalDate getExpectedDeliveryDate() {
+        return expectedDeliveryDate;
+    }
+
+    public void setExpectedDeliveryDate(LocalDate expectedDeliveryDate) {
+        this.expectedDeliveryDate = expectedDeliveryDate;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
     }
 
     public String getPriority() {
@@ -129,36 +194,60 @@ public class Order {
         this.priority = priority;
     }
 
-    public String getStatus() {
-        return status;
+    public String getOrderStatus() {
+        return orderStatus;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setOrderStatus(String orderStatus) {
+        this.orderStatus = orderStatus;
     }
 
-    public Long getAssignedToUserId() {
-        return assignedToUserId;
+    public String getProductionStatus() {
+        return productionStatus;
     }
 
-    public void setAssignedToUserId(Long assignedToUserId) {
-        this.assignedToUserId = assignedToUserId;
+    public void setProductionStatus(String productionStatus) {
+        this.productionStatus = productionStatus;
     }
 
-    public String getAssignedToUserEmail() {
-        return assignedToUserEmail;
+    public String getBarcode() {
+        return barcode;
     }
 
-    public void setAssignedToUserEmail(String assignedToUserEmail) {
-        this.assignedToUserEmail = assignedToUserEmail;
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
     }
 
-    public String getAssignedToUserName() {
-        return assignedToUserName;
+    public Integer getServiceWarrantyMonths() {
+        return serviceWarrantyMonths;
     }
 
-    public void setAssignedToUserName(String assignedToUserName) {
-        this.assignedToUserName = assignedToUserName;
+    public void setServiceWarrantyMonths(Integer serviceWarrantyMonths) {
+        this.serviceWarrantyMonths = serviceWarrantyMonths;
+    }
+
+    public Integer getFullWarrantyMonths() {
+        return fullWarrantyMonths;
+    }
+
+    public void setFullWarrantyMonths(Integer fullWarrantyMonths) {
+        this.fullWarrantyMonths = fullWarrantyMonths;
+    }
+
+    public Integer getTotalWarrantyMonths() {
+        return totalWarrantyMonths;
+    }
+
+    public void setTotalWarrantyMonths(Integer totalWarrantyMonths) {
+        this.totalWarrantyMonths = totalWarrantyMonths;
+    }
+
+    public String getTrackingId() {
+        return trackingId;
+    }
+
+    public void setTrackingId(String trackingId) {
+        this.trackingId = trackingId;
     }
 
     public String getCreatedByAdminEmail() {
@@ -169,37 +258,20 @@ public class Order {
         this.createdByAdminEmail = createdByAdminEmail;
     }
 
-    public String getLastUpdatedByAdminEmail() {
-        return lastUpdatedByAdminEmail;
+    public String getProductionUpdatedByEmail() {
+        return productionUpdatedByEmail;
     }
 
-    public void setLastUpdatedByAdminEmail(String lastUpdatedByAdminEmail) {
-        this.lastUpdatedByAdminEmail = lastUpdatedByAdminEmail;
+    public void setProductionUpdatedByEmail(String productionUpdatedByEmail) {
+        this.productionUpdatedByEmail = productionUpdatedByEmail;
     }
 
-    public String getCancelReason() {
-        return cancelReason;
+    public String getScmUpdatedByEmail() {
+        return scmUpdatedByEmail;
     }
 
-    public void setCancelReason(String cancelReason) {
-        this.cancelReason = cancelReason;
-    }
-
-    public String getAdminNotes() {
-        return adminNotes;
-    }
-
-    public void setAdminNotes(String adminNotes) {
-        this.adminNotes = adminNotes;
-    }
-
-    public void appendAdminNote(String note) {
-        if (note != null && !note.trim().isEmpty()) {
-            if (this.adminNotes == null) {
-                this.adminNotes = "";
-            }
-            this.adminNotes += "\n[" + LocalDateTime.now().toString() + "] " + note;
-        }
+    public void setScmUpdatedByEmail(String scmUpdatedByEmail) {
+        this.scmUpdatedByEmail = scmUpdatedByEmail;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -218,28 +290,20 @@ public class Order {
         this.updatedAt = updatedAt;
     }
 
-    public LocalDateTime getInProgressAt() {
-        return inProgressAt;
+    public LocalDateTime getProductionCompletedAt() {
+        return productionCompletedAt;
     }
 
-    public void setInProgressAt(LocalDateTime inProgressAt) {
-        this.inProgressAt = inProgressAt;
+    public void setProductionCompletedAt(LocalDateTime productionCompletedAt) {
+        this.productionCompletedAt = productionCompletedAt;
     }
 
-    public LocalDateTime getTestingAt() {
-        return testingAt;
+    public LocalDateTime getScmCompletedAt() {
+        return scmCompletedAt;
     }
 
-    public void setTestingAt(LocalDateTime testingAt) {
-        this.testingAt = testingAt;
-    }
-
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
+    public void setScmCompletedAt(LocalDateTime scmCompletedAt) {
+        this.scmCompletedAt = scmCompletedAt;
     }
 
     public LocalDateTime getDispatchedAt() {
@@ -248,21 +312,5 @@ public class Order {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
-    }
-
-    public LocalDateTime getDeliveredAt() {
-        return deliveredAt;
-    }
-
-    public void setDeliveredAt(LocalDateTime deliveredAt) {
-        this.deliveredAt = deliveredAt;
-    }
-
-    public LocalDateTime getCancelledAt() {
-        return cancelledAt;
-    }
-
-    public void setCancelledAt(LocalDateTime cancelledAt) {
-        this.cancelledAt = cancelledAt;
     }
 }

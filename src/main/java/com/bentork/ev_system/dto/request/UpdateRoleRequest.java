@@ -12,7 +12,7 @@ public class UpdateRoleRequest {
     private Long adminId;
 
     @NotNull(message = "Role is required")
-    @Pattern(regexp = "^(ADMIN|DEALER|ADMIN_STAFF)$", message = "Role must be ADMIN, DEALER, or ADMIN_STAFF")
+    @Pattern(regexp = "^(ADMIN|DEALER|ADMIN_STAFF|SALES_ADMIN|PRODUCTION_ADMIN|SCM_ADMIN)$", message = "Role must be ADMIN, DEALER, ADMIN_STAFF, SALES_ADMIN, PRODUCTION_ADMIN, or SCM_ADMIN")
     private String role;
 
     // Default constructor
