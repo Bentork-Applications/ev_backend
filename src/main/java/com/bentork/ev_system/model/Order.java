@@ -70,6 +70,8 @@ public class Order {
 
     // ==================== SCM STAGE FIELDS ====================
 
+    private String invoiceNumber;
+
     private String barcode;
 
     private Integer serviceWarrantyMonths;
@@ -219,6 +221,14 @@ public class Order {
 
     public void setProductionStatus(String productionStatus) {
         this.productionStatus = productionStatus;
+    }
+
+    public String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
     }
 
     public String getBarcode() {

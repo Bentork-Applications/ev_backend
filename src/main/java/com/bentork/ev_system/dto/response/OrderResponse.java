@@ -2,6 +2,7 @@ package com.bentork.ev_system.dto.response;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class OrderResponse {
 
@@ -25,7 +26,8 @@ public class OrderResponse {
     private String productionStatus;
 
     // SCM stage fields
-    private String barcode;
+    private String invoiceNumber;
+    private List<String> barcodes;
     private Integer serviceWarrantyMonths;
     private Integer fullWarrantyMonths;
     private Integer totalWarrantyMonths;
@@ -141,12 +143,20 @@ public class OrderResponse {
         this.productionStatus = productionStatus;
     }
 
-    public String getBarcode() {
-        return barcode;
+    public String getInvoiceNumber() {
+        return invoiceNumber;
     }
 
-    public void setBarcode(String barcode) {
-        this.barcode = barcode;
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
+    }
+
+    public List<String> getBarcodes() {
+        return barcodes;
+    }
+
+    public void setBarcodes(List<String> barcodes) {
+        this.barcodes = barcodes;
     }
 
     public Integer getServiceWarrantyMonths() {

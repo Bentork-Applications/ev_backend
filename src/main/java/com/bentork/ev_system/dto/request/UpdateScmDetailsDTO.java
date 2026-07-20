@@ -2,12 +2,17 @@ package com.bentork.ev_system.dto.request;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 public class UpdateScmDetailsDTO {
 
-    @NotBlank(message = "Barcode is required")
-    private String barcode;
+    @NotEmpty(message = "At least one barcode is required")
+    private List<String> barcodes;
+
+    @NotBlank(message = "Invoice number is required")
+    private String invoiceNumber;
 
     @NotNull(message = "Service warranty (months) is required")
     @Min(value = 0, message = "Service warranty must be 0 or more months")
@@ -22,12 +27,20 @@ public class UpdateScmDetailsDTO {
 
     // Getters and Setters
 
-    public String getBarcode() {
-        return barcode;
+    public List<String> getBarcodes() {
+        return barcodes;
     }
 
-    public void setBarcode(String barcode) {
-        this.barcode = barcode;
+    public void setBarcodes(List<String> barcodes) {
+        this.barcodes = barcodes;
+    }
+
+    public String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
     }
 
     public Integer getServiceWarrantyMonths() {
