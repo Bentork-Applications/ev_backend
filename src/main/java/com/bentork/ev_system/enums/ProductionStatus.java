@@ -3,14 +3,15 @@ package com.bentork.ev_system.enums;
 /**
  * Enum representing production stage statuses.
  *
- * Status flow: PENDING -> IN_PROGRESS -> COMPLETED
+ * Status flow: CONFIRM -> IN_PROGRESS -> TESTING -> COMPLETED
  *
  * All values are stored in LOWERCASE for consistency.
  */
 public enum ProductionStatus {
 
-    PENDING("pending"),
+    CONFIRM("confirm"),
     IN_PROGRESS("in_progress"),
+    TESTING("testing"),
     COMPLETED("completed");
 
     private final String value;
@@ -34,10 +35,12 @@ public enum ProductionStatus {
         String normalized = status.toLowerCase().trim();
 
         switch (normalized) {
-            case "pending":
-                return PENDING;
+            case "confirm":
+                return CONFIRM;
             case "in_progress":
                 return IN_PROGRESS;
+            case "testing":
+                return TESTING;
             case "completed":
                 return COMPLETED;
             default:
@@ -64,9 +67,11 @@ public enum ProductionStatus {
         }
 
         switch (current) {
-            case PENDING:
+            case CONFIRM:
                 return next == IN_PROGRESS;
             case IN_PROGRESS:
+                return next == TESTING;
+            case TESTING:
                 return next == COMPLETED;
             default:
                 return false;

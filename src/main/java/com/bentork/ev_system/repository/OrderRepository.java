@@ -18,8 +18,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByProductionStatusInOrderByCreatedAtDesc(List<String> statuses);
     List<Order> findByProductionStatusOrderByCreatedAtDesc(String productionStatus);
 
-    // SCM Admin queries — orders where production is completed
-    List<Order> findByProductionStatusAndOrderStatusOrderByCreatedAtDesc(String productionStatus, String orderStatus);
+    // SCM Admin queries — orders where production is completed, or already processed by SCM
+    List<Order> findByOrderStatusInOrderByCreatedAtDesc(List<String> orderStatuses);
 
     // General queries
     List<Order> findAllByOrderByCreatedAtDesc();

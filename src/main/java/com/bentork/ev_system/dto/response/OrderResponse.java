@@ -12,6 +12,7 @@ public class OrderResponse {
     private String customerName;
     private String piNumber;
     private String productDetails;
+    private Integer quantity;
     private String mobileNumber;
     private LocalDate expectedDeliveryDate;
     private String paymentStatus;
@@ -82,6 +83,14 @@ public class OrderResponse {
 
     public void setProductDetails(String productDetails) {
         this.productDetails = productDetails;
+    }
+
+    public Integer getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
     }
 
     public String getMobileNumber() {

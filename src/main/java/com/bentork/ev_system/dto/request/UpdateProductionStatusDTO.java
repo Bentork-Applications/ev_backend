@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 public class UpdateProductionStatusDTO {
 
     @NotBlank(message = "Production status is required")
-    @Pattern(regexp = "^(pending|in_progress|completed)$", message = "Production status must be 'pending', 'in_progress', or 'completed'")
+    @Pattern(regexp = "^(confirm|in_progress|testing|completed)$", message = "Production status must be 'confirm', 'in_progress', 'testing', or 'completed'")
     private String productionStatus;
 
     // Getters and Setters

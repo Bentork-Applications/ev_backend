@@ -48,12 +48,13 @@ public class OrderService {
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
         order.setProductDetails(dto.getProductDetails());
+        order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
         order.setPaymentStatus(dto.getPaymentStatus());
         order.setPriority(dto.getPriority());
         order.setOrderStatus(OrderStatus.SALES_REGISTERED.getValue());
-        order.setProductionStatus(ProductionStatus.PENDING.getValue());
+        order.setProductionStatus(ProductionStatus.CONFIRM.getValue());
         order.setCreatedByAdminEmail(salesAdminEmail);
 
         Order saved = orderRepository.save(order);
@@ -109,6 +110,7 @@ public class OrderService {
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
         order.setProductDetails(dto.getProductDetails());
+        order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
         order.setPaymentStatus(dto.getPaymentStatus());
@@ -123,12 +125,13 @@ public class OrderService {
     // ==================== PRODUCTION ADMIN METHODS ====================
 
     /**
-     * Get all orders that are in production pipeline (pending or in_progress).
+     * Get all orders that are in production pipeline (confirm, in_progress, testing).
      */
     public List<OrderResponse> getProductionOrders() {
         List<String> productionStatuses = Arrays.asList(
-                ProductionStatus.PENDING.getValue(),
-                ProductionStatus.IN_PROGRESS.getValue()
+                ProductionStatus.CONFIRM.getValue(),
+                ProductionStatus.IN_PROGRESS.getValue(),
+                ProductionStatus.TESTING.getValue()
         );
         return orderRepository.findByProductionStatusInOrderByCreatedAtDesc(productionStatuses).stream()
                 .map(this::mapToResponse)
@@ -168,7 +171,7 @@ public class OrderService {
         order.setProductionUpdatedByEmail(productionAdminEmail);
 
         // Update overall order status based on production status
-        if (targetProdStatus == ProductionStatus.IN_PROGRESS) {
+        if (targetProdStatus == ProductionStatus.IN_PROGRESS || targetProdStatus == ProductionStatus.TESTING) {
             order.setOrderStatus(OrderStatus.IN_PRODUCTION.getValue());
         } else if (targetProdStatus == ProductionStatus.COMPLETED) {
             order.setOrderStatus(OrderStatus.PRODUCTION_COMPLETE.getValue());
@@ -185,13 +188,15 @@ public class OrderService {
     // ==================== SCM ADMIN METHODS ====================
 
     /**
-     * Get all orders where production is completed (ready for SCM processing).
+     * Get all orders where production is completed (ready for SCM processing, or already processed/dispatched).
      */
     public List<OrderResponse> getScmOrders() {
-        return orderRepository.findByProductionStatusAndOrderStatusOrderByCreatedAtDesc(
-                ProductionStatus.COMPLETED.getValue(),
-                OrderStatus.PRODUCTION_COMPLETE.getValue()
-        ).stream()
+        List<String> scmStatuses = Arrays.asList(
+                OrderStatus.PRODUCTION_COMPLETE.getValue(),
+                OrderStatus.SCM_COMPLETE.getValue(),
+                OrderStatus.DISPATCHED.getValue()
+        );
+        return orderRepository.findByOrderStatusInOrderByCreatedAtDesc(scmStatuses).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -301,6 +306,7 @@ public class OrderService {
         response.setCustomerName(order.getCustomerName());
         response.setPiNumber(order.getPiNumber());
         response.setProductDetails(order.getProductDetails());
+        response.setQuantity(order.getQuantity());
         response.setMobileNumber(order.getMobileNumber());
         response.setExpectedDeliveryDate(order.getExpectedDeliveryDate());
         response.setPaymentStatus(order.getPaymentStatus());

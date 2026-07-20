@@ -45,6 +45,9 @@ public class Order {
     private String productDetails;
 
     @Column(nullable = false)
+    private Integer quantity;
+
+    @Column(nullable = false)
     private String mobileNumber;
 
     @Column(nullable = false)
@@ -63,7 +66,7 @@ public class Order {
 
     // ==================== PRODUCTION STAGE FIELDS ====================
 
-    private String productionStatus = ProductionStatus.PENDING.getValue();
+    private String productionStatus = ProductionStatus.CONFIRM.getValue();
 
     // ==================== SCM STAGE FIELDS ====================
 
@@ -108,7 +111,7 @@ public class Order {
             this.orderStatus = OrderStatus.SALES_REGISTERED.getValue();
         }
         if (this.productionStatus == null) {
-            this.productionStatus = ProductionStatus.PENDING.getValue();
+            this.productionStatus = ProductionStatus.CONFIRM.getValue();
         }
         if (this.paymentStatus == null) {
             this.paymentStatus = PaymentStatus.PENDING.getValue();
@@ -160,6 +163,14 @@ public class Order {
 
     public void setProductDetails(String productDetails) {
         this.productDetails = productDetails;
+    }
+
+    public Integer getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
     }
 
     public String getMobileNumber() {
