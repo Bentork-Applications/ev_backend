@@ -20,10 +20,12 @@ public class UserNotificationService implements IUserNotificationService {
 
     private final UserNotificationRepository repository;
     private final UserRepository userRepo;
+    private final PushNotificationService pushNotificationService;
 
-    public UserNotificationService(UserNotificationRepository repository, UserRepository userRepo) {
+    public UserNotificationService(UserNotificationRepository repository, UserRepository userRepo, PushNotificationService pushNotificationService) {
         this.repository = repository;
         this.userRepo = userRepo;
+        this.pushNotificationService = pushNotificationService;
     }
 
     // Get all notifications for a user
@@ -81,6 +83,15 @@ public class UserNotificationService implements IUserNotificationService {
             notification.setCreatedAt(LocalDateTime.now());
 
             UserNotification savedNotification = repository.save(notification);
+
+            // Send FCM Push Notification
+            String fcmToken = user.getFcmToken();
+            if (fcmToken != null && !fcmToken.trim().isEmpty()) {
+                pushNotificationService.sendNotification(fcmToken, title, message);
+                log.info("Sent FCM push for notification id={}", savedNotification.getId());
+            } else {
+                log.warn("No FCM token found for user={}, skipping push", user.getId());
+            }
 
             log.info("Notification created: id={}, userId={}, type={}",
                     savedNotification.getId(), userId, type);

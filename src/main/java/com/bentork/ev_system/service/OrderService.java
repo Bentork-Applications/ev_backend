@@ -24,6 +24,7 @@ import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
 import com.bentork.ev_system.repository.OrderRepository;
 import com.bentork.ev_system.repository.UserRepository;
+import com.bentork.ev_system.service.interfaces.IUserNotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final BatteryDataRepository batteryDataRepository;
     private final UserRepository userRepository;
+    private final IUserNotificationService userNotificationService;
 
     // ==================== SALES ADMIN METHODS ====================
 
@@ -73,6 +75,11 @@ public class OrderService {
 
         Order saved = orderRepository.save(order);
         log.info("Order {} created by Sales Admin {}", saved.getOrderNumber(), salesAdminEmail);
+
+        userNotificationService.createNotification(assignedUser.getId(),
+                "Order Created",
+                "Your order " + saved.getOrderNumber() + " has been registered.",
+                "ORDER_UPDATE");
 
         return mapToResponse(saved);
     }
@@ -200,6 +207,11 @@ public class OrderService {
         log.info("Order {} production status updated to '{}' by Production Admin {}",
                 orderId, targetProdStatus.getValue(), productionAdminEmail);
 
+        userNotificationService.createNotification(saved.getAssignedUserId(),
+                "Production Update",
+                "Your order " + saved.getOrderNumber() + " is now in production status: " + targetProdStatus.getValue() + ".",
+                "ORDER_UPDATE");
+
         return mapToResponse(saved);
     }
 
@@ -286,6 +298,11 @@ public class OrderService {
         log.info("Order {} SCM details filled by SCM Admin {}. Created {} BatteryData records.",
                 orderId, scmAdminEmail, expectedQuantity);
 
+        userNotificationService.createNotification(saved.getAssignedUserId(),
+                "SCM Processing Complete",
+                "Your order " + saved.getOrderNumber() + " has been processed for shipping.",
+                "ORDER_UPDATE");
+
         return mapToResponse(saved);
     }
 
@@ -306,6 +323,11 @@ public class OrderService {
 
         Order saved = orderRepository.save(order);
         log.info("Order {} marked as DISPATCHED by SCM Admin {}", orderId, scmAdminEmail);
+
+        userNotificationService.createNotification(saved.getAssignedUserId(),
+                "Order Dispatched",
+                "Your order " + saved.getOrderNumber() + " has been dispatched!",
+                "ORDER_UPDATE");
 
         return mapToResponse(saved);
     }
