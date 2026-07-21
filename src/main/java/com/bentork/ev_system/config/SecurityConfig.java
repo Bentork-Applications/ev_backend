@@ -181,6 +181,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/orders/production/**").hasAuthority("PRODUCTION_ADMIN")
                                                 .requestMatchers("/api/orders/scm/**").hasAuthority("SCM_ADMIN")
                                                 .requestMatchers("/api/orders/admin/**").hasAuthority("ADMIN")
+                                                .requestMatchers("/api/orders/user/**").hasAnyAuthority("ROLE_USER", "DEALER")
 
                                                 // Everything else requires login
                                                 .anyRequest().authenticated())

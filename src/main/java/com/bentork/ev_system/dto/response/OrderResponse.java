@@ -10,6 +10,7 @@ public class OrderResponse {
     private String orderNumber;
 
     // Sales stage fields
+    private Long assignedUserId;
     private String customerName;
     private String piNumber;
     private String productDetails;
@@ -61,6 +62,14 @@ public class OrderResponse {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public Long getAssignedUserId() {
+        return assignedUserId;
+    }
+
+    public void setAssignedUserId(Long assignedUserId) {
+        this.assignedUserId = assignedUserId;
     }
 
     public String getCustomerName() {

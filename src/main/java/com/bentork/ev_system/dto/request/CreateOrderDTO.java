@@ -10,6 +10,9 @@ public class CreateOrderDTO {
     @NotBlank(message = "Customer name is required")
     private String customerName;
 
+    @NotNull(message = "Assigned User ID is required")
+    private Long assignedUserId;
+
     @NotBlank(message = "P.I. Number is required")
     private String piNumber;
 
@@ -43,6 +46,14 @@ public class CreateOrderDTO {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public Long getAssignedUserId() {
+        return assignedUserId;
+    }
+
+    public void setAssignedUserId(Long assignedUserId) {
+        this.assignedUserId = assignedUserId;
     }
 
     public String getPiNumber() {

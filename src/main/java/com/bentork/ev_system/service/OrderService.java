@@ -20,8 +20,10 @@ import com.bentork.ev_system.enums.OrderStatus;
 import com.bentork.ev_system.enums.ProductionStatus;
 import com.bentork.ev_system.model.BatteryData;
 import com.bentork.ev_system.model.Order;
+import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
 import com.bentork.ev_system.repository.OrderRepository;
+import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,12 +35,14 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final BatteryDataRepository batteryDataRepository;
+    private final UserRepository userRepository;
 
     // ==================== SALES ADMIN METHODS ====================
 
     /**
      * Create a new order (Sales Admin only).
      */
+    @Transactional
     public OrderResponse createOrder(CreateOrderDTO dto, String salesAdminEmail) {
         // Parse and validate expected delivery date
         LocalDate deliveryDate;
@@ -48,8 +52,13 @@ public class OrderService {
             throw new IllegalArgumentException("Invalid date format for expectedDeliveryDate. Use yyyy-MM-dd format.");
         }
 
+        // Validate assigned user exists
+        User assignedUser = userRepository.findById(dto.getAssignedUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Assigned user ID not found in database"));
+
         Order order = new Order();
         order.setOrderNumber(generateOrderNumber());
+        order.setAssignedUserId(assignedUser.getId());
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
         order.setProductDetails(dto.getProductDetails());
@@ -91,18 +100,21 @@ public class OrderService {
     /**
      * Update sales-stage fields on an order (Sales Admin only, must be the creator).
      */
+    @Transactional
     public OrderResponse updateSalesOrder(Long orderId, CreateOrderDTO dto, String salesAdminEmail) {
         Order order = findOrderById(orderId);
 
+        // Verify permissions and status
         if (!order.getCreatedByAdminEmail().equals(salesAdminEmail)) {
             throw new IllegalArgumentException("You can only edit orders you created");
         }
-
-        // Only allow editing if the order is still in SALES_REGISTERED status
-        OrderStatus currentStatus = OrderStatus.fromString(order.getOrderStatus());
-        if (currentStatus != OrderStatus.SALES_REGISTERED) {
-            throw new IllegalArgumentException("Order can only be edited while in SALES_REGISTERED status. Current status: " + order.getOrderStatus());
+        if (!OrderStatus.SALES_REGISTERED.getValue().equals(order.getOrderStatus())) {
+            throw new IllegalArgumentException("Cannot update order that has moved past sales stage");
         }
+
+        // Validate assigned user exists
+        User assignedUser = userRepository.findById(dto.getAssignedUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Assigned user ID not found in database"));
 
         // Parse and validate expected delivery date
         LocalDate deliveryDate;
@@ -112,6 +124,7 @@ public class OrderService {
             throw new IllegalArgumentException("Invalid date format for expectedDeliveryDate. Use yyyy-MM-dd format.");
         }
 
+        order.setAssignedUserId(assignedUser.getId());
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
         order.setProductDetails(dto.getProductDetails());
@@ -300,6 +313,33 @@ public class OrderService {
     // ==================== SHARED METHODS ====================
 
     /**
+     * Get all orders assigned to the currently logged-in user.
+     */
+    public List<OrderResponse> getUserOrders(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        return orderRepository.findByAssignedUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get a specific order detail for the user (must match assigned user ID).
+     */
+    public OrderResponse getUserOrderDetail(Long orderId, String userEmail) {
+        Order order = findOrderById(orderId);
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.getId().equals(order.getAssignedUserId())) {
+            throw new IllegalArgumentException("You do not have access to this order.");
+        }
+
+        return mapToResponse(order);
+    }
+
+    /**
      * Get all orders (for ADMIN role — super admin view).
      */
     public List<OrderResponse> getAllOrders() {
@@ -332,6 +372,7 @@ public class OrderService {
         OrderResponse response = new OrderResponse();
         response.setId(order.getId());
         response.setOrderNumber(order.getOrderNumber());
+        response.setAssignedUserId(order.getAssignedUserId());
 
         // Sales stage fields
         response.setCustomerName(order.getCustomerName());

@@ -211,6 +211,33 @@ public class OrderController {
         }
     }
 
+    // ==================== USER ENDPOINTS ====================
+
+    /**
+     * List orders linked to the logged-in user's mobile number.
+     */
+    @GetMapping("/user/my-orders")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'DEALER')")
+    public ResponseEntity<List<OrderResponse>> getUserOrders() {
+        String userEmail = getCurrentUserEmail();
+        log.info("User {} fetching their tracked orders", userEmail);
+        return ResponseEntity.ok(orderService.getUserOrders(userEmail));
+    }
+
+    /**
+     * View a specific order detail (User — must match mobile number).
+     */
+    @GetMapping("/user/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'DEALER')")
+    public ResponseEntity<?> getUserOrderDetail(@PathVariable Long id) {
+        String userEmail = getCurrentUserEmail();
+        try {
+            return ResponseEntity.ok(orderService.getUserOrderDetail(id, userEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
+
     // ==================== HELPER METHODS ====================
 
     private String getCurrentUserEmail() {

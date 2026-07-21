@@ -22,7 +22,8 @@ import jakarta.persistence.Table;
         @Index(name = "idx_order_pi_number", columnList = "piNumber"),
         @Index(name = "idx_order_status", columnList = "orderStatus"),
         @Index(name = "idx_order_production_status", columnList = "productionStatus"),
-        @Index(name = "idx_order_created_by", columnList = "createdByAdminEmail")
+        @Index(name = "idx_order_created_by", columnList = "createdByAdminEmail"),
+        @Index(name = "idx_order_assigned_user", columnList = "assigned_user_id")
 })
 public class Order {
 
@@ -34,6 +35,9 @@ public class Order {
     private String orderNumber;
 
     // ==================== SALES STAGE FIELDS ====================
+
+    @Column(name = "assigned_user_id", nullable = false)
+    private Long assignedUserId;
 
     @Column(nullable = false)
     private String customerName;
@@ -141,6 +145,14 @@ public class Order {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public Long getAssignedUserId() {
+        return assignedUserId;
+    }
+
+    public void setAssignedUserId(Long assignedUserId) {
+        this.assignedUserId = assignedUserId;
     }
 
     public String getCustomerName() {
