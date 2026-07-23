@@ -2,6 +2,8 @@ package com.bentork.ev_system.controller;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +45,7 @@ public class BatteryDataController {
      */
     @PostMapping("/admin/register")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
-    public ResponseEntity<?> registerBattery(@RequestBody BatteryDataDTO dto) {
+    public ResponseEntity<?> registerBattery(@Valid @RequestBody BatteryDataDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Admin/Staff {} registering battery data", adminEmail);
         try {
@@ -59,7 +61,8 @@ public class BatteryDataController {
      * Accessible by ADMIN and ADMIN_STAFF.
      *
      * Expected Excel columns: customerName, productDetails, invoiceNumber,
-     * barcode, warrantyStartDate (yyyy-MM-dd), warrantyEndDate (yyyy-MM-dd)
+     * barcode, warrantyStartDate (yyyy-MM-dd), warrantyEndDate (yyyy-MM-dd),
+     * gstNumber (optional), address (optional)
      */
     @PostMapping(value = "/admin/register/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")

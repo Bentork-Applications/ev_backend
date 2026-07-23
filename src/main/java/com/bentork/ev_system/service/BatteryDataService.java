@@ -147,6 +147,8 @@ public class BatteryDataService {
         battery.setProductDetails(dto.getProductDetails());
         battery.setInvoiceNumber(dto.getInvoiceNumber());
         battery.setBarcode(barcode);
+        battery.setGstNumber(dto.getGstNumber());
+        battery.setAddress(dto.getAddress());
         battery.setWarrantyStartDate(dto.getWarrantyStartDate());
         battery.setWarrantyEndDate(dto.getWarrantyEndDate());
         battery.setCreatedByAdminEmail(adminEmail);
@@ -160,6 +162,8 @@ public class BatteryDataService {
         response.setProductDetails(battery.getProductDetails());
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
+        response.setGstNumber(battery.getGstNumber());
+        response.setAddress(battery.getAddress());
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
         response.setWarrantyActive(!LocalDate.now().isAfter(battery.getWarrantyEndDate()));

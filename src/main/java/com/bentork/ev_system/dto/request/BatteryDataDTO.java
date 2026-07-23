@@ -2,6 +2,8 @@ package com.bentork.ev_system.dto.request;
 
 import java.time.LocalDate;
 
+import jakarta.validation.constraints.Pattern;
+
 public class BatteryDataDTO {
 
     private String customerName;
@@ -15,6 +17,14 @@ public class BatteryDataDTO {
 
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
+
+    @Pattern(
+            regexp = "^\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}[A-Z\\d]{1}[Z]{1}[A-Z\\d]{1}$",
+            message = "GST number must be a valid 15-character GSTIN (e.g., 22AAAAA0000A1Z5)"
+    )
+    private String gstNumber;
+
+    private String address;
 
     // Getters and Setters
 
@@ -80,5 +90,21 @@ public class BatteryDataDTO {
 
     public void setWarrantyEndDate(LocalDate warrantyEndDate) {
         this.warrantyEndDate = warrantyEndDate;
+    }
+
+    public String getGstNumber() {
+        return gstNumber;
+    }
+
+    public void setGstNumber(String gstNumber) {
+        this.gstNumber = gstNumber;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

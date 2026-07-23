@@ -37,6 +37,7 @@ public class BatteryExcelService {
     private final BatteryDataRepository batteryDataRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String GSTIN_REGEX = "^\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}[A-Z\\d]{1}[Z]{1}[A-Z\\d]{1}$";
 
     /**
      * Parses an uploaded Excel file and registers each row as a BatteryData entity.
@@ -140,10 +141,18 @@ public class BatteryExcelService {
         String barcode = getCellStringValue(row.getCell(3));
         LocalDate warrantyStartDate = getCellDateValue(row.getCell(4));
         LocalDate warrantyEndDate = getCellDateValue(row.getCell(5));
+        String gstNumber = getCellStringValue(row.getCell(6));
+        String address = getCellStringValue(row.getCell(7));
 
         // Validate required fields
         validateRequiredFields(rowIndex, customerName, productDetails, invoiceNumber,
                 barcode, warrantyStartDate, warrantyEndDate);
+
+        // Validate GST number format if provided
+        if (gstNumber != null && !gstNumber.isEmpty() && !gstNumber.matches(GSTIN_REGEX)) {
+            throw new IllegalArgumentException(
+                    "Invalid GST number format: '" + gstNumber + "'. Expected 15-character GSTIN (e.g., 22AAAAA0000A1Z5)");
+        }
 
         // Check for duplicate barcode
         if (batteryDataRepository.existsByBarcode(barcode)) {
@@ -157,6 +166,8 @@ public class BatteryExcelService {
         battery.setProductDetails(productDetails);
         battery.setInvoiceNumber(invoiceNumber);
         battery.setBarcode(barcode);
+        battery.setGstNumber(gstNumber);
+        battery.setAddress(address);
         battery.setWarrantyStartDate(warrantyStartDate);
         battery.setWarrantyEndDate(warrantyEndDate);
         battery.setCreatedByAdminEmail(adminEmail);
@@ -267,7 +278,7 @@ public class BatteryExcelService {
      * Checks if a row is completely empty (all cells are blank or null).
      */
     private boolean isRowEmpty(Row row) {
-        for (int cellIndex = 0; cellIndex < 6; cellIndex++) {
+        for (int cellIndex = 0; cellIndex < 8; cellIndex++) {
             Cell cell = row.getCell(cellIndex);
             if (cell != null && cell.getCellType() != CellType.BLANK) {
                 String value = getCellStringValue(cell);
@@ -290,6 +301,8 @@ public class BatteryExcelService {
         response.setProductDetails(battery.getProductDetails());
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
+        response.setGstNumber(battery.getGstNumber());
+        response.setAddress(battery.getAddress());
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
         response.setWarrantyActive(!LocalDate.now().isAfter(battery.getWarrantyEndDate()));
