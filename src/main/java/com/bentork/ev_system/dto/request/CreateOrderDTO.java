@@ -1,5 +1,6 @@
 package com.bentork.ev_system.dto.request;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,9 +31,12 @@ public class CreateOrderDTO {
     @NotNull(message = "Expected delivery date is required")
     private String expectedDeliveryDate; // ISO date format: yyyy-MM-dd
 
-    @NotBlank(message = "Payment status is required")
-    @Pattern(regexp = "^(pending|paid)$", message = "Payment status must be 'pending' or 'paid'")
-    private String paymentStatus;
+    @NotNull(message = "Total invoice amount is required")
+    @DecimalMin(value = "0.01", message = "Total invoice amount must be greater than zero")
+    private Double totalInvoiceAmount;
+
+    @DecimalMin(value = "0.0", message = "Received amount cannot be negative")
+    private Double receivedAmount = 0.0;
 
     @NotBlank(message = "Priority is required")
     @Pattern(regexp = "^(low|medium|high)$", message = "Priority must be 'low', 'medium', or 'high'")
@@ -96,12 +100,20 @@ public class CreateOrderDTO {
         this.expectedDeliveryDate = expectedDeliveryDate;
     }
 
-    public String getPaymentStatus() {
-        return paymentStatus;
+    public Double getTotalInvoiceAmount() {
+        return totalInvoiceAmount;
     }
 
-    public void setPaymentStatus(String paymentStatus) {
-        this.paymentStatus = paymentStatus;
+    public void setTotalInvoiceAmount(Double totalInvoiceAmount) {
+        this.totalInvoiceAmount = totalInvoiceAmount;
+    }
+
+    public Double getReceivedAmount() {
+        return receivedAmount;
+    }
+
+    public void setReceivedAmount(Double receivedAmount) {
+        this.receivedAmount = receivedAmount;
     }
 
     public String getPriority() {
@@ -112,3 +124,4 @@ public class CreateOrderDTO {
         this.priority = priority;
     }
 }
+

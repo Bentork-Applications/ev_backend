@@ -60,6 +60,17 @@ public class Order {
     @Column(nullable = false)
     private String paymentStatus = PaymentStatus.PENDING.getValue();
 
+    // ==================== PAYMENT AMOUNT FIELDS ====================
+
+    @Column(nullable = false)
+    private Double totalInvoiceAmount;
+
+    @Column(nullable = false)
+    private Double receivedAmount = 0.0;
+
+    @Column(nullable = false)
+    private Double pendingAmount;
+
     @Column(nullable = false)
     private String priority = "medium"; // low, medium, high
 
@@ -209,6 +220,30 @@ public class Order {
 
     public void setPaymentStatus(String paymentStatus) {
         this.paymentStatus = paymentStatus;
+    }
+
+    public Double getTotalInvoiceAmount() {
+        return totalInvoiceAmount;
+    }
+
+    public void setTotalInvoiceAmount(Double totalInvoiceAmount) {
+        this.totalInvoiceAmount = totalInvoiceAmount;
+    }
+
+    public Double getReceivedAmount() {
+        return receivedAmount;
+    }
+
+    public void setReceivedAmount(Double receivedAmount) {
+        this.receivedAmount = receivedAmount;
+    }
+
+    public Double getPendingAmount() {
+        return pendingAmount;
+    }
+
+    public void setPendingAmount(Double pendingAmount) {
+        this.pendingAmount = pendingAmount;
     }
 
     public String getPriority() {

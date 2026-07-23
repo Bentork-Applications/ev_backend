@@ -3,11 +3,17 @@ package com.bentork.ev_system.enums;
 /**
  * Enum representing payment statuses for orders.
  *
+ * Status flow: PENDING -> PARTIAL -> PAID
+ * - PENDING: No payment received (receivedAmount = 0)
+ * - PARTIAL: Some payment received but pendingAmount > 0
+ * - PAID: Fully paid (pendingAmount = 0)
+ *
  * All values are stored in LOWERCASE for consistency.
  */
 public enum PaymentStatus {
 
     PENDING("pending"),
+    PARTIAL("partial"),
     PAID("paid");
 
     private final String value;
@@ -33,6 +39,8 @@ public enum PaymentStatus {
         switch (normalized) {
             case "pending":
                 return PENDING;
+            case "partial":
+                return PARTIAL;
             case "paid":
                 return PAID;
             default:

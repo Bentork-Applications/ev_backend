@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
+import com.bentork.ev_system.dto.request.RecordPaymentDTO;
 import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
 import com.bentork.ev_system.dto.response.OrderResponse;
@@ -86,6 +87,21 @@ public class OrderController {
         log.info("Sales Admin {} updating order {}", adminEmail, id);
         try {
             return ResponseEntity.ok(orderService.updateSalesOrder(id, dto, adminEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Record a payment against an existing order (Sales Admin — must be the creator).
+     */
+    @PutMapping("/sales/{id}/record-payment")
+    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    public ResponseEntity<?> recordPayment(@PathVariable Long id, @Valid @RequestBody RecordPaymentDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Sales Admin {} recording payment for order {}", adminEmail, id);
+        try {
+            return ResponseEntity.ok(orderService.recordPayment(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

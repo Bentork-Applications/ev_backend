@@ -13,10 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
+import com.bentork.ev_system.dto.request.RecordPaymentDTO;
 import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
 import com.bentork.ev_system.dto.response.OrderResponse;
 import com.bentork.ev_system.enums.OrderStatus;
+import com.bentork.ev_system.enums.PaymentStatus;
 import com.bentork.ev_system.enums.ProductionStatus;
 import com.bentork.ev_system.model.BatteryData;
 import com.bentork.ev_system.model.Order;
@@ -58,6 +60,12 @@ public class OrderService {
         User assignedUser = userRepository.findById(dto.getAssignedUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Assigned user ID not found in database"));
 
+        // Validate payment amounts
+        double receivedAmount = (dto.getReceivedAmount() != null) ? dto.getReceivedAmount() : 0.0;
+        if (receivedAmount > dto.getTotalInvoiceAmount()) {
+            throw new IllegalArgumentException("Received amount cannot exceed total invoice amount");
+        }
+
         Order order = new Order();
         order.setOrderNumber(generateOrderNumber());
         order.setAssignedUserId(assignedUser.getId());
@@ -67,11 +75,16 @@ public class OrderService {
         order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
-        order.setPaymentStatus(dto.getPaymentStatus());
+        order.setTotalInvoiceAmount(dto.getTotalInvoiceAmount());
+        order.setReceivedAmount(receivedAmount);
+        order.setPendingAmount(dto.getTotalInvoiceAmount() - receivedAmount);
         order.setPriority(dto.getPriority());
         order.setOrderStatus(OrderStatus.SALES_REGISTERED.getValue());
         order.setProductionStatus(ProductionStatus.CONFIRM.getValue());
         order.setCreatedByAdminEmail(salesAdminEmail);
+
+        // Auto-compute payment status and trigger production if fully paid
+        updatePaymentStatusAndTriggerProduction(order);
 
         Order saved = orderRepository.save(order);
         log.info("Order {} created by Sales Admin {}", saved.getOrderNumber(), salesAdminEmail);
@@ -131,6 +144,12 @@ public class OrderService {
             throw new IllegalArgumentException("Invalid date format for expectedDeliveryDate. Use yyyy-MM-dd format.");
         }
 
+        // Validate payment amounts
+        double receivedAmount = (dto.getReceivedAmount() != null) ? dto.getReceivedAmount() : 0.0;
+        if (receivedAmount > dto.getTotalInvoiceAmount()) {
+            throw new IllegalArgumentException("Received amount cannot exceed total invoice amount");
+        }
+
         order.setAssignedUserId(assignedUser.getId());
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
@@ -138,8 +157,13 @@ public class OrderService {
         order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
-        order.setPaymentStatus(dto.getPaymentStatus());
+        order.setTotalInvoiceAmount(dto.getTotalInvoiceAmount());
+        order.setReceivedAmount(receivedAmount);
+        order.setPendingAmount(dto.getTotalInvoiceAmount() - receivedAmount);
         order.setPriority(dto.getPriority());
+
+        // Auto-compute payment status and trigger production if fully paid
+        updatePaymentStatusAndTriggerProduction(order);
 
         Order saved = orderRepository.save(order);
         log.info("Order {} updated by Sales Admin {}", saved.getOrderNumber(), salesAdminEmail);
@@ -332,6 +356,50 @@ public class OrderService {
         return mapToResponse(saved);
     }
 
+    // ==================== SALES ADMIN — RECORD PAYMENT ====================
+
+    /**
+     * Record a payment against an existing order (Sales Admin only, must be the creator).
+     * Increments the receivedAmount by the given payment amount.
+     * Auto-computes pendingAmount and paymentStatus.
+     * If pendingAmount reaches zero, auto-triggers production.
+     */
+    @Transactional
+    public OrderResponse recordPayment(Long orderId, RecordPaymentDTO dto, String salesAdminEmail) {
+        Order order = findOrderById(orderId);
+
+        // Verify permissions
+        if (!order.getCreatedByAdminEmail().equals(salesAdminEmail)) {
+            throw new IllegalArgumentException("You can only record payments on orders you created");
+        }
+
+        // Validate not overpaying
+        double newReceived = order.getReceivedAmount() + dto.getAmount();
+        if (newReceived > order.getTotalInvoiceAmount()) {
+            throw new IllegalArgumentException(
+                    "Payment of " + dto.getAmount() + " exceeds remaining pending amount of " + order.getPendingAmount());
+        }
+
+        order.setReceivedAmount(newReceived);
+        order.setPendingAmount(order.getTotalInvoiceAmount() - newReceived);
+
+        // Auto-compute payment status and trigger production if fully paid
+        updatePaymentStatusAndTriggerProduction(order);
+
+        Order saved = orderRepository.save(order);
+        log.info("Order {} payment of {} recorded by Sales Admin {}. New received: {}, pending: {}",
+                saved.getOrderNumber(), dto.getAmount(), salesAdminEmail,
+                saved.getReceivedAmount(), saved.getPendingAmount());
+
+        userNotificationService.createNotification(saved.getAssignedUserId(),
+                "Payment Received",
+                "Payment of " + dto.getAmount() + " recorded for order " + saved.getOrderNumber()
+                        + ". Pending: " + saved.getPendingAmount(),
+                "ORDER_UPDATE");
+
+        return mapToResponse(saved);
+    }
+
     // ==================== SHARED METHODS ====================
 
     /**
@@ -390,6 +458,27 @@ public class OrderService {
         return "ORD-" + datePart + "-" + randomPart;
     }
 
+    /**
+     * Auto-computes paymentStatus based on amounts and triggers production if fully paid.
+     * - receivedAmount == 0 → PENDING
+     * - receivedAmount > 0 && pendingAmount > 0 → PARTIAL
+     * - pendingAmount <= 0 → PAID → auto-move to IN_PRODUCTION if still in SALES_REGISTERED
+     */
+    private void updatePaymentStatusAndTriggerProduction(Order order) {
+        if (order.getPendingAmount() <= 0) {
+            order.setPaymentStatus(PaymentStatus.PAID.getValue());
+            // Auto-trigger production if still in sales_registered
+            if (OrderStatus.SALES_REGISTERED.matches(order.getOrderStatus())) {
+                order.setOrderStatus(OrderStatus.IN_PRODUCTION.getValue());
+                log.info("Order {} auto-moved to IN_PRODUCTION (fully paid)", order.getOrderNumber());
+            }
+        } else if (order.getReceivedAmount() > 0) {
+            order.setPaymentStatus(PaymentStatus.PARTIAL.getValue());
+        } else {
+            order.setPaymentStatus(PaymentStatus.PENDING.getValue());
+        }
+    }
+
     private OrderResponse mapToResponse(Order order) {
         OrderResponse response = new OrderResponse();
         response.setId(order.getId());
@@ -404,6 +493,9 @@ public class OrderService {
         response.setMobileNumber(order.getMobileNumber());
         response.setExpectedDeliveryDate(order.getExpectedDeliveryDate());
         response.setPaymentStatus(order.getPaymentStatus());
+        response.setTotalInvoiceAmount(order.getTotalInvoiceAmount());
+        response.setReceivedAmount(order.getReceivedAmount());
+        response.setPendingAmount(order.getPendingAmount());
         response.setPriority(order.getPriority());
 
         // Lifecycle status

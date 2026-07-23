@@ -18,6 +18,9 @@ public class OrderResponse {
     private String mobileNumber;
     private LocalDate expectedDeliveryDate;
     private String paymentStatus;
+    private Double totalInvoiceAmount;
+    private Double receivedAmount;
+    private Double pendingAmount;
     private String priority;
 
     // Lifecycle status
@@ -126,6 +129,30 @@ public class OrderResponse {
 
     public void setPaymentStatus(String paymentStatus) {
         this.paymentStatus = paymentStatus;
+    }
+
+    public Double getTotalInvoiceAmount() {
+        return totalInvoiceAmount;
+    }
+
+    public void setTotalInvoiceAmount(Double totalInvoiceAmount) {
+        this.totalInvoiceAmount = totalInvoiceAmount;
+    }
+
+    public Double getReceivedAmount() {
+        return receivedAmount;
+    }
+
+    public void setReceivedAmount(Double receivedAmount) {
+        this.receivedAmount = receivedAmount;
+    }
+
+    public Double getPendingAmount() {
+        return pendingAmount;
+    }
+
+    public void setPendingAmount(Double pendingAmount) {
+        this.pendingAmount = pendingAmount;
     }
 
     public String getPriority() {
