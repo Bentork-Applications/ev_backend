@@ -16,8 +16,7 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "battery_data", indexes = {
         @Index(name = "idx_battery_invoice_number", columnList = "invoiceNumber"),
-        @Index(name = "idx_battery_barcode", columnList = "barcode"),
-        @Index(name = "idx_battery_gst_number", columnList = "gstNumber")
+        @Index(name = "idx_battery_barcode", columnList = "barcode")
 })
 public class BatteryData {
 
@@ -37,7 +36,6 @@ public class BatteryData {
     @Column(nullable = false, unique = true)
     private String barcode;
 
-    private String gstNumber;
 
     @Column(columnDefinition = "TEXT")
     private String address;
@@ -109,13 +107,6 @@ public class BatteryData {
         this.barcode = barcode;
     }
 
-    public String getGstNumber() {
-        return gstNumber;
-    }
-
-    public void setGstNumber(String gstNumber) {
-        this.gstNumber = gstNumber;
-    }
 
     public String getAddress() {
         return address;

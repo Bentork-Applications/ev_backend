@@ -10,7 +10,6 @@ public class BatteryDataResponse {
     private String productDetails;
     private String invoiceNumber;
     private String barcode;
-    private String gstNumber;
     private String address;
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
@@ -60,13 +59,6 @@ public class BatteryDataResponse {
         this.barcode = barcode;
     }
 
-    public String getGstNumber() {
-        return gstNumber;
-    }
-
-    public void setGstNumber(String gstNumber) {
-        this.gstNumber = gstNumber;
-    }
 
     public String getAddress() {
         return address;

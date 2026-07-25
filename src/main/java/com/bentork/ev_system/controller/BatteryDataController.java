@@ -62,7 +62,7 @@ public class BatteryDataController {
      *
      * Expected Excel columns: customerName, productDetails, invoiceNumber,
      * barcode, warrantyStartDate (yyyy-MM-dd), warrantyEndDate (yyyy-MM-dd),
-     * gstNumber (optional), address (optional)
+     * address (optional)
      */
     @PostMapping(value = "/admin/register/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
