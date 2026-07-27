@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import com.bentork.ev_system.dto.request.BatteryDataDTO;
 import com.bentork.ev_system.dto.response.BatteryDataResponse;
 import com.bentork.ev_system.model.BatteryData;
+import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
+import com.bentork.ev_system.repository.OrderRepository;
+import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 public class BatteryDataService {
 
     private final BatteryDataRepository batteryDataRepository;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
 
     /**
      * Register battery data. If startBarcode and endBarcode are provided,
@@ -58,9 +63,22 @@ public class BatteryDataService {
 
     /**
      * Search batteries by invoice number. Used by mobile app users.
+     * Standard users are restricted to searching only invoice numbers
+     * that belong to their own orders (matched via Order.assignedUserId).
      * Returns battery details with warranty active status.
      */
-    public List<BatteryDataResponse> searchByInvoice(String invoiceNumber) {
+    public List<BatteryDataResponse> searchByInvoice(String invoiceNumber, String userEmail) {
+        // Resolve the user and verify invoice ownership
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean ownsInvoice = orderRepository.existsByInvoiceNumberAndAssignedUserId(
+                invoiceNumber, user.getId());
+        if (!ownsInvoice) {
+            throw new IllegalArgumentException(
+                    "You do not have access to search this invoice number.");
+        }
+
         List<BatteryData> batteries = batteryDataRepository.findByInvoiceNumber(invoiceNumber);
         if (batteries.isEmpty()) {
             log.info("No batteries found for invoice number: {}", invoiceNumber);

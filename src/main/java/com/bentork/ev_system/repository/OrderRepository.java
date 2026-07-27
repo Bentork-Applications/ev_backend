@@ -30,6 +30,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNumber(String orderNumber);
     Optional<Order> findByPiNumber(String piNumber);
 
+    // Ownership check — verify invoice belongs to a user's order
+    boolean existsByInvoiceNumberAndAssignedUserId(String invoiceNumber, Long assignedUserId);
+
     // Stats
     long countByOrderStatus(String orderStatus);
     long countByProductionStatus(String productionStatus);

@@ -98,16 +98,20 @@ public class BatteryDataController {
         }
     }
 
-    // ==================== USER ENDPOINTS ====================
-
     /**
      * Search batteries by invoice number. Used by mobile app users.
+     * Only returns results if the invoice belongs to the requesting user's order.
      */
     @GetMapping("/user/search")
     @PreAuthorize("hasAuthority('ROLE_USER')")
-    public ResponseEntity<List<BatteryDataResponse>> searchByInvoice(@RequestParam String invoice) {
-        log.info("User searching battery data by invoice: {}", invoice);
-        return ResponseEntity.ok(batteryDataService.searchByInvoice(invoice));
+    public ResponseEntity<?> searchByInvoice(@RequestParam String invoice) {
+        String userEmail = getCurrentUserEmail();
+        log.info("User {} searching battery data by invoice: {}", userEmail, invoice);
+        try {
+            return ResponseEntity.ok(batteryDataService.searchByInvoice(invoice, userEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     // ==================== HELPER METHODS ====================
