@@ -188,6 +188,18 @@ public class OrderService {
     }
 
     /**
+     * Get all completed order history for Production Admin.
+     * Returns orders where production status is COMPLETED (i.e., orders that have
+     * finished the production pipeline and moved on to SCM or dispatch).
+     */
+    public List<OrderResponse> getCompletedProductionOrders() {
+        return orderRepository.findByProductionStatusOrderByCreatedAtDesc(
+                ProductionStatus.COMPLETED.getValue()).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get a specific order detail for Production Admin.
      */
     public OrderResponse getProductionOrderDetail(Long orderId) {

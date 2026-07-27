@@ -120,6 +120,16 @@ public class OrderController {
     }
 
     /**
+     * List all completed order history (Production Admin — comprehensive view).
+     */
+    @GetMapping("/production/completed-orders")
+    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    public ResponseEntity<List<OrderResponse>> getCompletedProductionOrders() {
+        log.info("Production Admin fetching completed order history");
+        return ResponseEntity.ok(orderService.getCompletedProductionOrders());
+    }
+
+    /**
      * View a specific order detail (Production Admin).
      */
     @GetMapping("/production/{id}")
