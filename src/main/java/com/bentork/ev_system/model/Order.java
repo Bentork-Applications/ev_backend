@@ -2,17 +2,21 @@ package com.bentork.ev_system.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.bentork.ev_system.enums.OrderStatus;
 import com.bentork.ev_system.enums.PaymentStatus;
 import com.bentork.ev_system.enums.ProductionStatus;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -45,11 +49,18 @@ public class Order {
     @Column(nullable = false)
     private String piNumber;
 
+    // Legacy fields — kept for backward compatibility with existing data.
+    // New orders populate these from the first OrderItem.
     @Column(nullable = false)
     private String productDetails;
 
     @Column(nullable = false)
     private Integer quantity;
+
+    // ==================== ORDER ITEMS (Multiple Products) ====================
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems = new ArrayList<>();
 
     @Column(nullable = false)
     private String mobileNumber;
@@ -138,6 +149,19 @@ public class Order {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Returns the total quantity across all order items.
+     * Falls back to the legacy quantity field if no items exist.
+     */
+    public int getTotalQuantity() {
+        if (orderItems != null && !orderItems.isEmpty()) {
+            return orderItems.stream().mapToInt(OrderItem::getQuantity).sum();
+        }
+        return (quantity != null) ? quantity : 0;
     }
 
     // ==================== GETTERS AND SETTERS ====================
@@ -380,5 +404,13 @@ public class Order {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
+    }
+
+    public List<OrderItem> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(List<OrderItem> orderItems) {
+        this.orderItems = orderItems;
     }
 }

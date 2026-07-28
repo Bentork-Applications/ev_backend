@@ -23,6 +23,9 @@ public class OrderResponse {
     private Double pendingAmount;
     private String priority;
 
+    // Order items (multiple products)
+    private List<OrderItemResponse> orderItems;
+
     // Lifecycle status
     private String orderStatus;
 
@@ -289,5 +292,13 @@ public class OrderResponse {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
+    }
+
+    public List<OrderItemResponse> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(List<OrderItemResponse> orderItems) {
+        this.orderItems = orderItems;
     }
 }

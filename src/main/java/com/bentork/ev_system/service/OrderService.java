@@ -13,15 +13,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
+import com.bentork.ev_system.dto.request.OrderItemDTO;
 import com.bentork.ev_system.dto.request.RecordPaymentDTO;
 import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
+import com.bentork.ev_system.dto.response.OrderItemResponse;
 import com.bentork.ev_system.dto.response.OrderResponse;
 import com.bentork.ev_system.enums.OrderStatus;
 import com.bentork.ev_system.enums.PaymentStatus;
 import com.bentork.ev_system.enums.ProductionStatus;
 import com.bentork.ev_system.model.BatteryData;
 import com.bentork.ev_system.model.Order;
+import com.bentork.ev_system.model.OrderItem;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
 import com.bentork.ev_system.repository.OrderRepository;
@@ -71,8 +74,6 @@ public class OrderService {
         order.setAssignedUserId(assignedUser.getId());
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
-        order.setProductDetails(dto.getProductDetails());
-        order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
         order.setTotalInvoiceAmount(dto.getTotalInvoiceAmount());
@@ -82,6 +83,9 @@ public class OrderService {
         order.setOrderStatus(OrderStatus.SALES_REGISTERED.getValue());
         order.setProductionStatus(ProductionStatus.CONFIRM.getValue());
         order.setCreatedByAdminEmail(salesAdminEmail);
+
+        // Build order items from DTO
+        populateOrderItems(order, dto.getOrderItems());
 
         // Auto-compute payment status and trigger production if fully paid
         updatePaymentStatusAndTriggerProduction(order);
@@ -153,14 +157,16 @@ public class OrderService {
         order.setAssignedUserId(assignedUser.getId());
         order.setCustomerName(dto.getCustomerName());
         order.setPiNumber(dto.getPiNumber());
-        order.setProductDetails(dto.getProductDetails());
-        order.setQuantity(dto.getQuantity());
         order.setMobileNumber(dto.getMobileNumber());
         order.setExpectedDeliveryDate(deliveryDate);
         order.setTotalInvoiceAmount(dto.getTotalInvoiceAmount());
         order.setReceivedAmount(receivedAmount);
         order.setPendingAmount(dto.getTotalInvoiceAmount() - receivedAmount);
         order.setPriority(dto.getPriority());
+
+        // Replace order items
+        order.getOrderItems().clear();
+        populateOrderItems(order, dto.getOrderItems());
 
         // Auto-compute payment status and trigger production if fully paid
         updatePaymentStatusAndTriggerProduction(order);
@@ -296,11 +302,12 @@ public class OrderService {
             throw new IllegalArgumentException("SCM details can only be filled when order status is PRODUCTION_COMPLETE. Current status: " + order.getOrderStatus());
         }
 
-        // Validate quantity matches barcodes
-        int expectedQuantity = (order.getQuantity() != null) ? order.getQuantity() : 1;
+        // Validate quantity matches barcodes (sum of all item quantities)
+        int expectedQuantity = order.getTotalQuantity();
+        if (expectedQuantity == 0) expectedQuantity = 1;
         if (dto.getBarcodes().size() != expectedQuantity) {
             throw new IllegalArgumentException("Number of barcodes provided (" + dto.getBarcodes().size() + 
-                    ") does not match the order quantity (" + expectedQuantity + ").");
+                    ") does not match the total order quantity (" + expectedQuantity + ").");
         }
 
         // Fill SCM fields
@@ -491,6 +498,21 @@ public class OrderService {
         }
     }
 
+    /**
+     * Populates OrderItem entities from DTOs and sets legacy fields for backward compat.
+     */
+    private void populateOrderItems(Order order, List<OrderItemDTO> itemDTOs) {
+        int totalQuantity = 0;
+        for (OrderItemDTO itemDTO : itemDTOs) {
+            OrderItem item = new OrderItem(order, itemDTO.getProductDetails(), itemDTO.getQuantity());
+            order.getOrderItems().add(item);
+            totalQuantity += itemDTO.getQuantity();
+        }
+        // Populate legacy fields from the items
+        order.setProductDetails(itemDTOs.get(0).getProductDetails());
+        order.setQuantity(totalQuantity);
+    }
+
     private OrderResponse mapToResponse(Order order) {
         OrderResponse response = new OrderResponse();
         response.setId(order.getId());
@@ -501,7 +523,7 @@ public class OrderService {
         response.setCustomerName(order.getCustomerName());
         response.setPiNumber(order.getPiNumber());
         response.setProductDetails(order.getProductDetails());
-        response.setQuantity(order.getQuantity());
+        response.setQuantity(order.getTotalQuantity());
         response.setMobileNumber(order.getMobileNumber());
         response.setExpectedDeliveryDate(order.getExpectedDeliveryDate());
         response.setPaymentStatus(order.getPaymentStatus());
@@ -509,6 +531,30 @@ public class OrderService {
         response.setReceivedAmount(order.getReceivedAmount());
         response.setPendingAmount(order.getPendingAmount());
         response.setPriority(order.getPriority());
+
+        // Order items (multiple products)
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
+                    .map(item -> {
+                        OrderItemResponse itemResp = new OrderItemResponse();
+                        itemResp.setId(item.getId());
+                        itemResp.setProductDetails(item.getProductDetails());
+                        itemResp.setQuantity(item.getQuantity());
+                        return itemResp;
+                    })
+                    .collect(Collectors.toList());
+            response.setOrderItems(itemResponses);
+        } else {
+            // Backward compat: build a single-item list from legacy fields
+            if (order.getProductDetails() != null) {
+                OrderItemResponse legacyItem = new OrderItemResponse();
+                legacyItem.setProductDetails(order.getProductDetails());
+                legacyItem.setQuantity(order.getQuantity());
+                response.setOrderItems(List.of(legacyItem));
+            } else {
+                response.setOrderItems(new ArrayList<>());
+            }
+        }
 
         // Lifecycle status
         response.setOrderStatus(order.getOrderStatus());
