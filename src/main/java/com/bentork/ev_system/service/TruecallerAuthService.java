@@ -12,6 +12,7 @@ import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.DisabledException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -112,6 +113,12 @@ public class TruecallerAuthService {
                 // Notify admin of new registration
                 adminNotificationService.notifyNewUserRegistration(user.getName());
             }
+        }
+
+        // Block login for deactivated accounts
+        if (!user.getActive()) {
+            log.warn("Truecaller login blocked for deactivated account: {}", normalizedMobile);
+            throw new DisabledException("Your account has been deactivated. Please contact support.");
         }
 
         // Step 4: Generate JWT
@@ -324,6 +331,12 @@ public class TruecallerAuthService {
                     user = createUserFromTruecaller(userInfo, normalizedMobile);
                     adminNotificationService.notifyNewUserRegistration(user.getName());
                 }
+            }
+
+            // Block login for deactivated accounts
+            if (!user.getActive()) {
+                log.warn("Truecaller webhook login blocked for deactivated account: {}", normalizedMobile);
+                throw new DisabledException("Your account has been deactivated. Please contact support.");
             }
 
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()

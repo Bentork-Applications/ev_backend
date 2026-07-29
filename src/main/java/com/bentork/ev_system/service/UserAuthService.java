@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -94,6 +95,13 @@ public class UserAuthService implements IUserAuthService {
             adminNotificationService.notifyNewUserRegistration(newUser.getName());
             return newUser;
         });
+
+        // Block login for deactivated accounts
+        if (!user.getActive()) {
+            log.warn("Google login blocked for deactivated account: {}", email);
+            throw new DisabledException("Your account has been deactivated. Please contact support.");
+        }
+
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password("")
