@@ -1,5 +1,6 @@
 package com.bentork.ev_system.dto.request;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -25,6 +26,12 @@ public class UserSignupRequest {
 
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
+
+    @AssertTrue(message = "You must accept the Terms and Conditions")
+    private boolean consentToTerms;
+
+    @AssertTrue(message = "You must consent to data processing")
+    private boolean consentToDataProcessing;
 
     // Getters and Setters
 
@@ -66,6 +73,22 @@ public class UserSignupRequest {
 
     public void setConfirmPassword(String confirmPassword) {
         this.confirmPassword = confirmPassword;
+    }
+
+    public boolean isConsentToTerms() {
+        return consentToTerms;
+    }
+
+    public void setConsentToTerms(boolean consentToTerms) {
+        this.consentToTerms = consentToTerms;
+    }
+
+    public boolean isConsentToDataProcessing() {
+        return consentToDataProcessing;
+    }
+
+    public void setConsentToDataProcessing(boolean consentToDataProcessing) {
+        this.consentToDataProcessing = consentToDataProcessing;
     }
 
 }

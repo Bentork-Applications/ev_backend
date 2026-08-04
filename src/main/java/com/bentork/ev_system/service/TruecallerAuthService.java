@@ -11,6 +11,7 @@ import com.bentork.ev_system.repository.TruecallerLoginSessionRepository;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
+import com.bentork.ev_system.model.enums.ConsentType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.DisabledException;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class TruecallerAuthService {
     private final JwtUtil jwtUtil;
     private final IAdminNotificationService adminNotificationService;
     private final TruecallerLoginSessionRepository sessionRepo;
+    private final ConsentService consentService;
 
     @Value("${truecaller.client-id:}")
     private String clientId;
@@ -59,6 +61,10 @@ public class TruecallerAuthService {
      */
     public TruecallerLoginResponse login(TruecallerLoginRequest request) {
         log.info("Processing Truecaller login request");
+
+        // Extract consent flags from request
+        boolean consentToTerms = request.isConsentToTerms();
+        boolean consentToDataProcessing = request.isConsentToDataProcessing();
 
         // Step 1: Exchange authorization code for access token
         String accessToken = exchangeCodeForAccessToken(
@@ -105,10 +111,16 @@ public class TruecallerAuthService {
                 }
                 user = userRepo.save(user);
             } else {
+                // Validate DPDPA consent for new users
+                consentService.validateRegistrationConsent(consentToTerms, consentToDataProcessing);
+
                 // Auto-register new user if neither mobile nor email exists
                 user = createUserFromTruecaller(userInfo, normalizedMobile);
                 isNewUser = true;
                 log.info("New user auto-registered via Truecaller: {}", normalizedMobile);
+
+                // Record DPDPA consent
+                consentService.grantRegistrationConsents(user, null);
 
                 // Notify admin of new registration
                 adminNotificationService.notifyNewUserRegistration(user.getName());
@@ -329,6 +341,9 @@ public class TruecallerAuthService {
                     user = userRepo.save(user);
                 } else {
                     user = createUserFromTruecaller(userInfo, normalizedMobile);
+                    // Auto-grant consent for webhook-created users
+                    // (user already consented on the client before initiating the flow)
+                    consentService.grantRegistrationConsents(user, null);
                     adminNotificationService.notifyNewUserRegistration(user.getName());
                 }
             }

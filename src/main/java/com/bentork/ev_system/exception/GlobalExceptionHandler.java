@@ -57,6 +57,14 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(status.value(), msg);
     }
 
+    // -------- 422 CONSENT ERRORS ----------
+    @ExceptionHandler(ConsentRequiredException.class)
+    public ResponseEntity<ErrorResponse> consentRequired(ConsentRequiredException ex) {
+        logLine(ex);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage()));
+    }
+
     // -------- 400 ERRORS ----------
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex) {

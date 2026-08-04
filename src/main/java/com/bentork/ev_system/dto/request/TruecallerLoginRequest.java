@@ -13,4 +13,8 @@ public class TruecallerLoginRequest {
     private String codeVerifier;
 
     private String clientType; // "MOBILE" or "WEB"
+
+    private boolean consentToTerms;
+
+    private boolean consentToDataProcessing;
 }

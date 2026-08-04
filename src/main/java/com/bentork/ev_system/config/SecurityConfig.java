@@ -73,6 +73,7 @@ public class SecurityConfig {
                                                                 "/oauth2/**",
                                                                 "/login/**",
                                                                 "/api/user/google-login-success",
+                                                "/api/user/google-login",
                                                                 "/api/user/byemail/**",
                                                                 "/error",
                                                                 "/favicon.ico")

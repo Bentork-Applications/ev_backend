@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import com.bentork.ev_system.dto.request.FcmTokenDTO;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.UserNotification;
+import com.bentork.ev_system.model.enums.ConsentType;
 import com.bentork.ev_system.repository.UserRepository;
+import com.bentork.ev_system.service.ConsentService;
 import com.bentork.ev_system.service.interfaces.IUserNotificationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -22,12 +24,14 @@ import lombok.extern.slf4j.Slf4j;
 public class UserNotificationController {
 
     private final IUserNotificationService service;
-    private final UserRepository userRepository; // 1. Added Repository
+    private final UserRepository userRepository;
+    private final ConsentService consentService;
 
-    // 2. Updated Constructor
-    public UserNotificationController(IUserNotificationService service, UserRepository userRepository) {
+    public UserNotificationController(IUserNotificationService service, UserRepository userRepository,
+                                      ConsentService consentService) {
         this.service = service;
         this.userRepository = userRepository;
+        this.consentService = consentService;
     }
 
     // --- NEW ENDPOINT: Register FCM Token ---
@@ -45,6 +49,11 @@ public class UserNotificationController {
 
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Record DPDPA consent for push notifications
+            if (tokenDto.isConsentToPushNotifications()) {
+                consentService.grantConsent(user, ConsentType.PUSH_NOTIFICATIONS, null);
+            }
 
             user.setFcmToken(tokenDto.getFcmToken());
             userRepository.save(user);

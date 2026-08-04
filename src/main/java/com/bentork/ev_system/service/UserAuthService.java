@@ -34,14 +34,19 @@ public class UserAuthService implements IUserAuthService {
     private final OtpService otpService;
     private final OtpDeliveryService otpDeliveryService;
     private final IAdminNotificationService adminNotificationService;
+    private final ConsentService consentService;
 
     @Override
     @CacheEvict(value = "user-data", allEntries = true)
-    public String register(UserSignupRequest request) {
+    public String register(UserSignupRequest request, String ipAddress) {
         if (!request.getPassword().equals(request.getConfirmPassword()))
             throw new IllegalArgumentException("Passwords do not match");
         if (userRepo.existsByEmail(request.getEmail()))
             throw new IllegalArgumentException("Email already in use");
+
+        // Validate DPDPA consent (also validated by @AssertTrue, but defense-in-depth)
+        consentService.validateRegistrationConsent(
+                request.isConsentToTerms(), request.isConsentToDataProcessing());
 
         User user = new User();
         user.setName(request.getName());
@@ -49,6 +54,9 @@ public class UserAuthService implements IUserAuthService {
         user.setMobile(request.getMobile());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepo.save(user);
+
+        // Record DPDPA consent
+        consentService.grantRegistrationConsents(user, ipAddress);
 
         adminNotificationService.notifyNewUserRegistration(user.getName());
         return "User registered successfully";
@@ -95,6 +103,51 @@ public class UserAuthService implements IUserAuthService {
             adminNotificationService.notifyNewUserRegistration(newUser.getName());
             return newUser;
         });
+
+        // Block login for deactivated accounts
+        if (!user.getActive()) {
+            log.warn("Google login blocked for deactivated account: {}", email);
+            throw new DisabledException("Your account has been deactivated. Please contact support.");
+        }
+
+        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password("")
+                .authorities("USER")
+                .build();
+        return new JwtResponse(jwtUtil.generateToken(userDetails));
+    }
+
+    /**
+     * POST-based Google login with DPDPA consent.
+     * For new users: validates and records consent before creating the account.
+     * For existing users: consent fields are ignored (login-only flow).
+     */
+    @Override
+    @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
+    public JwtResponse googleLoginWithConsent(String email, boolean consentToTerms,
+                                              boolean consentToDataProcessing, String ipAddress) {
+        boolean isNewUser = !userRepo.existsByEmail(email);
+
+        if (isNewUser) {
+            // Validate consent for new users
+            consentService.validateRegistrationConsent(consentToTerms, consentToDataProcessing);
+        }
+
+        User user = userRepo.findByEmail(email).orElseGet(() -> {
+            log.info("New Google user detected (POST login), auto-registering: {}", email);
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setName(email.split("@")[0]);
+            userRepo.save(newUser);
+            adminNotificationService.notifyNewUserRegistration(newUser.getName());
+            return newUser;
+        });
+
+        // Record consent for new users after the user entity is persisted
+        if (isNewUser) {
+            consentService.grantRegistrationConsents(user, ipAddress);
+        }
 
         // Block login for deactivated accounts
         if (!user.getActive()) {

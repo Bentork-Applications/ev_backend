@@ -1,5 +1,6 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.dto.request.GoogleLoginRequest;
 import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
 import com.bentork.ev_system.dto.request.TruecallerWebhookPayload;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
@@ -30,8 +31,10 @@ public class UserAuthController {
     private final TruecallerAuthService truecallerAuthService;
 
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody UserSignupRequest request) {
-        return ResponseEntity.ok(userAuthService.register(request));
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserSignupRequest request,
+                                          HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        return ResponseEntity.ok(userAuthService.register(request, ipAddress));
     }
 
     @PostMapping("/login")
@@ -52,6 +55,26 @@ public class UserAuthController {
         return ResponseEntity.ok("Password reset successful.");
     }
 
+    /**
+     * POST-based Google login with DPDPA consent support.
+     * Consent fields are required only for new users (first-time registration).
+     */
+    @PostMapping("/google-login")
+    public ResponseEntity<?> googleLoginWithConsent(@Valid @RequestBody GoogleLoginRequest request,
+                                                    HttpServletRequest httpRequest) {
+        String ipAddress = getClientIpAddress(httpRequest);
+        return ResponseEntity.ok(userAuthService.googleLoginWithConsent(
+                request.getEmail(),
+                request.isConsentToTerms(),
+                request.isConsentToDataProcessing(),
+                ipAddress));
+    }
+
+    /**
+     * @deprecated Use POST /api/user/google-login instead for DPDPA compliance.
+     * Kept for backward compatibility — does not record consent for new users.
+     */
+    @Deprecated
     @GetMapping("/google-login-success")
     public ResponseEntity<?> googleLoginSuccess(@RequestParam String email) {
         return ResponseEntity.ok(userAuthService.googleLogin(email));
@@ -144,5 +167,16 @@ public class UserAuthController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
+    }
+
+    /**
+     * Extracts the client IP address, considering X-Forwarded-For header for proxied requests.
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

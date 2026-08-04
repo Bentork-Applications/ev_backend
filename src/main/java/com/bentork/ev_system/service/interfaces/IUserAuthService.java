@@ -8,11 +8,12 @@ import com.bentork.ev_system.model.User;
 import java.util.List;
 
 public interface IUserAuthService {
-    String register(UserSignupRequest request);
+    String register(UserSignupRequest request, String ipAddress);
     JwtResponse login(UserLoginRequest request);
     void sendOtp(String email);
     void resetPassword(String email, String otp, String newPassword);
     JwtResponse googleLogin(String email);
+    JwtResponse googleLoginWithConsent(String email, boolean consentToTerms, boolean consentToDataProcessing, String ipAddress);
     void deleteAccount(String email);
     long getTotalUsers();
     User getUserDetailsByEmail(String email) throws Exception;
