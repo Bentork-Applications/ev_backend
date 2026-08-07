@@ -1,10 +1,16 @@
 package com.bentork.ev_system.dto.response;
 
+import java.util.List;
+
 public class OrderItemResponse {
 
     private Long id;
     private String productDetails;
     private Integer quantity;
+    private Integer serviceWarrantyMonths;
+    private Integer fullWarrantyMonths;
+    private Integer totalWarrantyMonths;
+    private List<String> barcodes;
 
     // Getters and Setters
 
@@ -30,5 +36,37 @@ public class OrderItemResponse {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getServiceWarrantyMonths() {
+        return serviceWarrantyMonths;
+    }
+
+    public void setServiceWarrantyMonths(Integer serviceWarrantyMonths) {
+        this.serviceWarrantyMonths = serviceWarrantyMonths;
+    }
+
+    public Integer getFullWarrantyMonths() {
+        return fullWarrantyMonths;
+    }
+
+    public void setFullWarrantyMonths(Integer fullWarrantyMonths) {
+        this.fullWarrantyMonths = fullWarrantyMonths;
+    }
+
+    public Integer getTotalWarrantyMonths() {
+        return totalWarrantyMonths;
+    }
+
+    public void setTotalWarrantyMonths(Integer totalWarrantyMonths) {
+        this.totalWarrantyMonths = totalWarrantyMonths;
+    }
+
+    public List<String> getBarcodes() {
+        return barcodes;
+    }
+
+    public void setBarcodes(List<String> barcodes) {
+        this.barcodes = barcodes;
     }
 }

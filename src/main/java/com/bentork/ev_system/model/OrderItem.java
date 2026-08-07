@@ -31,6 +31,17 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity;
 
+    // ==================== WARRANTY FIELDS (set during SCM stage) ====================
+
+    private Integer serviceWarrantyMonths;
+
+    private Integer fullWarrantyMonths;
+
+    private Integer totalWarrantyMonths;
+
+    // Comma-separated barcodes assigned to this item during SCM stage
+    private String barcodes;
+
     // ==================== CONSTRUCTORS ====================
 
     public OrderItem() {
@@ -74,5 +85,37 @@ public class OrderItem {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getServiceWarrantyMonths() {
+        return serviceWarrantyMonths;
+    }
+
+    public void setServiceWarrantyMonths(Integer serviceWarrantyMonths) {
+        this.serviceWarrantyMonths = serviceWarrantyMonths;
+    }
+
+    public Integer getFullWarrantyMonths() {
+        return fullWarrantyMonths;
+    }
+
+    public void setFullWarrantyMonths(Integer fullWarrantyMonths) {
+        this.fullWarrantyMonths = fullWarrantyMonths;
+    }
+
+    public Integer getTotalWarrantyMonths() {
+        return totalWarrantyMonths;
+    }
+
+    public void setTotalWarrantyMonths(Integer totalWarrantyMonths) {
+        this.totalWarrantyMonths = totalWarrantyMonths;
+    }
+
+    public String getBarcodes() {
+        return barcodes;
+    }
+
+    public void setBarcodes(String barcodes) {
+        this.barcodes = barcodes;
     }
 }

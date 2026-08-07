@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
 import com.bentork.ev_system.dto.request.OrderItemDTO;
 import com.bentork.ev_system.dto.request.RecordPaymentDTO;
+import com.bentork.ev_system.dto.request.ScmItemDTO;
 import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
 import com.bentork.ev_system.dto.response.OrderItemResponse;
@@ -27,6 +28,7 @@ import com.bentork.ev_system.model.Order;
 import com.bentork.ev_system.model.OrderItem;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
+import com.bentork.ev_system.repository.OrderItemRepository;
 import com.bentork.ev_system.repository.OrderRepository;
 import com.bentork.ev_system.repository.UserRepository;
 import com.bentork.ev_system.service.interfaces.IUserNotificationService;
@@ -40,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final BatteryDataRepository batteryDataRepository;
     private final UserRepository userRepository;
     private final IUserNotificationService userNotificationService;
@@ -289,8 +292,9 @@ public class OrderService {
 
     /**
      * Fill SCM details and mark order as SCM_COMPLETE (SCM Admin only).
-     * Computes totalWarrantyMonths = serviceWarrantyMonths + fullWarrantyMonths.
-     * Also creates BatteryData records for each barcode.
+     * Accepts per-item warranty and barcodes via ScmItemDTO.
+     * Creates BatteryData records for each barcode with item-specific warranty.
+     * Order-level warranty is set to the max across all items for summary.
      */
     @Transactional
     public OrderResponse updateScmDetails(Long orderId, UpdateScmDetailsDTO dto, String scmAdminEmail) {
@@ -302,44 +306,85 @@ public class OrderService {
             throw new IllegalArgumentException("SCM details can only be filled when order status is PRODUCTION_COMPLETE. Current status: " + order.getOrderStatus());
         }
 
-        // Validate quantity matches barcodes (sum of all item quantities)
-        int expectedQuantity = order.getTotalQuantity();
-        if (expectedQuantity == 0) expectedQuantity = 1;
-        if (dto.getBarcodes().size() != expectedQuantity) {
-            throw new IllegalArgumentException("Number of barcodes provided (" + dto.getBarcodes().size() + 
-                    ") does not match the total order quantity (" + expectedQuantity + ").");
+        List<BatteryData> batteryDataList = new ArrayList<>();
+        List<String> allBarcodes = new ArrayList<>();
+        int maxServiceWarranty = 0;
+        int maxFullWarranty = 0;
+        int totalBarcodesProvided = 0;
+
+        for (ScmItemDTO scmItem : dto.getItems()) {
+            // Validate the order item exists and belongs to this order
+            OrderItem orderItem = orderItemRepository.findById(scmItem.getOrderItemId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Order item not found with ID: " + scmItem.getOrderItemId()));
+
+            if (!orderItem.getOrder().getId().equals(order.getId())) {
+                throw new IllegalArgumentException(
+                        "Order item " + scmItem.getOrderItemId() + " does not belong to order " + orderId);
+            }
+
+            // Validate barcode count matches item quantity
+            if (scmItem.getBarcodes().size() != orderItem.getQuantity()) {
+                throw new IllegalArgumentException(
+                        "Number of barcodes (" + scmItem.getBarcodes().size()
+                        + ") does not match quantity (" + orderItem.getQuantity()
+                        + ") for item '" + orderItem.getProductDetails() + "'");
+            }
+
+            // Set per-item warranty
+            int itemTotalWarranty = scmItem.getServiceWarrantyMonths() + scmItem.getFullWarrantyMonths();
+            orderItem.setServiceWarrantyMonths(scmItem.getServiceWarrantyMonths());
+            orderItem.setFullWarrantyMonths(scmItem.getFullWarrantyMonths());
+            orderItem.setTotalWarrantyMonths(itemTotalWarranty);
+            orderItem.setBarcodes(String.join(",", scmItem.getBarcodes()));
+
+            // Track max warranty for order-level summary
+            maxServiceWarranty = Math.max(maxServiceWarranty, scmItem.getServiceWarrantyMonths());
+            maxFullWarranty = Math.max(maxFullWarranty, scmItem.getFullWarrantyMonths());
+
+            // Collect all barcodes
+            allBarcodes.addAll(scmItem.getBarcodes());
+            totalBarcodesProvided += scmItem.getBarcodes().size();
+
+            // Create BatteryData records with item-specific warranty and product details
+            for (String barcode : scmItem.getBarcodes()) {
+                BatteryData batteryData = new BatteryData();
+                batteryData.setCustomerName(order.getCustomerName());
+                batteryData.setProductDetails(orderItem.getProductDetails());
+                batteryData.setInvoiceNumber(dto.getInvoiceNumber());
+                batteryData.setBarcode(barcode);
+                batteryData.setWarrantyStartDate(LocalDate.now());
+                batteryData.setWarrantyEndDate(LocalDate.now().plusMonths(itemTotalWarranty));
+                batteryData.setCreatedByAdminEmail(scmAdminEmail);
+                batteryDataList.add(batteryData);
+            }
         }
 
-        // Fill SCM fields
+        // Validate total barcodes match total order quantity
+        int expectedQuantity = order.getTotalQuantity();
+        if (expectedQuantity == 0) expectedQuantity = 1;
+        if (totalBarcodesProvided != expectedQuantity) {
+            throw new IllegalArgumentException(
+                    "Total barcodes provided (" + totalBarcodesProvided
+                    + ") does not match total order quantity (" + expectedQuantity + ").");
+        }
+
+        // Fill order-level SCM fields
         order.setInvoiceNumber(dto.getInvoiceNumber());
-        order.setBarcode(String.join(",", dto.getBarcodes()));
-        order.setServiceWarrantyMonths(dto.getServiceWarrantyMonths());
-        order.setFullWarrantyMonths(dto.getFullWarrantyMonths());
-        order.setTotalWarrantyMonths(dto.getServiceWarrantyMonths() + dto.getFullWarrantyMonths());
+        order.setBarcode(String.join(",", allBarcodes));
+        order.setServiceWarrantyMonths(maxServiceWarranty);
+        order.setFullWarrantyMonths(maxFullWarranty);
+        order.setTotalWarrantyMonths(maxServiceWarranty + maxFullWarranty);
         order.setTrackingId(dto.getTrackingId());
         order.setScmUpdatedByEmail(scmAdminEmail);
         order.setOrderStatus(OrderStatus.SCM_COMPLETE.getValue());
         order.setScmCompletedAt(LocalDateTime.now());
 
         Order saved = orderRepository.save(order);
-
-        // Create BatteryData records
-        List<BatteryData> batteryDataList = new ArrayList<>();
-        for (String barcode : dto.getBarcodes()) {
-            BatteryData batteryData = new BatteryData();
-            batteryData.setCustomerName(order.getCustomerName());
-            batteryData.setProductDetails(order.getProductDetails());
-            batteryData.setInvoiceNumber(dto.getInvoiceNumber());
-            batteryData.setBarcode(barcode);
-            batteryData.setWarrantyStartDate(LocalDate.now());
-            batteryData.setWarrantyEndDate(LocalDate.now().plusMonths(order.getTotalWarrantyMonths()));
-            batteryData.setCreatedByAdminEmail(scmAdminEmail);
-            batteryDataList.add(batteryData);
-        }
         batteryDataRepository.saveAll(batteryDataList);
 
         log.info("Order {} SCM details filled by SCM Admin {}. Created {} BatteryData records.",
-                orderId, scmAdminEmail, expectedQuantity);
+                orderId, scmAdminEmail, totalBarcodesProvided);
 
         userNotificationService.createNotification(saved.getAssignedUserId(),
                 "SCM Processing Complete",
@@ -532,7 +577,7 @@ public class OrderService {
         response.setPendingAmount(order.getPendingAmount());
         response.setPriority(order.getPriority());
 
-        // Order items (multiple products)
+        // Order items (multiple products) with per-item warranty
         if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
             List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
                     .map(item -> {
@@ -540,6 +585,14 @@ public class OrderService {
                         itemResp.setId(item.getId());
                         itemResp.setProductDetails(item.getProductDetails());
                         itemResp.setQuantity(item.getQuantity());
+                        itemResp.setServiceWarrantyMonths(item.getServiceWarrantyMonths());
+                        itemResp.setFullWarrantyMonths(item.getFullWarrantyMonths());
+                        itemResp.setTotalWarrantyMonths(item.getTotalWarrantyMonths());
+                        if (item.getBarcodes() != null && !item.getBarcodes().isEmpty()) {
+                            itemResp.setBarcodes(Arrays.asList(item.getBarcodes().split(",")));
+                        } else {
+                            itemResp.setBarcodes(new ArrayList<>());
+                        }
                         return itemResp;
                     })
                     .collect(Collectors.toList());
