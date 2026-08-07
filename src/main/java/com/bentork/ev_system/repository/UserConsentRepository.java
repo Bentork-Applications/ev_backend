@@ -23,4 +23,7 @@ public interface UserConsentRepository extends JpaRepository<UserConsent, Long> 
 
     /** Find active consent record for a user and type. */
     Optional<UserConsent> findByUserAndConsentTypeAndGrantedTrue(User user, ConsentType consentType);
+
+    /** Delete all consent records for a user (used for account deletion). */
+    void deleteByUser(User user);
 }

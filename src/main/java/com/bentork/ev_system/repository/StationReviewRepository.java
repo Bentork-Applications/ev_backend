@@ -31,4 +31,7 @@ public interface StationReviewRepository extends JpaRepository<StationReview, Lo
 
     // All reviews by a specific user
     List<StationReview> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // Delete all reviews by a user (used for account deletion)
+    void deleteByUserId(Long userId);
 }

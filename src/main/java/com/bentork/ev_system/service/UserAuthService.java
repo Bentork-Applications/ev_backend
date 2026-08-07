@@ -4,8 +4,8 @@ import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.JwtResponse;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
 import com.bentork.ev_system.dto.request.UserSignupRequest;
-import com.bentork.ev_system.model.User;
-import com.bentork.ev_system.repository.UserRepository;
+import com.bentork.ev_system.model.*;
+import com.bentork.ev_system.repository.*;
 import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -35,6 +36,22 @@ public class UserAuthService implements IUserAuthService {
     private final OtpDeliveryService otpDeliveryService;
     private final IAdminNotificationService adminNotificationService;
     private final ConsentService consentService;
+
+    // Repositories needed for DPDPA-compliant account deletion
+    private final SessionRepository sessionRepo;
+    private final RevenueRepository revenueRepo;
+    private final ReceiptRepository receiptRepo;
+    private final WalletTransactionRepository walletTransactionRepo;
+    private final CoinTransactionRepository coinTransactionRepo;
+    private final StationReviewRepository stationReviewRepo;
+    private final SlotBookingRepository slotBookingRepo;
+    private final UserNotificationRepository userNotificationRepo;
+    private final UserConsentRepository userConsentRepo;
+    private final RFIDCardRepository rfidCardRepo;
+    private final RFIDCardApplicationRepository rfidCardApplicationRepo;
+    private final ReferralRepository referralRepo;
+    private final UserPlanSelectionRepository userPlanSelectionRepo;
+    private final OrderRepository orderRepo;
 
     @Override
     @CacheEvict(value = "user-data", allEntries = true)
@@ -163,12 +180,123 @@ public class UserAuthService implements IUserAuthService {
         return new JwtResponse(jwtUtil.generateToken(userDetails));
     }
 
+    /**
+     * DPDPA Section 12 — Right to Erasure.
+     * Permanently deletes the user account and erases all personal data.
+     *
+     * <p><b>Retained (FK nullified):</b> Sessions, WalletTransactions, Revenue,
+     * Receipts, CoinTransactions, Orders — financial/operational records required
+     * for GST/tax compliance and business reporting.</p>
+     *
+     * <p><b>Deleted:</b> StationReviews, SlotBookings, UserNotifications,
+     * UserConsents, RFIDCardApplications, Referrals, UserPlanSelections,
+     * and the User row itself.</p>
+     *
+     * <p><b>Deactivated & unlinked:</b> RFIDCards (hardware assets, kept but
+     * disassociated from the deleted user).</p>
+     */
     @Override
+    @Transactional
     @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
     public void deleteAccount(String email) {
-        User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
-        user.setActive(false);
-        userRepo.save(user);
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Long userId = user.getId();
+
+        // ── Guard: Block deletion if user has an active charging session ──
+        boolean hasActiveSession = sessionRepo.existsByUserIdAndStatus(userId, "ACTIVE")
+                || sessionRepo.existsByUserIdAndStatus(userId, "INITIATED");
+        if (hasActiveSession) {
+            throw new IllegalStateException(
+                    "Cannot delete account while a charging session is active or initiated. "
+                    + "Please wait until your session completes.");
+        }
+
+        log.info("Starting DPDPA-compliant account deletion for user: {} (id: {})", email, userId);
+
+        // ── Step 1: Nullify FKs in retained financial/operational records ──
+
+        // Sessions — preserve charging history, remove user link
+        List<Session> sessions = sessionRepo.findByUserId(userId);
+        for (Session session : sessions) {
+            session.setUser(null);
+        }
+        sessionRepo.saveAll(sessions);
+        log.debug("Nullified user FK in {} session(s)", sessions.size());
+
+        // Revenue — preserve financial records, remove user link
+        List<Revenue> revenues = revenueRepo.findByUser_Id(userId);
+        for (Revenue revenue : revenues) {
+            revenue.setUser(null);
+        }
+        revenueRepo.saveAll(revenues);
+        log.debug("Nullified user FK in {} revenue record(s)", revenues.size());
+
+        // Receipts — preserve financial records, remove user link
+        List<Receipt> receipts = receiptRepo.findByUserId(userId);
+        for (Receipt receipt : receipts) {
+            receipt.setUser(null);
+        }
+        receiptRepo.saveAll(receipts);
+        log.debug("Nullified user FK in {} receipt(s)", receipts.size());
+
+        // Wallet transactions — preserve financial/GST records, remove user link
+        List<WalletTransaction> walletTxns = walletTransactionRepo.findByUserId(userId);
+        for (WalletTransaction txn : walletTxns) {
+            txn.setUserId(null);
+        }
+        walletTransactionRepo.saveAll(walletTxns);
+        log.debug("Nullified userId in {} wallet transaction(s)", walletTxns.size());
+
+        // Coin transactions — preserve session-linked records, remove user link
+        List<CoinTransaction> coinTxns = coinTransactionRepo.findByUserIdOrderByCreatedAtDesc(userId);
+        for (CoinTransaction txn : coinTxns) {
+            txn.setUserId(null);
+        }
+        coinTransactionRepo.saveAll(coinTxns);
+        log.debug("Nullified userId in {} coin transaction(s)", coinTxns.size());
+
+        // Orders — preserve business records, nullify assigned user
+        orderRepo.nullifyAssignedUser(userId);
+        log.debug("Nullified assignedUserId in orders for user {}", userId);
+
+        // ── Step 2: Deactivate & unlink RFID cards (hardware assets) ──
+        List<RFIDCard> rfidCards = rfidCardRepo.findByUserId(userId);
+        for (RFIDCard card : rfidCards) {
+            card.setUser(null);
+            card.setActive(false);
+        }
+        rfidCardRepo.saveAll(rfidCards);
+        log.debug("Deactivated & unlinked {} RFID card(s)", rfidCards.size());
+
+        // ── Step 3: Delete user-specific records (PII or no retention need) ──
+
+        stationReviewRepo.deleteByUserId(userId);
+        log.debug("Deleted station reviews for user {}", userId);
+
+        slotBookingRepo.deleteByUserId(userId);
+        log.debug("Deleted slot bookings for user {}", userId);
+
+        userNotificationRepo.deleteByUser(user);
+        log.debug("Deleted notifications for user {}", userId);
+
+        userConsentRepo.deleteByUser(user);
+        log.debug("Deleted consent records for user {}", userId);
+
+        rfidCardApplicationRepo.deleteByUserId(userId);
+        log.debug("Deleted RFID card applications for user {}", userId);
+
+        referralRepo.deleteByReferrerIdOrReferredUserId(userId, userId);
+        log.debug("Deleted referrals involving user {}", userId);
+
+        userPlanSelectionRepo.deleteByUserId(userId);
+        log.debug("Deleted plan selections for user {}", userId);
+
+        // ── Step 4: Delete the User row — permanent erasure ──
+        userRepo.delete(user);
+
+        log.info("DPDPA account deletion completed for user id: {}. "
+                + "Personal data erased, financial records retained with nullified user references.", userId);
     }
 
     @Override

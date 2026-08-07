@@ -124,7 +124,7 @@ public class UserAuthController {
     public ResponseEntity<?> deleteAccount(
             @AuthenticationPrincipal UserDetails userDetails) {
         userAuthService.deleteAccount(userDetails.getUsername());
-        return ResponseEntity.ok("Account deactivated successfully.");
+        return ResponseEntity.ok("Account permanently deleted successfully. All personal data has been erased.");
     }
 
     @GetMapping("/total")

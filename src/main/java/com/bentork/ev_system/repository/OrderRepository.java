@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.bentork.ev_system.model.Order;
@@ -36,4 +39,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Stats
     long countByOrderStatus(String orderStatus);
     long countByProductionStatus(String productionStatus);
+
+    // Nullify assigned user on orders when user deletes account (used for account deletion)
+    @Modifying
+    @Query("UPDATE Order o SET o.assignedUserId = null WHERE o.assignedUserId = :userId")
+    void nullifyAssignedUser(@Param("userId") Long userId);
 }

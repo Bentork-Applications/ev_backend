@@ -18,4 +18,7 @@ public interface ReferralRepository extends JpaRepository<Referral, Long> {
     List<Referral> findByReferrerIdAndStatus(Long referrerId, String status);
 
     boolean existsByReferredUserId(Long referredUserId);
+
+    // Delete all referrals involving a user (used for account deletion)
+    void deleteByReferrerIdOrReferredUserId(Long referrerId, Long referredUserId);
 }

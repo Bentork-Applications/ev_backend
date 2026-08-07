@@ -118,4 +118,7 @@ public interface SlotBookingRepository extends JpaRepository<SlotBooking, Long> 
                         "AND sb.slot.allDay = true " +
                         "AND sb.slot.startTimeOnly <= :cutoffTime")
         List<SlotBooking> findNoShowAllDayBookings(@Param("cutoffTime") LocalTime cutoffTime);
+
+        // Delete all bookings by a user (used for account deletion)
+        void deleteByUserId(Long userId);
 }

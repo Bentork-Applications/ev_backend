@@ -1,6 +1,7 @@
 package com.bentork.ev_system.repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,4 +22,7 @@ public interface RFIDCardRepository extends JpaRepository<RFIDCard, Long> {
     long countByActiveFalse();
 
     long countByCreatedAtAfter(LocalDateTime after);
+
+    // Find all RFID cards by user ID (used for account deletion — deactivate & unlink)
+    List<RFIDCard> findByUserId(Long userId);
 }

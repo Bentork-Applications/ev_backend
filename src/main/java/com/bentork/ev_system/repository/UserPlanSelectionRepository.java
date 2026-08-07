@@ -11,4 +11,7 @@ public interface UserPlanSelectionRepository extends JpaRepository<UserPlanSelec
     List<UserPlanSelection> findByUserId(Long userId);
 
     Optional<UserPlanSelection> findByUserIdAndIsActiveTrue(Long userId);
+
+    // Delete all plan selections by a user (used for account deletion)
+    void deleteByUserId(Long userId);
 }

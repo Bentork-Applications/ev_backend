@@ -15,4 +15,6 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     // Find unread notifications
     List<UserNotification> findByUserAndIsReadFalse(User user);
 
+    // Delete all notifications for a user (used for account deletion)
+    void deleteByUser(User user);
 }

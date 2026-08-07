@@ -54,6 +54,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
         // Find all sessions with given statuses, ordered by most recent first
         List<Session> findByStatusInOrderByCreatedAtDesc(List<String> statuses);
 
+        // Find all sessions by user ID (used for account deletion — nullify user FK)
+        List<Session> findByUserId(Long userId);
+
         // Check if user has an active or initiated session on a specific charger
         @Query("SELECT COUNT(s) > 0 FROM Session s " +
                 "WHERE s.user.id = :userId AND s.charger.id = :chargerId " +
