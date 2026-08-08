@@ -1,5 +1,7 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -43,7 +45,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SALES_ADMIN')")
     public ResponseEntity<?> createOrder(@Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Sales Admin {} creating a new order", adminEmail);
+        log.info("Sales Admin {} creating a new order", PiiMaskingUtil.maskEmail(adminEmail));
         try {
             OrderResponse response = orderService.createOrder(dto, adminEmail);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -59,7 +61,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SALES_ADMIN')")
     public ResponseEntity<List<OrderResponse>> getSalesAdminOrders() {
         String adminEmail = getCurrentUserEmail();
-        log.info("Sales Admin {} fetching their orders", adminEmail);
+        log.info("Sales Admin {} fetching their orders", PiiMaskingUtil.maskEmail(adminEmail));
         return ResponseEntity.ok(orderService.getSalesAdminOrders(adminEmail));
     }
 
@@ -84,7 +86,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SALES_ADMIN')")
     public ResponseEntity<?> updateSalesOrder(@PathVariable Long id, @Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Sales Admin {} updating order {}", adminEmail, id);
+        log.info("Sales Admin {} updating order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.updateSalesOrder(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -99,7 +101,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SALES_ADMIN')")
     public ResponseEntity<?> recordPayment(@PathVariable Long id, @Valid @RequestBody RecordPaymentDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Sales Admin {} recording payment for order {}", adminEmail, id);
+        log.info("Sales Admin {} recording payment for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.recordPayment(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -149,7 +151,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
     public ResponseEntity<?> updateProductionStatus(@PathVariable Long id, @Valid @RequestBody UpdateProductionStatusDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Production Admin {} updating production status for order {}", adminEmail, id);
+        log.info("Production Admin {} updating production status for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.updateProductionStatus(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -189,7 +191,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SCM_ADMIN')")
     public ResponseEntity<?> updateScmDetails(@PathVariable Long id, @Valid @RequestBody UpdateScmDetailsDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("SCM Admin {} filling SCM details for order {}", adminEmail, id);
+        log.info("SCM Admin {} filling SCM details for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.updateScmDetails(id, dto, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -204,7 +206,7 @@ public class OrderController {
     @PreAuthorize("hasAuthority('SCM_ADMIN')")
     public ResponseEntity<?> markDispatched(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("SCM Admin {} dispatching order {}", adminEmail, id);
+        log.info("SCM Admin {} dispatching order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.markDispatched(id, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -246,7 +248,7 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('ROLE_USER', 'DEALER')")
     public ResponseEntity<List<OrderResponse>> getUserOrders() {
         String userEmail = getCurrentUserEmail();
-        log.info("User {} fetching their tracked orders", userEmail);
+        log.info("User {} fetching their tracked orders", PiiMaskingUtil.maskEmail(userEmail));
         return ResponseEntity.ok(orderService.getUserOrders(userEmail));
     }
 

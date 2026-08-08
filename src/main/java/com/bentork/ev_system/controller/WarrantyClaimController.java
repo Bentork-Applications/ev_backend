@@ -1,5 +1,6 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -45,7 +46,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<?> createClaim(@RequestBody WarrantyClaimDTO dto) {
         String userEmail = getCurrentUserEmail();
-        log.info("User {} creating warranty claim", userEmail);
+        log.info("User {} creating warranty claim", PiiMaskingUtil.maskEmail(userEmail));
         try {
             WarrantyClaimResponse response = warrantyClaimService.createClaim(dto, userEmail);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -61,7 +62,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<List<WarrantyClaimResponse>> getUserClaims() {
         String userEmail = getCurrentUserEmail();
-        log.info("Fetching warranty claims for user {}", userEmail);
+        log.info("Fetching warranty claims for user {}", PiiMaskingUtil.maskEmail(userEmail));
         return ResponseEntity.ok(warrantyClaimService.getUserClaims(userEmail));
     }
 
@@ -86,7 +87,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<?> confirmReceived(@PathVariable Long id) {
         String userEmail = getCurrentUserEmail();
-        log.info("User {} confirming receipt for claim {}", userEmail, id);
+        log.info("User {} confirming receipt for claim {}", PiiMaskingUtil.maskEmail(userEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.userConfirmReceived(id, userEmail));
         } catch (IllegalArgumentException e) {
@@ -160,7 +161,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> approveClaim(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} approving claim {}", adminEmail, id);
+        log.info("Admin/Staff {} approving claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.approveClaim(id, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -175,7 +176,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> rejectClaim(@PathVariable Long id, @RequestBody ClaimRejectDTO rejectDTO) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} rejecting claim {}", adminEmail, id);
+        log.info("Admin/Staff {} rejecting claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.rejectClaim(id, rejectDTO, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -190,7 +191,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> receiveProduct(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} marking product received for claim {}", adminEmail, id);
+        log.info("Admin/Staff {} marking product received for claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.receiveProduct(id, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -205,7 +206,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> startProcessing(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} starting processing for claim {}", adminEmail, id);
+        log.info("Admin/Staff {} starting processing for claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.startProcessing(id, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -220,7 +221,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> completeProcessing(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} completing processing for claim {}", adminEmail, id);
+        log.info("Admin/Staff {} completing processing for claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.completeProcessing(id, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -235,7 +236,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> dispatchProduct(@PathVariable Long id, @RequestBody DispatchDetailsDTO dispatchDTO) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} dispatching product for claim {}", adminEmail, id);
+        log.info("Admin/Staff {} dispatching product for claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.dispatchProduct(id, dispatchDTO, adminEmail));
         } catch (IllegalArgumentException e) {
@@ -250,7 +251,7 @@ public class WarrantyClaimController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> markDelivered(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} marking delivered for claim {}", adminEmail, id);
+        log.info("Admin/Staff {} marking delivered for claim {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(warrantyClaimService.markDelivered(id, adminEmail));
         } catch (IllegalArgumentException e) {

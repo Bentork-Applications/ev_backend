@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.JwtResponse;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
@@ -111,7 +113,7 @@ public class UserAuthService implements IUserAuthService {
     @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
     public JwtResponse googleLogin(String email) {
         User user = userRepo.findByEmail(email).orElseGet(() -> {
-            log.info("New Google user detected, auto-registering: {}", email);
+            log.info("New Google user detected, auto-registering: {}", PiiMaskingUtil.maskEmail(email));
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setName(email.split("@")[0]); // default name from email prefix
@@ -123,7 +125,7 @@ public class UserAuthService implements IUserAuthService {
 
         // Block login for deactivated accounts
         if (!user.getActive()) {
-            log.warn("Google login blocked for deactivated account: {}", email);
+            log.warn("Google login blocked for deactivated account: {}", PiiMaskingUtil.maskEmail(email));
             throw new DisabledException("Your account has been deactivated. Please contact support.");
         }
 
@@ -152,7 +154,7 @@ public class UserAuthService implements IUserAuthService {
         }
 
         User user = userRepo.findByEmail(email).orElseGet(() -> {
-            log.info("New Google user detected (POST login), auto-registering: {}", email);
+            log.info("New Google user detected (POST login), auto-registering: {}", PiiMaskingUtil.maskEmail(email));
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setName(email.split("@")[0]);
@@ -168,7 +170,7 @@ public class UserAuthService implements IUserAuthService {
 
         // Block login for deactivated accounts
         if (!user.getActive()) {
-            log.warn("Google login blocked for deactivated account: {}", email);
+            log.warn("Google login blocked for deactivated account: {}", PiiMaskingUtil.maskEmail(email));
             throw new DisabledException("Your account has been deactivated. Please contact support.");
         }
 
@@ -212,7 +214,7 @@ public class UserAuthService implements IUserAuthService {
                     + "Please wait until your session completes.");
         }
 
-        log.info("Starting DPDPA-compliant account deletion for user: {} (id: {})", email, userId);
+        log.info("Starting DPDPA-compliant account deletion for user: {} (id: {})", PiiMaskingUtil.maskEmail(email), userId);
 
         // ── Step 1: Nullify FKs in retained financial/operational records ──
 
@@ -309,7 +311,7 @@ public class UserAuthService implements IUserAuthService {
     @Cacheable(value = "user-data", key = "#email")
     public User getUserDetailsByEmail(String email) throws Exception {
         return userRepo.findByEmail(email)
-                .orElseThrow(() -> new Exception("User with email '" + email + "' not found."));
+                .orElseThrow(() -> new Exception("User with email '" + PiiMaskingUtil.maskEmail(email) + "' not found."));
     }
 
     @Override

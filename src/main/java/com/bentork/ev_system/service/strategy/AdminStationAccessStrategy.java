@@ -5,6 +5,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.dto.request.StationDTO;
 import com.bentork.ev_system.mapper.StationMapper;
 import com.bentork.ev_system.repository.StationRepository;
@@ -28,7 +30,7 @@ public class AdminStationAccessStrategy implements StationAccessStrategy {
 
     @Override
     public List<StationDTO> getAccessibleStations(String userEmail) {
-        log.debug("Admin {} accessing all stations", userEmail);
+        log.debug("Admin {} accessing all stations", PiiMaskingUtil.maskEmail(userEmail));
         return stationRepository.findAll().stream()
                 .map(StationMapper::toDTO)
                 .collect(Collectors.toList());
@@ -37,7 +39,7 @@ public class AdminStationAccessStrategy implements StationAccessStrategy {
     @Override
     public boolean hasAccessToStation(String userEmail, Long stationId) {
         // Admin has access to all stations
-        log.debug("Admin {} checking access to station {}", userEmail, stationId);
+        log.debug("Admin {} checking access to station {}", PiiMaskingUtil.maskEmail(userEmail), stationId);
         return stationRepository.existsById(stationId);
     }
 

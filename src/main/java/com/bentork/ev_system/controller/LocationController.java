@@ -1,5 +1,6 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -43,12 +44,12 @@ public class LocationController {
     public ResponseEntity<?> addLocation(@RequestBody LocationDTO dto, Authentication authentication) {
         String adminEmail = authentication.getName();
         log.info("POST /api/location/add - Creating location, city={}, adminEmail={}",
-                dto.getCity(), adminEmail);
+                dto.getCity(), PiiMaskingUtil.maskEmail(adminEmail));
 
         try {
             Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
             if (admin.isEmpty()) {
-                log.warn("POST /api/location/add - Admin not found: adminEmail={}", adminEmail);
+                log.warn("POST /api/location/add - Admin not found: adminEmail={}", PiiMaskingUtil.maskEmail(adminEmail));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Collections.singletonMap("error", "Admin not found"));
             }
@@ -56,11 +57,11 @@ public class LocationController {
             Location location = LocationMapper.toEntity(dto, admin.get());
             Location saved = locationRepository.save(location);
             log.info("POST /api/location/add - Success, locationId={}, adminEmail={}",
-                    saved.getId(), adminEmail);
+                    saved.getId(), PiiMaskingUtil.maskEmail(adminEmail));
             return ResponseEntity.ok(location);
         } catch (Exception e) {
             log.error("POST /api/location/add - Failed, adminEmail={}: {}",
-                    adminEmail, e.getMessage(), e);
+                    PiiMaskingUtil.maskEmail(adminEmail), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Collections.singletonMap("error", "Failed to add location"));
         }
@@ -109,7 +110,7 @@ public class LocationController {
     public ResponseEntity<?> updateLocation(@PathVariable Long id, @RequestBody LocationDTO updatedDto,
             Authentication authentication) {
         String adminEmail = authentication.getName();
-        log.info("PUT /api/location/update/{} - Updating location, adminEmail={}", id, adminEmail);
+        log.info("PUT /api/location/update/{} - Updating location, adminEmail={}", id, PiiMaskingUtil.maskEmail(adminEmail));
 
         try {
             Optional<Location> optionalLocation = locationRepository.findById(id);
@@ -122,18 +123,18 @@ public class LocationController {
             Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
             if (admin.isEmpty()) {
                 log.warn("PUT /api/location/update/{} - Admin not found: adminEmail={}",
-                        id, adminEmail);
+                        id, PiiMaskingUtil.maskEmail(adminEmail));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Collections.singletonMap("error", "Admin not found"));
             }
 
             Location updated = LocationMapper.updateEntity(optionalLocation.get(), updatedDto, admin.get());
             locationRepository.save(updated);
-            log.info("PUT /api/location/update/{} - Success, adminEmail={}", id, adminEmail);
+            log.info("PUT /api/location/update/{} - Success, adminEmail={}", id, PiiMaskingUtil.maskEmail(adminEmail));
             return ResponseEntity.ok(Collections.singletonMap("message", "Location Updated"));
         } catch (Exception e) {
             log.error("PUT /api/location/update/{} - Failed, adminEmail={}: {}",
-                    id, adminEmail, e.getMessage(), e);
+                    id, PiiMaskingUtil.maskEmail(adminEmail), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Collections.singletonMap("error", "Failed to update location"));
         }

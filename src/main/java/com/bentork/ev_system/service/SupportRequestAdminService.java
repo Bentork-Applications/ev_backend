@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -162,7 +163,7 @@ public class SupportRequestAdminService {
             }
         }
         log.warn("Could not send push notification for user support request {}: No FCM token found for {}",
-                request.getId(), request.getSubmitterEmail());
+                request.getId(), PiiMaskingUtil.maskEmail(request.getSubmitterEmail()));
     }
 
     private void sendDealerPushNotification(DealerSupportRequest request) {
@@ -178,7 +179,7 @@ public class SupportRequestAdminService {
             }
         }
         log.warn("Could not send push notification for dealer support request {}: No FCM token found for {}",
-                request.getId(), request.getSubmitterEmail());
+                request.getId(), PiiMaskingUtil.maskEmail(request.getSubmitterEmail()));
     }
 
     private SupportRequestResponse mapUserToResponse(UserSupportRequest request) {

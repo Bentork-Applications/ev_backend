@@ -1,5 +1,7 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -47,7 +49,7 @@ public class BatteryDataController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
     public ResponseEntity<?> registerBattery(@Valid @RequestBody BatteryDataDTO dto) {
         String adminEmail = getCurrentUserEmail();
-        log.info("Admin/Staff {} registering battery data", adminEmail);
+        log.info("Admin/Staff {} registering battery data", PiiMaskingUtil.maskEmail(adminEmail));
         try {
             List<BatteryDataResponse> responses = batteryDataService.registerBattery(dto, adminEmail);
             return ResponseEntity.status(HttpStatus.CREATED).body(responses);
@@ -70,7 +72,7 @@ public class BatteryDataController {
             @RequestParam("file") MultipartFile file) {
         String adminEmail = getCurrentUserEmail();
         log.info("Admin/Staff {} uploading Excel file for battery registration: {}",
-                adminEmail, file.getOriginalFilename());
+                PiiMaskingUtil.maskEmail(adminEmail), file.getOriginalFilename());
         BatteryExcelUploadResponse response = batteryExcelService.registerBatteriesFromExcel(file, adminEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -106,7 +108,7 @@ public class BatteryDataController {
     @PreAuthorize("hasAuthority('ROLE_USER')")
     public ResponseEntity<?> searchByInvoice(@RequestParam String invoice) {
         String userEmail = getCurrentUserEmail();
-        log.info("User {} searching battery data by invoice: {}", userEmail, invoice);
+        log.info("User {} searching battery data by invoice: {}", PiiMaskingUtil.maskEmail(userEmail), invoice);
         try {
             return ResponseEntity.ok(batteryDataService.searchByInvoice(invoice, userEmail));
         } catch (IllegalArgumentException e) {

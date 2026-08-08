@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!--
+        DPDPA Section 8 — PII Protection in Logs
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        PII masking is enforced at the application level via PiiMaskingUtil.
+        All log statements that reference personal data (email, mobile, name, IP)
+        MUST use PiiMaskingUtil.maskXxx() before passing values to the logger.
+
+        This logback configuration does NOT apply pattern-based redaction.
+        The defense-in-depth strategy is:
+          1. Application-level masking (PiiMaskingUtil) — primary control
+          2. Log level management — reduce verbose logging in production
+          3. Log access controls — restrict who can read log files (infrastructure)
+    -->
+
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

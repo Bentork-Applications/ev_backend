@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.config.JwtUtil;
 import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
 import com.bentork.ev_system.dto.response.TruecallerLoginResponse;
@@ -76,7 +78,7 @@ public class TruecallerAuthService {
         // Step 2: Fetch user profile from Truecaller
         TruecallerUserInfo userInfo = fetchUserProfile(accessToken);
         log.info("Truecaller profile fetched for phone: {}",
-                maskPhoneNumber(userInfo.getPhoneNumber()));
+                PiiMaskingUtil.maskMobile(userInfo.getPhoneNumber()));
 
         // Step 3: Find or create user
         boolean isNewUser = false;
@@ -87,7 +89,7 @@ public class TruecallerAuthService {
 
         if (existingUser.isPresent()) {
             user = existingUser.get();
-            log.info("Existing user found by mobile for Truecaller login: {}", user.getEmail());
+            log.info("Existing user found by mobile for Truecaller login: {}", PiiMaskingUtil.maskEmail(user.getEmail()));
 
             // Update profile picture if changed
             if (userInfo.getPicture() != null && !userInfo.getPicture().equals(user.getImageUrl())) {
@@ -104,7 +106,7 @@ public class TruecallerAuthService {
             if (existingUserByEmail.isPresent()) {
                 // Link Truecaller phone number to the existing Google account
                 user = existingUserByEmail.get();
-                log.info("Existing user found by email; linking Truecaller phone: {}", normalizedMobile);
+                log.info("Existing user found by email; linking Truecaller phone: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
                 user.setMobile(normalizedMobile);
                 if (userInfo.getPicture() != null) {
                     user.setImageUrl(userInfo.getPicture());
@@ -117,7 +119,7 @@ public class TruecallerAuthService {
                 // Auto-register new user if neither mobile nor email exists
                 user = createUserFromTruecaller(userInfo, normalizedMobile);
                 isNewUser = true;
-                log.info("New user auto-registered via Truecaller: {}", normalizedMobile);
+                log.info("New user auto-registered via Truecaller: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
 
                 // Record DPDPA consent
                 consentService.grantRegistrationConsents(user, null);
@@ -129,7 +131,7 @@ public class TruecallerAuthService {
 
         // Block login for deactivated accounts
         if (!user.getActive()) {
-            log.warn("Truecaller login blocked for deactivated account: {}", normalizedMobile);
+            log.warn("Truecaller login blocked for deactivated account: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
             throw new DisabledException("Your account has been deactivated. Please contact support.");
         }
 
@@ -263,7 +265,7 @@ public class TruecallerAuthService {
                 newUser.setEmail(userInfo.getEmail());
             } else {
                 log.warn("Email {} from Truecaller already exists in DB, skipping email assignment",
-                        userInfo.getEmail());
+                        PiiMaskingUtil.maskEmail(userInfo.getEmail()));
             }
         }
 
@@ -290,15 +292,7 @@ public class TruecallerAuthService {
         return normalized;
     }
 
-    /**
-     * Mask phone number for logging (show only last 4 digits).
-     */
-    private String maskPhoneNumber(String phoneNumber) {
-        if (phoneNumber == null || phoneNumber.length() < 4) {
-            return "****";
-        }
-        return "****" + phoneNumber.substring(phoneNumber.length() - 4);
-    }
+    // PII masking is now handled centrally by PiiMaskingUtil
 
     public void handleWebhook(TruecallerWebhookPayload payload) {
         log.info("Processing Truecaller webhook for requestId: {}", payload.getRequestId());
@@ -333,7 +327,7 @@ public class TruecallerAuthService {
                 
                 if (existingUserByEmail.isPresent()) {
                     user = existingUserByEmail.get();
-                    log.info("Webhook: Existing user found by email; linking Truecaller phone: {}", normalizedMobile);
+                    log.info("Webhook: Existing user found by email; linking Truecaller phone: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
                     user.setMobile(normalizedMobile);
                     if (userInfo.getPicture() != null) {
                         user.setImageUrl(userInfo.getPicture());
@@ -350,7 +344,7 @@ public class TruecallerAuthService {
 
             // Block login for deactivated accounts
             if (!user.getActive()) {
-                log.warn("Truecaller webhook login blocked for deactivated account: {}", normalizedMobile);
+                log.warn("Truecaller webhook login blocked for deactivated account: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
                 throw new DisabledException("Your account has been deactivated. Please contact support.");
             }
 

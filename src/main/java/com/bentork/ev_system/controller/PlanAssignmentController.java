@@ -1,5 +1,6 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import com.bentork.ev_system.dto.request.PlanAssignmentDTO;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.repository.AdminRepository;
@@ -39,7 +40,7 @@ public class PlanAssignmentController {
 		try {
 			Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
 			if (admin.isEmpty()) {
-				log.warn("POST /api/plan-assignments/station - Admin not found: {}", adminEmail);
+				log.warn("POST /api/plan-assignments/station - Admin not found: {}", PiiMaskingUtil.maskEmail(adminEmail));
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin not found");
 			}
 
@@ -72,7 +73,7 @@ public class PlanAssignmentController {
 		try {
 			Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
 			if (admin.isEmpty()) {
-				log.warn("POST /api/plan-assignments/charger - Admin not found: {}", adminEmail);
+				log.warn("POST /api/plan-assignments/charger - Admin not found: {}", PiiMaskingUtil.maskEmail(adminEmail));
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin not found");
 			}
 

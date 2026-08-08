@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,7 +76,7 @@ public class WarrantyClaimService {
         claim.setSubmitterEmail(userEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Warranty claim {} created by user {} for battery {}", saved.getId(), userEmail, battery.getId());
+        log.info("Warranty claim {} created by user {} for battery {}", saved.getId(), PiiMaskingUtil.maskEmail(userEmail), battery.getId());
 
         return mapToResponse(saved);
     }
@@ -113,7 +115,7 @@ public class WarrantyClaimService {
         claim.setClosedAt(LocalDateTime.now());
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("User {} confirmed receipt for claim {}. Claim is now CLOSED.", userEmail, claimId);
+        log.info("User {} confirmed receipt for claim {}. Claim is now CLOSED.", PiiMaskingUtil.maskEmail(userEmail), claimId);
 
         return mapToResponse(saved);
     }
@@ -158,7 +160,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Claim {} approved by admin {}", claimId, adminEmail);
+        log.info("Claim {} approved by admin {}", claimId, PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Warranty Claim Approved",
@@ -183,7 +185,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Claim {} rejected by admin {} with reason: {}", claimId, adminEmail, rejectDTO.getRejectReason());
+        log.info("Claim {} rejected by admin {} with reason: {}", claimId, PiiMaskingUtil.maskEmail(adminEmail), rejectDTO.getRejectReason());
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Warranty Claim Rejected",
@@ -203,7 +205,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Product received for claim {} by admin {}", claimId, adminEmail);
+        log.info("Product received for claim {} by admin {}", claimId, PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Battery Received",
@@ -223,7 +225,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Processing started for claim {} by admin {}", claimId, adminEmail);
+        log.info("Processing started for claim {} by admin {}", claimId, PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Battery Processing",
@@ -243,7 +245,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Processing completed for claim {} by admin {}", claimId, adminEmail);
+        log.info("Processing completed for claim {} by admin {}", claimId, PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Battery Repair Complete",
@@ -274,7 +276,7 @@ public class WarrantyClaimService {
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
         log.info("Product dispatched for claim {} via {} (tracking: {}) by admin {}",
-                claimId, dispatchDTO.getCourierName(), dispatchDTO.getTrackingNumber(), adminEmail);
+                claimId, dispatchDTO.getCourierName(), dispatchDTO.getTrackingNumber(), PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Battery Dispatched",
@@ -295,7 +297,7 @@ public class WarrantyClaimService {
         claim.setProcessedByAdminEmail(adminEmail);
 
         WarrantyClaim saved = warrantyClaimRepository.save(claim);
-        log.info("Product marked as delivered for claim {} by admin {}", claimId, adminEmail);
+        log.info("Product marked as delivered for claim {} by admin {}", claimId, PiiMaskingUtil.maskEmail(adminEmail));
 
         sendUserNotification(claim.getSubmitterEmail(),
                 "Battery Delivered",
@@ -339,10 +341,10 @@ public class WarrantyClaimService {
             if (token != null && !token.isEmpty()) {
                 pushNotificationService.sendNotification(token, title, body);
             } else {
-                log.warn("No FCM token found for user {}", userEmail);
+                log.warn("No FCM token found for user {}", PiiMaskingUtil.maskEmail(userEmail));
             }
         } else {
-            log.warn("User not found for email {} when sending warranty notification", userEmail);
+            log.warn("User not found for email {} when sending warranty notification", PiiMaskingUtil.maskEmail(userEmail));
         }
     }
 

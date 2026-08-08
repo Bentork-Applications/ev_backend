@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,7 @@ public class DealerSupportRequestService {
         request.setSubmitterEmail(submitterEmail);
 
         DealerSupportRequest saved = dealerSupportRequestRepository.save(request);
-        log.info("Created dealer support request with ID {} for {}", saved.getId(), submitterEmail);
+        log.info("Created dealer support request with ID {} for {}", saved.getId(), PiiMaskingUtil.maskEmail(submitterEmail));
 
         return mapToResponse(saved);
     }

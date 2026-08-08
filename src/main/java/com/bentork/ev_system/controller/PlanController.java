@@ -1,5 +1,6 @@
 package com.bentork.ev_system.controller;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import com.bentork.ev_system.dto.request.PlanDTO;
 import com.bentork.ev_system.mapper.PlanMapper;
 import com.bentork.ev_system.model.Admin;
@@ -31,23 +32,23 @@ public class PlanController {
     public ResponseEntity<?> addPlan(@RequestBody PlanDTO dto, Authentication authentication) {
         String adminEmail = authentication.getName();
         log.info("POST /api/plans/add - Creating plan, planName={}, adminEmail={}",
-                dto.getPlanName(), adminEmail);
+                dto.getPlanName(), PiiMaskingUtil.maskEmail(adminEmail));
 
         try {
             Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
             if (admin.isEmpty()) {
-                log.warn("POST /api/plans/add - Admin not found: adminEmail={}", adminEmail);
+                log.warn("POST /api/plans/add - Admin not found: adminEmail={}", PiiMaskingUtil.maskEmail(adminEmail));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin not found");
             }
 
             Plan plan = PlanMapper.toEntity(dto, admin.get());
             Plan saved = planRepository.save(plan);
             log.info("POST /api/plans/add - Success, planId={}, adminEmail={}",
-                    saved.getId(), adminEmail);
+                    saved.getId(), PiiMaskingUtil.maskEmail(adminEmail));
             return ResponseEntity.status(HttpStatus.CREATED).body("Plan Created");
         } catch (Exception e) {
             log.error("POST /api/plans/add - Failed, adminEmail={}: {}",
-                    adminEmail, e.getMessage(), e);
+                    PiiMaskingUtil.maskEmail(adminEmail), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to create plan");
         }
@@ -98,7 +99,7 @@ public class PlanController {
     public ResponseEntity<?> updatePlan(@PathVariable Long id, @RequestBody PlanDTO updatedDto,
             Authentication authentication) {
         String adminEmail = authentication.getName();
-        log.info("PUT /api/plans/update/{} - Updating plan, adminEmail={}", id, adminEmail);
+        log.info("PUT /api/plans/update/{} - Updating plan, adminEmail={}", id, PiiMaskingUtil.maskEmail(adminEmail));
 
         try {
             Optional<Plan> optionalPlan = planRepository.findById(id);
@@ -110,17 +111,17 @@ public class PlanController {
             Optional<Admin> admin = adminRepository.findByEmail(adminEmail);
             if (admin.isEmpty()) {
                 log.warn("PUT /api/plans/update/{} - Admin not found: adminEmail={}",
-                        id, adminEmail);
+                        id, PiiMaskingUtil.maskEmail(adminEmail));
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Admin not found");
             }
 
             Plan updated = PlanMapper.updateEntity(optionalPlan.get(), updatedDto, admin.get());
             planRepository.save(updated);
-            log.info("PUT /api/plans/update/{} - Success, adminEmail={}", id, adminEmail);
+            log.info("PUT /api/plans/update/{} - Success, adminEmail={}", id, PiiMaskingUtil.maskEmail(adminEmail));
             return ResponseEntity.ok("Plan Updated");
         } catch (Exception e) {
             log.error("PUT /api/plans/update/{} - Failed, adminEmail={}: {}",
-                    id, adminEmail, e.getMessage(), e);
+                    id, PiiMaskingUtil.maskEmail(adminEmail), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to update plan");
         }

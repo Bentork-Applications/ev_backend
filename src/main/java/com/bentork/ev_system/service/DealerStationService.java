@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -145,7 +146,7 @@ public class DealerStationService {
      */
     public boolean hasAccess(String dealerEmail, Long stationId) {
         Admin dealer = adminRepository.findByEmail(dealerEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Dealer not found with email: " + dealerEmail));
+                .orElseThrow(() -> new EntityNotFoundException("Dealer not found with email: " + PiiMaskingUtil.maskEmail(dealerEmail)));
 
         return dealerStationRepository.existsByDealerIdAndStationId(dealer.getId(), stationId);
     }

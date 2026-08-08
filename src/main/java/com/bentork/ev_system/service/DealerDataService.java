@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,7 +47,7 @@ public class DealerDataService {
 
     public List<Long> getDealerStationIds(String dealerEmail) {
         Admin dealer = adminRepository.findByEmail(dealerEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Dealer not found: " + dealerEmail));
+                .orElseThrow(() -> new EntityNotFoundException("Dealer not found: " + PiiMaskingUtil.maskEmail(dealerEmail)));
 
         if (!"DEALER".equals(dealer.getRole())) {
             throw new IllegalArgumentException("User is not a dealer");
@@ -151,11 +152,11 @@ public class DealerDataService {
     public List<SessionDTO> getAllSessions(String dealerEmail) {
         List<Long> stationIds = getDealerStationIds(dealerEmail);
         if (stationIds.isEmpty()) {
-            log.info("Dealer {} has no assigned stations", dealerEmail);
+            log.info("Dealer {} has no assigned stations", PiiMaskingUtil.maskEmail(dealerEmail));
             return new ArrayList<>();
         }
 
-        log.info("Dealer {} fetching sessions for stations: {}", dealerEmail, stationIds);
+        log.info("Dealer {} fetching sessions for stations: {}", PiiMaskingUtil.maskEmail(dealerEmail), stationIds);
         return sessionRepository.findByStationIdIn(stationIds).stream()
                 .map(this::toSessionDTO)
                 .collect(Collectors.toList());
@@ -166,7 +167,7 @@ public class DealerDataService {
             throw new SecurityException("Access denied to station: " + stationId);
         }
 
-        log.info("Dealer {} fetching sessions for station {}", dealerEmail, stationId);
+        log.info("Dealer {} fetching sessions for station {}", PiiMaskingUtil.maskEmail(dealerEmail), stationId);
         return sessionRepository.findByStationId(stationId).stream()
                 .map(this::toSessionDTO)
                 .collect(Collectors.toList());
@@ -184,11 +185,11 @@ public class DealerDataService {
     public List<RevenueDTO> getAllRevenue(String dealerEmail) {
         List<Long> stationIds = getDealerStationIds(dealerEmail);
         if (stationIds.isEmpty()) {
-            log.info("Dealer {} has no assigned stations", dealerEmail);
+            log.info("Dealer {} has no assigned stations", PiiMaskingUtil.maskEmail(dealerEmail));
             return new ArrayList<>();
         }
 
-        log.info("Dealer {} fetching revenue for stations: {}", dealerEmail, stationIds);
+        log.info("Dealer {} fetching revenue for stations: {}", PiiMaskingUtil.maskEmail(dealerEmail), stationIds);
         return revenueRepository.findByStationIdIn(stationIds).stream()
                 .map(this::toRevenueDTO)
                 .collect(Collectors.toList());
@@ -199,7 +200,7 @@ public class DealerDataService {
             throw new SecurityException("Access denied to station: " + stationId);
         }
 
-        log.info("Dealer {} fetching revenue for station {}", dealerEmail, stationId);
+        log.info("Dealer {} fetching revenue for station {}", PiiMaskingUtil.maskEmail(dealerEmail), stationId);
         return revenueRepository.findByStation_Id(stationId).stream()
                 .map(this::toRevenueDTO)
                 .collect(Collectors.toList());
@@ -230,7 +231,7 @@ public class DealerDataService {
             return new ArrayList<>();
         }
 
-        log.info("Dealer {} fetching chargers for stations: {}", dealerEmail, stationIds);
+        log.info("Dealer {} fetching chargers for stations: {}", PiiMaskingUtil.maskEmail(dealerEmail), stationIds);
         return stationIds.stream()
                 .flatMap(stationId -> chargerRepository.findByStationId(stationId).stream())
                 .collect(Collectors.toList());
@@ -241,14 +242,14 @@ public class DealerDataService {
             throw new SecurityException("Access denied to station: " + stationId);
         }
 
-        log.info("Dealer {} fetching chargers for station {}", dealerEmail, stationId);
+        log.info("Dealer {} fetching chargers for station {}", PiiMaskingUtil.maskEmail(dealerEmail), stationId);
         return chargerRepository.findByStationId(stationId);
     }
 
     // ==================== STATION METHODS ====================
 
     public List<Station> getAllStations(String dealerEmail) {
-        log.info("Dealer {} fetching their assigned stations", dealerEmail);
+        log.info("Dealer {} fetching their assigned stations", PiiMaskingUtil.maskEmail(dealerEmail));
         return dealerStationRepository.findStationsByDealerEmail(dealerEmail);
     }
 }

@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.Plan;
 import com.bentork.ev_system.service.interfaces.IWalletTransactionService;
@@ -172,7 +173,7 @@ public class SessionService implements ISessionService {
 	}
 
 	public Map<String, Object> stopSession(String email, SessionDTO request) {
-		log.info("Stopping session for user: {}, sessionId={}", email, request.getSessionId());
+		log.info("Stopping session for user: {}, sessionId={}", PiiMaskingUtil.maskEmail(email), request.getSessionId());
 
 		User user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new RuntimeException("User not found"));

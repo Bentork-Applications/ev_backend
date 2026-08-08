@@ -24,7 +24,7 @@ public class RazorpaySignatureGenerator {
         sha256_HMAC.init(secretKey);
         byte[] hash = sha256_HMAC.doFinal(payload.getBytes());
 
-        String signature = Hex.encodeHexString(hash);
-        System.out.println("Generated Signature: " + signature);
+        // Signature generated — do NOT log or print sensitive values
+        // String signature = Hex.encodeHexString(hash);
     }
 }

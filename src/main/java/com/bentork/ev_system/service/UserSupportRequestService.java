@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +33,7 @@ public class UserSupportRequestService {
         request.setSubmitterEmail(submitterEmail);
 
         UserSupportRequest saved = userSupportRequestRepository.save(request);
-        log.info("Created user support request with ID {} for {}", saved.getId(), submitterEmail);
+        log.info("Created user support request with ID {} for {}", saved.getId(), PiiMaskingUtil.maskEmail(submitterEmail));
 
         return mapToResponse(saved);
     }

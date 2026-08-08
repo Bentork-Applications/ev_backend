@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +55,7 @@ public class BatteryDataService {
             BatteryData battery = createBatteryFromDTO(dto, dto.getBarcode(), adminEmail);
             BatteryData saved = batteryDataRepository.save(battery);
             savedBatteries.add(saved);
-            log.info("Registered single battery with barcode {} by admin {}", saved.getBarcode(), adminEmail);
+            log.info("Registered single battery with barcode {} by admin {}", saved.getBarcode(), PiiMaskingUtil.maskEmail(adminEmail));
         }
 
         return savedBatteries.stream()

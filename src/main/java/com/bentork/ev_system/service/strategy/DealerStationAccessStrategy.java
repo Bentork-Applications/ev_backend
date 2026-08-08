@@ -5,6 +5,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.dto.request.StationDTO;
 import com.bentork.ev_system.mapper.StationMapper;
 import com.bentork.ev_system.model.Station;
@@ -29,7 +31,7 @@ public class DealerStationAccessStrategy implements StationAccessStrategy {
 
     @Override
     public List<StationDTO> getAccessibleStations(String userEmail) {
-        log.debug("Dealer {} accessing their assigned stations", userEmail);
+        log.debug("Dealer {} accessing their assigned stations", PiiMaskingUtil.maskEmail(userEmail));
         List<Station> stations = dealerStationRepository.findStationsByDealerEmail(userEmail);
         return stations.stream()
                 .map(StationMapper::toDTO)
@@ -38,7 +40,7 @@ public class DealerStationAccessStrategy implements StationAccessStrategy {
 
     @Override
     public boolean hasAccessToStation(String userEmail, Long stationId) {
-        log.debug("Dealer {} checking access to station {}", userEmail, stationId);
+        log.debug("Dealer {} checking access to station {}", PiiMaskingUtil.maskEmail(userEmail), stationId);
         List<Long> assignedStationIds = dealerStationRepository.findByDealerEmail(userEmail)
                 .stream()
                 .map(ds -> ds.getStation().getId())

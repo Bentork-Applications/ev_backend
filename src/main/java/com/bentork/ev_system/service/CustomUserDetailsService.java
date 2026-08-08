@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.repository.UserRepository;
@@ -73,6 +75,6 @@ public class CustomUserDetailsService implements UserDetailsService {
                     List.of(new SimpleGrantedAuthority(role)));
         }
 
-        throw new UsernameNotFoundException("No user or admin found with email/mobile: " + username);
+        throw new UsernameNotFoundException("No user or admin found with the provided credentials");
     }
 }

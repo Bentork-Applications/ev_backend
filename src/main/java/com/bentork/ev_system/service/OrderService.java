@@ -1,5 +1,6 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -94,7 +95,7 @@ public class OrderService {
         updatePaymentStatusAndTriggerProduction(order);
 
         Order saved = orderRepository.save(order);
-        log.info("Order {} created by Sales Admin {}", saved.getOrderNumber(), salesAdminEmail);
+        log.info("Order {} created by Sales Admin {}", saved.getOrderNumber(), PiiMaskingUtil.maskEmail(salesAdminEmail));
 
         userNotificationService.createNotification(assignedUser.getId(),
                 "Order Created",
@@ -175,7 +176,7 @@ public class OrderService {
         updatePaymentStatusAndTriggerProduction(order);
 
         Order saved = orderRepository.save(order);
-        log.info("Order {} updated by Sales Admin {}", saved.getOrderNumber(), salesAdminEmail);
+        log.info("Order {} updated by Sales Admin {}", saved.getOrderNumber(), PiiMaskingUtil.maskEmail(salesAdminEmail));
 
         return mapToResponse(saved);
     }
@@ -410,7 +411,7 @@ public class OrderService {
         order.setScmUpdatedByEmail(scmAdminEmail);
 
         Order saved = orderRepository.save(order);
-        log.info("Order {} marked as DISPATCHED by SCM Admin {}", orderId, scmAdminEmail);
+        log.info("Order {} marked as DISPATCHED by SCM Admin {}", orderId, PiiMaskingUtil.maskEmail(scmAdminEmail));
 
         userNotificationService.createNotification(saved.getAssignedUserId(),
                 "Order Dispatched",

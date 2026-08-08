@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service;
 
+import com.bentork.ev_system.util.PiiMaskingUtil;
+
 import com.bentork.ev_system.exception.ConsentRequiredException;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.model.UserConsent;
@@ -63,7 +65,7 @@ public class ConsentService {
     public void grantRegistrationConsents(User user, String ipAddress) {
         grantConsent(user, ConsentType.TERMS_AND_CONDITIONS, ipAddress);
         grantConsent(user, ConsentType.DATA_PROCESSING, ipAddress);
-        log.info("Registration consents recorded for user: {}", user.getEmail());
+        log.info("Registration consents recorded for user: {} (id: {})", PiiMaskingUtil.maskEmail(user.getEmail()), user.getId());
     }
 
     /**
