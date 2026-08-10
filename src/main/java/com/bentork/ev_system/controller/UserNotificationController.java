@@ -66,6 +66,24 @@ public class UserNotificationController {
         }
     }
 
+    @DeleteMapping("/user/{userId}/fcm-token")
+    public ResponseEntity<?> clearFcmToken(@PathVariable Long userId) {
+        log.info("DELETE /api/notifications/user/{}/fcm-token - Clearing token", userId);
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setFcmToken(null);
+            userRepository.save(user);
+
+            log.info("DELETE /api/notifications/user/{}/fcm-token - Success", userId);
+            return ResponseEntity.ok("FCM Token cleared successfully");
+        } catch (Exception e) {
+            log.error("DELETE /api/notifications/user/{}/fcm-token - Failed: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error clearing token");
+        }
+    }
+
     // --- EXISTING ENDPOINTS BELOW ---
 
     // Get all notifications for a user
