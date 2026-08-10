@@ -33,6 +33,9 @@ public class UserSignupRequest {
     @AssertTrue(message = "You must consent to data processing")
     private boolean consentToDataProcessing;
 
+    @AssertTrue(message = "You must explicitly acknowledge being 18 years of age or older")
+    private boolean isAdult;
+
     // Getters and Setters
 
     public String getName() {
@@ -89,6 +92,14 @@ public class UserSignupRequest {
 
     public void setConsentToDataProcessing(boolean consentToDataProcessing) {
         this.consentToDataProcessing = consentToDataProcessing;
+    }
+
+    public boolean isAdult() {
+        return isAdult;
+    }
+
+    public void setAdult(boolean isAdult) {
+        this.isAdult = isAdult;
     }
 
 }

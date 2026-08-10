@@ -43,6 +43,9 @@ public class User implements Serializable {
     @Column(name = "active", columnDefinition = "boolean default true")
     private Boolean active = true;
 
+    @Column(name = "is_adult", columnDefinition = "boolean default false")
+    private Boolean isAdult = false;
+
     // === Getters and Setters ===
 
     public Long getId() {
@@ -139,6 +142,14 @@ public class User implements Serializable {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public Boolean getIsAdult() {
+        return isAdult;
+    }
+
+    public void setIsAdult(Boolean isAdult) {
+        this.isAdult = isAdult;
     }
 
 }

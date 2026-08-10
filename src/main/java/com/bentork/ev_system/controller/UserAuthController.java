@@ -67,6 +67,7 @@ public class UserAuthController {
                 request.getEmail(),
                 request.isConsentToTerms(),
                 request.isConsentToDataProcessing(),
+                request.isAdult(),
                 ipAddress));
     }
 

@@ -67,6 +67,7 @@ public class TruecallerAuthService {
         // Extract consent flags from request
         boolean consentToTerms = request.isConsentToTerms();
         boolean consentToDataProcessing = request.isConsentToDataProcessing();
+        boolean isAdult = request.isAdult();
 
         // Step 1: Exchange authorization code for access token
         String accessToken = exchangeCodeForAccessToken(
@@ -117,7 +118,7 @@ public class TruecallerAuthService {
                 consentService.validateRegistrationConsent(consentToTerms, consentToDataProcessing);
 
                 // Auto-register new user if neither mobile nor email exists
-                user = createUserFromTruecaller(userInfo, normalizedMobile);
+                user = createUserFromTruecaller(userInfo, normalizedMobile, isAdult);
                 isNewUser = true;
                 log.info("New user auto-registered via Truecaller: {}", PiiMaskingUtil.maskMobile(normalizedMobile));
 
@@ -251,12 +252,13 @@ public class TruecallerAuthService {
     /**
      * Create a new User entity from Truecaller profile data.
      */
-    private User createUserFromTruecaller(TruecallerUserInfo userInfo, String normalizedMobile) {
+    private User createUserFromTruecaller(TruecallerUserInfo userInfo, String normalizedMobile, boolean isAdult) {
         User newUser = new User();
         newUser.setName(userInfo.getFullName());
         newUser.setMobile(normalizedMobile);
         newUser.setPassword(""); // No password for social login users
         newUser.setImageUrl(userInfo.getPicture());
+        newUser.setIsAdult(isAdult);
 
         // Set email if provided by Truecaller
         if (userInfo.getEmail() != null && !userInfo.getEmail().isBlank()) {
@@ -334,7 +336,7 @@ public class TruecallerAuthService {
                     }
                     user = userRepo.save(user);
                 } else {
-                    user = createUserFromTruecaller(userInfo, normalizedMobile);
+                    user = createUserFromTruecaller(userInfo, normalizedMobile, false);
                     // Auto-grant consent for webhook-created users
                     // (user already consented on the client before initiating the flow)
                     consentService.grantRegistrationConsents(user, null);
