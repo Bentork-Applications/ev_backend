@@ -71,5 +71,25 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             }
         }
 
+        // Migration: Ensure user_id is nullable in tables that support DPDPA account deletion
+        String[] tablesToMakeUserIdNullable = {
+            "sessions", "revenue", "receipts", "wallet_transactions", "coin_transactions", "rfid_cards"
+        };
+        for (String table : tablesToMakeUserIdNullable) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + table + " MODIFY COLUMN user_id BIGINT NULL");
+                log.info("Successfully made user_id nullable in {}", table);
+            } catch (Exception e) {
+                log.warn("Could not modify user_id in {} (it might already be nullable or table doesn't exist): {}", table, e.getMessage());
+            }
+        }
+        
+        try {
+            jdbcTemplate.execute("ALTER TABLE orders MODIFY COLUMN assigned_user_id BIGINT NULL");
+            log.info("Successfully made assigned_user_id nullable in orders");
+        } catch (Exception e) {
+            log.warn("Could not modify assigned_user_id in orders: {}", e.getMessage());
+        }
+
     }
 }
