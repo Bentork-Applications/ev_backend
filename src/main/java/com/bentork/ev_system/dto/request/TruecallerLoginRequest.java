@@ -18,7 +18,4 @@ public class TruecallerLoginRequest {
     private boolean consentToTerms;
 
     private boolean consentToDataProcessing;
-
-    @AssertTrue(message = "You must explicitly acknowledge being 18 years of age or older")
-    private boolean isAdult;
 }

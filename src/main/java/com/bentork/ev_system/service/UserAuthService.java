@@ -146,7 +146,7 @@ public class UserAuthService implements IUserAuthService {
     @Override
     @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
     public JwtResponse googleLoginWithConsent(String email, boolean consentToTerms,
-                                              boolean consentToDataProcessing, boolean isAdult, String ipAddress) {
+                                              boolean consentToDataProcessing, String ipAddress) {
         boolean isNewUser = !userRepo.existsByEmail(email);
 
         if (isNewUser) {
@@ -159,7 +159,6 @@ public class UserAuthService implements IUserAuthService {
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setName(email.split("@")[0]);
-            newUser.setIsAdult(isAdult);
             userRepo.save(newUser);
             adminNotificationService.notifyNewUserRegistration(newUser.getName());
             return newUser;
