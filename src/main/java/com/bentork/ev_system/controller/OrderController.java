@@ -266,6 +266,17 @@ public class OrderController {
         }
     }
 
+    /**
+     * User confirms delivery of their dispatched order.
+     */
+    @PutMapping("/user/{id}/confirm-delivery")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'DEALER')")
+    public ResponseEntity<?> confirmDelivery(@PathVariable Long id) {
+        String userEmail = getCurrentUserEmail();
+        orderService.confirmDelivery(id, userEmail);
+        return ResponseEntity.ok().build();
+    }
+
     // ==================== HELPER METHODS ====================
 
     private String getCurrentUserEmail() {

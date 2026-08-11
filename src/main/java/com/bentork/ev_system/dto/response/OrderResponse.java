@@ -51,6 +51,7 @@ public class OrderResponse {
     private LocalDateTime productionCompletedAt;
     private LocalDateTime scmCompletedAt;
     private LocalDateTime dispatchedAt;
+    private LocalDateTime deliveredAt;
 
     // Getters and Setters
 
@@ -292,6 +293,14 @@ public class OrderResponse {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
+    }
+
+    public LocalDateTime getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(LocalDateTime deliveredAt) {
+        this.deliveredAt = deliveredAt;
     }
 
     public List<OrderItemResponse> getOrderItems() {

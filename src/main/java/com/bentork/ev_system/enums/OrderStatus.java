@@ -16,6 +16,7 @@ public enum OrderStatus {
     PRODUCTION_COMPLETE("production_complete"),
     SCM_COMPLETE("scm_complete"),
     DISPATCHED("dispatched"),
+    DELIVERED("delivered"),
     CANCELLED("cancelled");
 
     private final String value;
@@ -49,6 +50,8 @@ public enum OrderStatus {
                 return SCM_COMPLETE;
             case "dispatched":
                 return DISPATCHED;
+            case "delivered":
+                return DELIVERED;
             case "cancelled":
                 return CANCELLED;
             default:
@@ -74,8 +77,8 @@ public enum OrderStatus {
             return false;
         }
 
-        // Cancelled and Dispatched are terminal states
-        if (current == CANCELLED || current == DISPATCHED) {
+        // Cancelled and Delivered are terminal states
+        if (current == CANCELLED || current == DELIVERED) {
             return false;
         }
 
@@ -93,6 +96,8 @@ public enum OrderStatus {
                 return next == SCM_COMPLETE;
             case SCM_COMPLETE:
                 return next == DISPATCHED;
+            case DISPATCHED:
+                return next == DELIVERED;
             default:
                 return false;
         }

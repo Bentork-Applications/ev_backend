@@ -131,6 +131,8 @@ public class Order {
 
     private LocalDateTime dispatchedAt;
 
+    private LocalDateTime deliveredAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -404,6 +406,14 @@ public class Order {
 
     public void setDispatchedAt(LocalDateTime dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
+    }
+
+    public LocalDateTime getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(LocalDateTime deliveredAt) {
+        this.deliveredAt = deliveredAt;
     }
 
     public List<OrderItem> getOrderItems() {

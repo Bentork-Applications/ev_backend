@@ -495,6 +495,33 @@ public class OrderService {
     }
 
     /**
+     * User confirms delivery of their dispatched order.
+     */
+    @Transactional
+    public OrderResponse confirmDelivery(Long orderId, String userEmail) {
+        Order order = findOrderById(orderId);
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.getId().equals(order.getAssignedUserId())) {
+            throw new IllegalArgumentException("You do not have access to this order.");
+        }
+
+        OrderStatus currentStatus = OrderStatus.fromString(order.getOrderStatus());
+        if (currentStatus != OrderStatus.DISPATCHED) {
+            throw new IllegalArgumentException("Only dispatched orders can be confirmed as delivered. Current status: " + order.getOrderStatus());
+        }
+
+        order.setOrderStatus(OrderStatus.DELIVERED.getValue());
+        order.setDeliveredAt(LocalDateTime.now());
+
+        Order saved = orderRepository.save(order);
+        log.info("Order {} confirmed as DELIVERED by User {}", orderId, PiiMaskingUtil.maskEmail(userEmail));
+
+        return mapToResponse(saved);
+    }
+
+    /**
      * Get all orders (for ADMIN role — super admin view).
      */
     public List<OrderResponse> getAllOrders() {
@@ -639,6 +666,7 @@ public class OrderService {
         response.setProductionCompletedAt(order.getProductionCompletedAt());
         response.setScmCompletedAt(order.getScmCompletedAt());
         response.setDispatchedAt(order.getDispatchedAt());
+        response.setDeliveredAt(order.getDeliveredAt());
 
         return response;
     }
