@@ -5,11 +5,14 @@ import com.bentork.ev_system.dto.request.TruecallerLoginRequest;
 import com.bentork.ev_system.dto.request.TruecallerWebhookPayload;
 import com.bentork.ev_system.dto.request.UserLoginRequest;
 import com.bentork.ev_system.dto.request.UserSignupRequest;
+import com.bentork.ev_system.dto.response.UserDataExportResponse;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.service.TruecallerAuthService;
+import com.bentork.ev_system.service.UserDataExportService;
 import com.bentork.ev_system.service.interfaces.IUserAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
@@ -29,6 +33,7 @@ public class UserAuthController {
 
     private final IUserAuthService userAuthService;
     private final TruecallerAuthService truecallerAuthService;
+    private final UserDataExportService userDataExportService;
 
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody UserSignupRequest request,
@@ -125,6 +130,30 @@ public class UserAuthController {
             @AuthenticationPrincipal UserDetails userDetails) {
         userAuthService.deleteAccount(userDetails.getUsername());
         return ResponseEntity.ok("Account permanently deleted successfully. All personal data has been erased.");
+    }
+
+    /**
+     * DPDPA Section 11 — Right to Data Access / Portability.
+     * Returns a unified JSON export of all personal data for the authenticated user.
+     * Rate limited to 3 requests per user per hour.
+     */
+    @GetMapping("/my-data")
+    public ResponseEntity<?> downloadMyData(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User user = userAuthService.getUserDetailsByEmail(userDetails.getUsername());
+            UserDataExportResponse export = userDataExportService.exportUserData(user);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"my-data-export.json\"")
+                    .body(export);
+        } catch (UserDataExportService.RateLimitExceededException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Failed to export user data for {}: {}", userDetails.getUsername(), e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to export user data. Please try again later."));
+        }
     }
 
     @GetMapping("/total")
