@@ -60,7 +60,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         String[] oldOrderColumns = {
             "title", "description", "status", "assigned_to_user_id", "assigned_to_user_email",
             "assigned_to_user_name", "last_updated_by_admin_email", "cancel_reason", "admin_notes",
-            "in_progress_at", "testing_at", "completed_at", "delivered_at", "cancelled_at"
+            "in_progress_at", "testing_at", "completed_at", "cancelled_at"
         };
         for (String col : oldOrderColumns) {
             try {
