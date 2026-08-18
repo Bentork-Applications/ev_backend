@@ -70,6 +70,7 @@ public class UserAuthController {
         String ipAddress = getClientIpAddress(httpRequest);
         return ResponseEntity.ok(userAuthService.googleLoginWithConsent(
                 request.getEmail(),
+                request.getImageUrl(),
                 request.isConsentToTerms(),
                 request.isConsentToDataProcessing(),
                 ipAddress));

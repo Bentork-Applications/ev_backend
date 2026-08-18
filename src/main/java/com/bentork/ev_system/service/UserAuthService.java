@@ -73,6 +73,7 @@ public class UserAuthService implements IUserAuthService {
         user.setMobile(request.getMobile());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsAdult(request.isAdult());
+        user.setImageUrl(request.getImageUrl());
         userRepo.save(user);
 
         // Record DPDPA consent
@@ -145,7 +146,7 @@ public class UserAuthService implements IUserAuthService {
      */
     @Override
     @CacheEvict(value = {"user-data", "dashboard-stats"}, allEntries = true)
-    public JwtResponse googleLoginWithConsent(String email, boolean consentToTerms,
+    public JwtResponse googleLoginWithConsent(String email, String imageUrl, boolean consentToTerms,
                                               boolean consentToDataProcessing, String ipAddress) {
         boolean isNewUser = !userRepo.existsByEmail(email);
 
@@ -159,10 +160,17 @@ public class UserAuthService implements IUserAuthService {
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setName(email.split("@")[0]);
+            newUser.setImageUrl(imageUrl);
             userRepo.save(newUser);
             adminNotificationService.notifyNewUserRegistration(newUser.getName());
             return newUser;
         });
+
+        // Update image URL if it was provided but the user didn't have one or it changed
+        if (!isNewUser && imageUrl != null && !imageUrl.isEmpty() && !imageUrl.equals(user.getImageUrl())) {
+            user.setImageUrl(imageUrl);
+            userRepo.save(user);
+        }
 
         // Record consent for new users after the user entity is persisted
         if (isNewUser) {

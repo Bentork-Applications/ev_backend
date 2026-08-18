@@ -36,6 +36,8 @@ public class UserSignupRequest {
     @AssertTrue(message = "You must explicitly acknowledge being 18 years of age or older")
     private boolean isAdult;
 
+    private String imageUrl;
+
     // Getters and Setters
 
     public String getName() {
@@ -100,6 +102,14 @@ public class UserSignupRequest {
 
     public void setAdult(boolean isAdult) {
         this.isAdult = isAdult;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
 }

@@ -18,6 +18,8 @@ public class GoogleLoginRequest {
 
     private boolean consentToDataProcessing;
 
+    private String imageUrl;
+
     // Getters and Setters
 
     public String getEmail() {
@@ -42,5 +44,13 @@ public class GoogleLoginRequest {
 
     public void setConsentToDataProcessing(boolean consentToDataProcessing) {
         this.consentToDataProcessing = consentToDataProcessing;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

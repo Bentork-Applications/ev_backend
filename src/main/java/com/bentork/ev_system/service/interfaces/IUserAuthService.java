@@ -13,7 +13,7 @@ public interface IUserAuthService {
     void sendOtp(String email);
     void resetPassword(String email, String otp, String newPassword);
     JwtResponse googleLogin(String email);
-    JwtResponse googleLoginWithConsent(String email, boolean consentToTerms, boolean consentToDataProcessing, String ipAddress);
+    JwtResponse googleLoginWithConsent(String email, String imageUrl, boolean consentToTerms, boolean consentToDataProcessing, String ipAddress);
     void deleteAccount(String email);
     long getTotalUsers();
     User getUserDetailsByEmail(String email) throws Exception;
