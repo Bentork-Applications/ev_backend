@@ -17,6 +17,10 @@ public class UpdateScmDetailsDTO {
     @Valid
     private List<ScmItemDTO> items;
 
+    private String warrantyStartDate;
+
+    private String warrantyEndDate;
+
     // Getters and Setters
 
     public String getInvoiceNumber() {
@@ -41,5 +45,21 @@ public class UpdateScmDetailsDTO {
 
     public void setItems(List<ScmItemDTO> items) {
         this.items = items;
+    }
+
+    public String getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(String warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public String getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(String warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }

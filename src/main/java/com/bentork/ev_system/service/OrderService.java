@@ -84,6 +84,12 @@ public class OrderService {
         order.setReceivedAmount(receivedAmount);
         order.setPendingAmount(dto.getTotalInvoiceAmount() - receivedAmount);
         order.setPriority(dto.getPriority());
+        if (dto.getWarrantyStartDate() != null && !dto.getWarrantyStartDate().isEmpty()) {
+            order.setWarrantyStartDate(LocalDate.parse(dto.getWarrantyStartDate()));
+        }
+        if (dto.getWarrantyEndDate() != null && !dto.getWarrantyEndDate().isEmpty()) {
+            order.setWarrantyEndDate(LocalDate.parse(dto.getWarrantyEndDate()));
+        }
         order.setOrderStatus(OrderStatus.SALES_REGISTERED.getValue());
         order.setProductionStatus(ProductionStatus.CONFIRM.getValue());
         order.setCreatedByAdminEmail(salesAdminEmail);
@@ -167,6 +173,12 @@ public class OrderService {
         order.setReceivedAmount(receivedAmount);
         order.setPendingAmount(dto.getTotalInvoiceAmount() - receivedAmount);
         order.setPriority(dto.getPriority());
+        if (dto.getWarrantyStartDate() != null && !dto.getWarrantyStartDate().isEmpty()) {
+            order.setWarrantyStartDate(LocalDate.parse(dto.getWarrantyStartDate()));
+        }
+        if (dto.getWarrantyEndDate() != null && !dto.getWarrantyEndDate().isEmpty()) {
+            order.setWarrantyEndDate(LocalDate.parse(dto.getWarrantyEndDate()));
+        }
 
         // Replace order items
         order.getOrderItems().clear();
@@ -338,6 +350,12 @@ public class OrderService {
             orderItem.setFullWarrantyMonths(scmItem.getFullWarrantyMonths());
             orderItem.setTotalWarrantyMonths(itemTotalWarranty);
             orderItem.setBarcodes(String.join(",", scmItem.getBarcodes()));
+            if (scmItem.getWarrantyStartDate() != null && !scmItem.getWarrantyStartDate().isEmpty()) {
+                orderItem.setWarrantyStartDate(LocalDate.parse(scmItem.getWarrantyStartDate()));
+            }
+            if (scmItem.getWarrantyEndDate() != null && !scmItem.getWarrantyEndDate().isEmpty()) {
+                orderItem.setWarrantyEndDate(LocalDate.parse(scmItem.getWarrantyEndDate()));
+            }
 
             // Track max warranty for order-level summary
             maxServiceWarranty = Math.max(maxServiceWarranty, scmItem.getServiceWarrantyMonths());
@@ -354,8 +372,19 @@ public class OrderService {
                 batteryData.setProductDetails(orderItem.getProductDetails());
                 batteryData.setInvoiceNumber(dto.getInvoiceNumber());
                 batteryData.setBarcode(barcode);
-                batteryData.setWarrantyStartDate(LocalDate.now());
-                batteryData.setWarrantyEndDate(LocalDate.now().plusMonths(itemTotalWarranty));
+                
+                if (scmItem.getWarrantyStartDate() != null && !scmItem.getWarrantyStartDate().isEmpty()) {
+                    batteryData.setWarrantyStartDate(LocalDate.parse(scmItem.getWarrantyStartDate()));
+                } else {
+                    batteryData.setWarrantyStartDate(LocalDate.now());
+                }
+
+                if (scmItem.getWarrantyEndDate() != null && !scmItem.getWarrantyEndDate().isEmpty()) {
+                    batteryData.setWarrantyEndDate(LocalDate.parse(scmItem.getWarrantyEndDate()));
+                } else {
+                    batteryData.setWarrantyEndDate(LocalDate.now().plusMonths(itemTotalWarranty));
+                }
+                
                 batteryData.setCreatedByAdminEmail(scmAdminEmail);
                 batteryDataList.add(batteryData);
             }
@@ -377,6 +406,14 @@ public class OrderService {
         order.setFullWarrantyMonths(maxFullWarranty);
         order.setTotalWarrantyMonths(maxServiceWarranty + maxFullWarranty);
         order.setTrackingId(dto.getTrackingId());
+        
+        if (dto.getWarrantyStartDate() != null && !dto.getWarrantyStartDate().isEmpty()) {
+            order.setWarrantyStartDate(LocalDate.parse(dto.getWarrantyStartDate()));
+        }
+        if (dto.getWarrantyEndDate() != null && !dto.getWarrantyEndDate().isEmpty()) {
+            order.setWarrantyEndDate(LocalDate.parse(dto.getWarrantyEndDate()));
+        }
+        
         order.setScmUpdatedByEmail(scmAdminEmail);
         order.setOrderStatus(OrderStatus.SCM_COMPLETE.getValue());
         order.setScmCompletedAt(LocalDateTime.now());
@@ -578,6 +615,12 @@ public class OrderService {
         int totalQuantity = 0;
         for (OrderItemDTO itemDTO : itemDTOs) {
             OrderItem item = new OrderItem(order, itemDTO.getProductDetails(), itemDTO.getQuantity());
+            if (itemDTO.getWarrantyStartDate() != null && !itemDTO.getWarrantyStartDate().isEmpty()) {
+                item.setWarrantyStartDate(LocalDate.parse(itemDTO.getWarrantyStartDate()));
+            }
+            if (itemDTO.getWarrantyEndDate() != null && !itemDTO.getWarrantyEndDate().isEmpty()) {
+                item.setWarrantyEndDate(LocalDate.parse(itemDTO.getWarrantyEndDate()));
+            }
             order.getOrderItems().add(item);
             totalQuantity += itemDTO.getQuantity();
         }
@@ -616,6 +659,8 @@ public class OrderService {
                         itemResp.setServiceWarrantyMonths(item.getServiceWarrantyMonths());
                         itemResp.setFullWarrantyMonths(item.getFullWarrantyMonths());
                         itemResp.setTotalWarrantyMonths(item.getTotalWarrantyMonths());
+                        itemResp.setWarrantyStartDate(item.getWarrantyStartDate());
+                        itemResp.setWarrantyEndDate(item.getWarrantyEndDate());
                         if (item.getBarcodes() != null && !item.getBarcodes().isEmpty()) {
                             itemResp.setBarcodes(Arrays.asList(item.getBarcodes().split(",")));
                         } else {
@@ -653,6 +698,8 @@ public class OrderService {
         response.setServiceWarrantyMonths(order.getServiceWarrantyMonths());
         response.setFullWarrantyMonths(order.getFullWarrantyMonths());
         response.setTotalWarrantyMonths(order.getTotalWarrantyMonths());
+        response.setWarrantyStartDate(order.getWarrantyStartDate());
+        response.setWarrantyEndDate(order.getWarrantyEndDate());
         response.setTrackingId(order.getTrackingId());
 
         // Audit fields

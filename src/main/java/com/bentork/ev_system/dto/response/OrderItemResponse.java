@@ -1,5 +1,6 @@
 package com.bentork.ev_system.dto.response;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class OrderItemResponse {
@@ -10,6 +11,8 @@ public class OrderItemResponse {
     private Integer serviceWarrantyMonths;
     private Integer fullWarrantyMonths;
     private Integer totalWarrantyMonths;
+    private LocalDate warrantyStartDate;
+    private LocalDate warrantyEndDate;
     private List<String> barcodes;
 
     // Getters and Setters
@@ -68,5 +71,21 @@ public class OrderItemResponse {
 
     public void setBarcodes(List<String> barcodes) {
         this.barcodes = barcodes;
+    }
+
+    public LocalDate getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(LocalDate warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public LocalDate getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(LocalDate warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }

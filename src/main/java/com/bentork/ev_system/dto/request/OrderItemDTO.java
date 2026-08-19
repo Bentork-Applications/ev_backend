@@ -13,6 +13,10 @@ public class OrderItemDTO {
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
 
+    private String warrantyStartDate;
+
+    private String warrantyEndDate;
+
     // Getters and Setters
 
     public String getProductDetails() {
@@ -29,5 +33,21 @@ public class OrderItemDTO {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public String getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(String warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public String getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(String warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }

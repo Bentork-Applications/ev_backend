@@ -1,5 +1,7 @@
 package com.bentork.ev_system.model;
 
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
@@ -38,6 +40,10 @@ public class OrderItem {
     private Integer fullWarrantyMonths;
 
     private Integer totalWarrantyMonths;
+
+    private LocalDate warrantyStartDate;
+
+    private LocalDate warrantyEndDate;
 
     // Comma-separated barcodes assigned to this item during SCM stage
     private String barcodes;
@@ -117,5 +123,21 @@ public class OrderItem {
 
     public void setBarcodes(String barcodes) {
         this.barcodes = barcodes;
+    }
+
+    public LocalDate getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(LocalDate warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public LocalDate getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(LocalDate warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }

@@ -22,6 +22,10 @@ public class ScmItemDTO {
     @Min(value = 0, message = "Full warranty must be 0 or more months")
     private Integer fullWarrantyMonths;
 
+    private String warrantyStartDate;
+
+    private String warrantyEndDate;
+
     // Getters and Setters
 
     public Long getOrderItemId() {
@@ -54,5 +58,21 @@ public class ScmItemDTO {
 
     public void setFullWarrantyMonths(Integer fullWarrantyMonths) {
         this.fullWarrantyMonths = fullWarrantyMonths;
+    }
+
+    public String getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(String warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public String getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(String warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }

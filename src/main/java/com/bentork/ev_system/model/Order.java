@@ -106,6 +106,10 @@ public class Order {
 
     private Integer totalWarrantyMonths;
 
+    private LocalDate warrantyStartDate;
+
+    private LocalDate warrantyEndDate;
+
     private String trackingId;
 
     // ==================== AUDIT FIELDS ====================
@@ -342,6 +346,22 @@ public class Order {
 
     public void setTrackingId(String trackingId) {
         this.trackingId = trackingId;
+    }
+
+    public LocalDate getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(LocalDate warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public LocalDate getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(LocalDate warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 
     public String getCreatedByAdminEmail() {

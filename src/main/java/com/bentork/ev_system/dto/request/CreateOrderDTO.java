@@ -44,6 +44,10 @@ public class CreateOrderDTO {
     @Pattern(regexp = "^(low|medium|high)$", message = "Priority must be 'low', 'medium', or 'high'")
     private String priority;
 
+    private String warrantyStartDate;
+
+    private String warrantyEndDate;
+
     // Getters and Setters
 
     public String getCustomerName() {
@@ -116,5 +120,21 @@ public class CreateOrderDTO {
 
     public void setPriority(String priority) {
         this.priority = priority;
+    }
+
+    public String getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(String warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public String getWarrantyEndDate() {
+        return warrantyEndDate;
+    }
+
+    public void setWarrantyEndDate(String warrantyEndDate) {
+        this.warrantyEndDate = warrantyEndDate;
     }
 }
