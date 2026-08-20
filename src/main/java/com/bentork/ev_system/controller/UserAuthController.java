@@ -135,18 +135,20 @@ public class UserAuthController {
 
     /**
      * DPDPA Section 11 — Right to Data Access / Portability.
-     * Returns a unified JSON export of all personal data for the authenticated user.
+     * Returns a unified HTML export of all personal data for the authenticated user.
      * Rate limited to 3 requests per user per hour.
      */
-    @GetMapping("/my-data")
+    @GetMapping(value = "/my-data", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<?> downloadMyData(
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             User user = userAuthService.getUserDetailsByEmail(userDetails.getUsername());
             UserDataExportResponse export = userDataExportService.exportUserData(user);
+            String html = com.bentork.ev_system.util.UserDataHtmlGenerator.generateHtml(export);
             return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"my-data-export.json\"")
-                    .body(export);
+                    .header("Content-Disposition", "attachment; filename=\"my-data-export.html\"")
+                    .contentType(MediaType.TEXT_HTML)
+                    .body(html);
         } catch (UserDataExportService.RateLimitExceededException e) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", e.getMessage()));
