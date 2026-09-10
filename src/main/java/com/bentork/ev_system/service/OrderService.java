@@ -21,12 +21,14 @@ import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
 import com.bentork.ev_system.dto.response.OrderItemResponse;
 import com.bentork.ev_system.dto.response.OrderResponse;
+import com.bentork.ev_system.dto.response.OrderTrackingResponseDTO;
 import com.bentork.ev_system.enums.OrderStatus;
 import com.bentork.ev_system.enums.PaymentStatus;
 import com.bentork.ev_system.enums.ProductionStatus;
 import com.bentork.ev_system.model.BatteryData;
 import com.bentork.ev_system.model.Order;
 import com.bentork.ev_system.model.OrderItem;
+import com.bentork.ev_system.model.OrderTracking;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
 import com.bentork.ev_system.repository.OrderItemRepository;
@@ -680,6 +682,25 @@ public class OrderService {
             } else {
                 response.setOrderItems(new ArrayList<>());
             }
+        }
+
+        // Tracking updates
+        if (order.getTrackingUpdates() != null && !order.getTrackingUpdates().isEmpty()) {
+            List<OrderTrackingResponseDTO> trackingResponses = order.getTrackingUpdates().stream()
+                    .map(track -> {
+                        OrderTrackingResponseDTO trackResp = new OrderTrackingResponseDTO();
+                        trackResp.setId(track.getId());
+                        trackResp.setStatus(track.getStatus());
+                        trackResp.setLocation(track.getLocation());
+                        trackResp.setDescription(track.getDescription());
+                        trackResp.setTrackingTimestamp(track.getTrackingTimestamp());
+                        trackResp.setCreatedByAdminEmail(track.getCreatedByAdminEmail());
+                        return trackResp;
+                    })
+                    .collect(Collectors.toList());
+            response.setTrackingUpdates(trackingResponses);
+        } else {
+            response.setTrackingUpdates(new ArrayList<>());
         }
 
         // Lifecycle status

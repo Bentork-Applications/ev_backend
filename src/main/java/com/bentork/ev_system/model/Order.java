@@ -62,6 +62,11 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
+    // ==================== ORDER TRACKING ====================
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderTracking> trackingUpdates = new ArrayList<>();
+
     @Column(nullable = false)
     private String mobileNumber;
 
@@ -442,5 +447,13 @@ public class Order {
 
     public void setOrderItems(List<OrderItem> orderItems) {
         this.orderItems = orderItems;
+    }
+
+    public List<OrderTracking> getTrackingUpdates() {
+        return trackingUpdates;
+    }
+
+    public void setTrackingUpdates(List<OrderTracking> trackingUpdates) {
+        this.trackingUpdates = trackingUpdates;
     }
 }

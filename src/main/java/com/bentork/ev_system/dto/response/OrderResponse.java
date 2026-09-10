@@ -26,6 +26,9 @@ public class OrderResponse {
     // Order items (multiple products)
     private List<OrderItemResponse> orderItems;
 
+    // Tracking updates
+    private List<OrderTrackingResponseDTO> trackingUpdates;
+
     // Lifecycle status
     private String orderStatus;
 
@@ -327,5 +330,13 @@ public class OrderResponse {
 
     public void setOrderItems(List<OrderItemResponse> orderItems) {
         this.orderItems = orderItems;
+    }
+
+    public List<OrderTrackingResponseDTO> getTrackingUpdates() {
+        return trackingUpdates;
+    }
+
+    public void setTrackingUpdates(List<OrderTrackingResponseDTO> trackingUpdates) {
+        this.trackingUpdates = trackingUpdates;
     }
 }
