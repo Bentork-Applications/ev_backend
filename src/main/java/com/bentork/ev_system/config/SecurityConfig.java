@@ -178,9 +178,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/support-requests/admin/**").hasAuthority("ADMIN")
 
                                                 // Order Tracking - role-specific access (3-stage workflow)
-                                                .requestMatchers("/api/orders/sales/**").hasAuthority("SALES_ADMIN")
-                                                .requestMatchers("/api/orders/production/**").hasAuthority("PRODUCTION_ADMIN")
-                                                .requestMatchers("/api/orders/scm/**").hasAuthority("SCM_ADMIN")
+                                                // ADMIN has full access across all order stages
+                                                .requestMatchers("/api/orders/sales/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/orders/production/**").hasAnyAuthority("PRODUCTION_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/orders/scm/**").hasAnyAuthority("SCM_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/orders/admin/**").hasAuthority("ADMIN")
                                                 .requestMatchers("/api/orders/user/**").hasAnyAuthority("ROLE_USER", "DEALER")
 

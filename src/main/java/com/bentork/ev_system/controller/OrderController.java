@@ -42,7 +42,7 @@ public class OrderController {
      * Create a new order (Sales Admin only).
      */
     @PostMapping("/sales/create")
-    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createOrder(@Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Sales Admin {} creating a new order", PiiMaskingUtil.maskEmail(adminEmail));
@@ -58,7 +58,7 @@ public class OrderController {
      * List orders created by the current Sales Admin.
      */
     @GetMapping("/sales/my-orders")
-    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<OrderResponse>> getSalesAdminOrders() {
         String adminEmail = getCurrentUserEmail();
         log.info("Sales Admin {} fetching their orders", PiiMaskingUtil.maskEmail(adminEmail));
@@ -69,7 +69,7 @@ public class OrderController {
      * View a specific order detail (Sales Admin — must be the creator).
      */
     @GetMapping("/sales/{id}")
-    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getSalesAdminOrderDetail(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
         try {
@@ -83,7 +83,7 @@ public class OrderController {
      * Update sales-stage fields on an order (Sales Admin — must be the creator, order still in SALES_REGISTERED).
      */
     @PutMapping("/sales/{id}/update")
-    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateSalesOrder(@PathVariable Long id, @Valid @RequestBody CreateOrderDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Sales Admin {} updating order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -98,7 +98,7 @@ public class OrderController {
      * Record a payment against an existing order (Sales Admin — must be the creator).
      */
     @PutMapping("/sales/{id}/record-payment")
-    @PreAuthorize("hasAuthority('SALES_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> recordPayment(@PathVariable Long id, @Valid @RequestBody RecordPaymentDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Sales Admin {} recording payment for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -115,7 +115,7 @@ public class OrderController {
      * List orders in the production pipeline (pending or in_progress).
      */
     @GetMapping("/production/orders")
-    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('PRODUCTION_ADMIN', 'ADMIN')")
     public ResponseEntity<List<OrderResponse>> getProductionOrders() {
         log.info("Production Admin fetching production orders");
         return ResponseEntity.ok(orderService.getProductionOrders());
@@ -125,7 +125,7 @@ public class OrderController {
      * List all completed order history (Production Admin — comprehensive view).
      */
     @GetMapping("/production/completed-orders")
-    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('PRODUCTION_ADMIN', 'ADMIN')")
     public ResponseEntity<List<OrderResponse>> getCompletedProductionOrders() {
         log.info("Production Admin fetching completed order history");
         return ResponseEntity.ok(orderService.getCompletedProductionOrders());
@@ -135,7 +135,7 @@ public class OrderController {
      * View a specific order detail (Production Admin).
      */
     @GetMapping("/production/{id}")
-    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('PRODUCTION_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getProductionOrderDetail(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(orderService.getProductionOrderDetail(id));
@@ -148,7 +148,7 @@ public class OrderController {
      * Update production status only (Production Admin).
      */
     @PutMapping("/production/{id}/status")
-    @PreAuthorize("hasAuthority('PRODUCTION_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('PRODUCTION_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateProductionStatus(@PathVariable Long id, @Valid @RequestBody UpdateProductionStatusDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Production Admin {} updating production status for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -165,7 +165,7 @@ public class OrderController {
      * List orders where production is completed (ready for SCM).
      */
     @GetMapping("/scm/orders")
-    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<List<OrderResponse>> getScmOrders() {
         log.info("SCM Admin fetching SCM-ready orders");
         return ResponseEntity.ok(orderService.getScmOrders());
@@ -175,7 +175,7 @@ public class OrderController {
      * View a specific order detail (SCM Admin).
      */
     @GetMapping("/scm/{id}")
-    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getScmOrderDetail(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(orderService.getScmOrderDetail(id));
@@ -188,7 +188,7 @@ public class OrderController {
      * Fill SCM details (barcode, warranty, tracking) and mark order as SCM_COMPLETE.
      */
     @PutMapping("/scm/{id}/complete")
-    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateScmDetails(@PathVariable Long id, @Valid @RequestBody UpdateScmDetailsDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("SCM Admin {} filling SCM details for order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -203,7 +203,7 @@ public class OrderController {
      * Mark an SCM-complete order as dispatched.
      */
     @PutMapping("/scm/{id}/dispatch")
-    @PreAuthorize("hasAuthority('SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> markDispatched(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
         log.info("SCM Admin {} dispatching order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
