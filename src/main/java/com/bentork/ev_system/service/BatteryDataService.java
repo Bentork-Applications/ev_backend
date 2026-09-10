@@ -108,6 +108,42 @@ public class BatteryDataService {
         return mapToResponse(battery);
     }
 
+    /**
+     * Update an existing battery record. Admin only.
+     */
+    public BatteryDataResponse updateBattery(Long id, BatteryDataDTO dto, String adminEmail) {
+        BatteryData battery = batteryDataRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Battery not found with ID: " + id));
+
+        if (dto.getBarcode() != null && !dto.getBarcode().trim().isEmpty() && !dto.getBarcode().equals(battery.getBarcode())) {
+            if (batteryDataRepository.existsByBarcode(dto.getBarcode())) {
+                throw new IllegalArgumentException("Battery with barcode " + dto.getBarcode() + " already exists");
+            }
+            battery.setBarcode(dto.getBarcode());
+        }
+
+        if (dto.getCustomerName() != null) battery.setCustomerName(dto.getCustomerName());
+        if (dto.getProductDetails() != null) battery.setProductDetails(dto.getProductDetails());
+        if (dto.getInvoiceNumber() != null) battery.setInvoiceNumber(dto.getInvoiceNumber());
+        if (dto.getAddress() != null) battery.setAddress(dto.getAddress());
+        if (dto.getWarrantyStartDate() != null) battery.setWarrantyStartDate(dto.getWarrantyStartDate());
+        if (dto.getWarrantyEndDate() != null) battery.setWarrantyEndDate(dto.getWarrantyEndDate());
+
+        BatteryData updated = batteryDataRepository.save(battery);
+        log.info("Admin {} updated battery with ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+        return mapToResponse(updated);
+    }
+
+    /**
+     * Hard-delete a battery record. Admin only.
+     */
+    public void deleteBattery(Long id, String adminEmail) {
+        BatteryData battery = batteryDataRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Battery not found with ID: " + id));
+        batteryDataRepository.delete(battery);
+        log.info("Admin {} deleted battery with ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+    }
+
     // ==================== PRIVATE HELPERS ====================
 
     /**

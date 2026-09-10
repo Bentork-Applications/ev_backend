@@ -15,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -95,6 +97,38 @@ public class BatteryDataController {
     public ResponseEntity<?> getBatteryById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(batteryDataService.getBatteryById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Update an existing battery's warranty and details. Accessible by ADMIN and ADMIN_STAFF.
+     */
+    @PutMapping("/admin/update/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    public ResponseEntity<?> updateBattery(@PathVariable Long id, @RequestBody BatteryDataDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Admin/Staff {} updating battery data for ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+        try {
+            BatteryDataResponse response = batteryDataService.updateBattery(id, dto, adminEmail);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Hard delete a battery record. Accessible by ADMIN and ADMIN_STAFF.
+     */
+    @DeleteMapping("/admin/delete/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    public ResponseEntity<?> deleteBattery(@PathVariable Long id) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Admin/Staff {} deleting battery data for ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+        try {
+            batteryDataService.deleteBattery(id, adminEmail);
+            return ResponseEntity.ok("Battery record deleted successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
