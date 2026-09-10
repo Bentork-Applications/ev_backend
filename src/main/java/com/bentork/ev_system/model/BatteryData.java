@@ -40,11 +40,17 @@ public class BatteryData {
     @Column(columnDefinition = "TEXT")
     private String address;
 
+    // Full Warranty (Replacement) — existing fields retained for backward compatibility
     @Column(nullable = false)
     private LocalDate warrantyStartDate;
 
     @Column(nullable = false)
     private LocalDate warrantyEndDate;
+
+    // Service Warranty (Repair/Servicing) — optional, extends beyond full warranty
+    private LocalDate serviceWarrantyStartDate;
+
+    private LocalDate serviceWarrantyEndDate;
 
     private String createdByAdminEmail;
 
@@ -132,6 +138,22 @@ public class BatteryData {
 
     public void setWarrantyEndDate(LocalDate warrantyEndDate) {
         this.warrantyEndDate = warrantyEndDate;
+    }
+
+    public LocalDate getServiceWarrantyStartDate() {
+        return serviceWarrantyStartDate;
+    }
+
+    public void setServiceWarrantyStartDate(LocalDate serviceWarrantyStartDate) {
+        this.serviceWarrantyStartDate = serviceWarrantyStartDate;
+    }
+
+    public LocalDate getServiceWarrantyEndDate() {
+        return serviceWarrantyEndDate;
+    }
+
+    public void setServiceWarrantyEndDate(LocalDate serviceWarrantyEndDate) {
+        this.serviceWarrantyEndDate = serviceWarrantyEndDate;
     }
 
     public String getCreatedByAdminEmail() {

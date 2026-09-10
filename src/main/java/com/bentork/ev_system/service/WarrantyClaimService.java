@@ -48,9 +48,19 @@ public class WarrantyClaimService {
         BatteryData battery = batteryDataRepository.findById(dto.getBatteryDataId())
                 .orElseThrow(() -> new IllegalArgumentException("Battery not found with ID: " + dto.getBatteryDataId()));
 
-        // Validate warranty is active
-        if (LocalDate.now().isAfter(battery.getWarrantyEndDate())) {
-            throw new IllegalArgumentException("Warranty has expired for this battery. Warranty ended on: " + battery.getWarrantyEndDate());
+        // Validate warranty is active (check both full warranty and service warranty)
+        LocalDate now = LocalDate.now();
+        boolean fullWarrantyActive = !now.isAfter(battery.getWarrantyEndDate());
+        boolean serviceWarrantyActive = battery.getServiceWarrantyEndDate() != null
+                && !now.isAfter(battery.getServiceWarrantyEndDate());
+
+        if (!fullWarrantyActive && !serviceWarrantyActive) {
+            String message = "All warranties have expired for this battery. Full warranty ended on: "
+                    + battery.getWarrantyEndDate();
+            if (battery.getServiceWarrantyEndDate() != null) {
+                message += ", Service warranty ended on: " + battery.getServiceWarrantyEndDate();
+            }
+            throw new IllegalArgumentException(message);
         }
 
         // Validate terms accepted

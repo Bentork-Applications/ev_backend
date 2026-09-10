@@ -14,8 +14,13 @@ public class BatteryDataDTO {
     private String startBarcode;
     private String endBarcode;
 
+    // Full Warranty (Replacement)
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
+
+    // Service Warranty (Repair/Servicing) — optional
+    private LocalDate serviceWarrantyStartDate;
+    private LocalDate serviceWarrantyEndDate;
 
 
     private String address;
@@ -84,6 +89,22 @@ public class BatteryDataDTO {
 
     public void setWarrantyEndDate(LocalDate warrantyEndDate) {
         this.warrantyEndDate = warrantyEndDate;
+    }
+
+    public LocalDate getServiceWarrantyStartDate() {
+        return serviceWarrantyStartDate;
+    }
+
+    public void setServiceWarrantyStartDate(LocalDate serviceWarrantyStartDate) {
+        this.serviceWarrantyStartDate = serviceWarrantyStartDate;
+    }
+
+    public LocalDate getServiceWarrantyEndDate() {
+        return serviceWarrantyEndDate;
+    }
+
+    public void setServiceWarrantyEndDate(LocalDate serviceWarrantyEndDate) {
+        this.serviceWarrantyEndDate = serviceWarrantyEndDate;
     }
 
 

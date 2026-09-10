@@ -11,9 +11,20 @@ public class BatteryDataResponse {
     private String invoiceNumber;
     private String barcode;
     private String address;
+
+    // Full Warranty (Replacement)
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
-    private boolean warrantyActive;
+    private boolean fullWarrantyActive;
+
+    // Service Warranty (Repair/Servicing)
+    private LocalDate serviceWarrantyStartDate;
+    private LocalDate serviceWarrantyEndDate;
+    private boolean serviceWarrantyActive;
+
+    // Overall warranty status: "full_warranty", "service_warranty", or "expired"
+    private String activeWarrantyType;
+
     private String createdByAdminEmail;
     private LocalDateTime createdAt;
 
@@ -86,12 +97,44 @@ public class BatteryDataResponse {
         this.warrantyEndDate = warrantyEndDate;
     }
 
-    public boolean isWarrantyActive() {
-        return warrantyActive;
+    public boolean isFullWarrantyActive() {
+        return fullWarrantyActive;
     }
 
-    public void setWarrantyActive(boolean warrantyActive) {
-        this.warrantyActive = warrantyActive;
+    public void setFullWarrantyActive(boolean fullWarrantyActive) {
+        this.fullWarrantyActive = fullWarrantyActive;
+    }
+
+    public LocalDate getServiceWarrantyStartDate() {
+        return serviceWarrantyStartDate;
+    }
+
+    public void setServiceWarrantyStartDate(LocalDate serviceWarrantyStartDate) {
+        this.serviceWarrantyStartDate = serviceWarrantyStartDate;
+    }
+
+    public LocalDate getServiceWarrantyEndDate() {
+        return serviceWarrantyEndDate;
+    }
+
+    public void setServiceWarrantyEndDate(LocalDate serviceWarrantyEndDate) {
+        this.serviceWarrantyEndDate = serviceWarrantyEndDate;
+    }
+
+    public boolean isServiceWarrantyActive() {
+        return serviceWarrantyActive;
+    }
+
+    public void setServiceWarrantyActive(boolean serviceWarrantyActive) {
+        this.serviceWarrantyActive = serviceWarrantyActive;
+    }
+
+    public String getActiveWarrantyType() {
+        return activeWarrantyType;
+    }
+
+    public void setActiveWarrantyType(String activeWarrantyType) {
+        this.activeWarrantyType = activeWarrantyType;
     }
 
     public String getCreatedByAdminEmail() {

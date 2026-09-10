@@ -44,7 +44,8 @@ public class BatteryExcelService {
      *
      * Expected columns:
      *   A: customerName, B: productDetails, C: invoiceNumber,
-     *   D: barcode, E: warrantyStartDate, F: warrantyEndDate
+     *   D: barcode, E: warrantyStartDate, F: warrantyEndDate,
+     *   G: serviceWarrantyStartDate (optional), H: serviceWarrantyEndDate (optional)
      *
      * @param file       the uploaded Excel file (.xlsx or .xls)
      * @param adminEmail the email of the admin performing the upload
@@ -141,6 +142,8 @@ public class BatteryExcelService {
         LocalDate warrantyStartDate = getCellDateValue(row.getCell(4));
         LocalDate warrantyEndDate = getCellDateValue(row.getCell(5));
         String address = getCellStringValue(row.getCell(6));
+        LocalDate serviceWarrantyStartDate = getCellDateValue(row.getCell(7));
+        LocalDate serviceWarrantyEndDate = getCellDateValue(row.getCell(8));
 
         // Validate required fields
         validateRequiredFields(rowIndex, customerName, productDetails, invoiceNumber,
@@ -161,6 +164,8 @@ public class BatteryExcelService {
         battery.setAddress(address);
         battery.setWarrantyStartDate(warrantyStartDate);
         battery.setWarrantyEndDate(warrantyEndDate);
+        battery.setServiceWarrantyStartDate(serviceWarrantyStartDate);
+        battery.setServiceWarrantyEndDate(serviceWarrantyEndDate);
         battery.setCreatedByAdminEmail(adminEmail);
 
         BatteryData saved = batteryDataRepository.save(battery);
@@ -269,7 +274,7 @@ public class BatteryExcelService {
      * Checks if a row is completely empty (all cells are blank or null).
      */
     private boolean isRowEmpty(Row row) {
-        for (int cellIndex = 0; cellIndex < 8; cellIndex++) {
+        for (int cellIndex = 0; cellIndex < 9; cellIndex++) {
             Cell cell = row.getCell(cellIndex);
             if (cell != null && cell.getCellType() != CellType.BLANK) {
                 String value = getCellStringValue(cell);
@@ -293,9 +298,30 @@ public class BatteryExcelService {
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
         response.setAddress(battery.getAddress());
+
+        // Full Warranty
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
-        response.setWarrantyActive(!LocalDate.now().isAfter(battery.getWarrantyEndDate()));
+        LocalDate now = LocalDate.now();
+        boolean fullActive = !now.isAfter(battery.getWarrantyEndDate());
+        response.setFullWarrantyActive(fullActive);
+
+        // Service Warranty
+        response.setServiceWarrantyStartDate(battery.getServiceWarrantyStartDate());
+        response.setServiceWarrantyEndDate(battery.getServiceWarrantyEndDate());
+        boolean serviceActive = battery.getServiceWarrantyEndDate() != null
+                && !now.isAfter(battery.getServiceWarrantyEndDate());
+        response.setServiceWarrantyActive(serviceActive);
+
+        // Overall warranty status
+        if (fullActive) {
+            response.setActiveWarrantyType("full_warranty");
+        } else if (serviceActive) {
+            response.setActiveWarrantyType("service_warranty");
+        } else {
+            response.setActiveWarrantyType("expired");
+        }
+
         response.setCreatedByAdminEmail(battery.getCreatedByAdminEmail());
         response.setCreatedAt(battery.getCreatedAt());
         return response;

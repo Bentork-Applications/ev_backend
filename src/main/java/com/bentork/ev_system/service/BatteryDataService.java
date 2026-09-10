@@ -128,6 +128,8 @@ public class BatteryDataService {
         if (dto.getAddress() != null) battery.setAddress(dto.getAddress());
         if (dto.getWarrantyStartDate() != null) battery.setWarrantyStartDate(dto.getWarrantyStartDate());
         if (dto.getWarrantyEndDate() != null) battery.setWarrantyEndDate(dto.getWarrantyEndDate());
+        if (dto.getServiceWarrantyStartDate() != null) battery.setServiceWarrantyStartDate(dto.getServiceWarrantyStartDate());
+        if (dto.getServiceWarrantyEndDate() != null) battery.setServiceWarrantyEndDate(dto.getServiceWarrantyEndDate());
 
         BatteryData updated = batteryDataRepository.save(battery);
         log.info("Admin {} updated battery with ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -206,6 +208,8 @@ public class BatteryDataService {
         battery.setAddress(dto.getAddress());
         battery.setWarrantyStartDate(dto.getWarrantyStartDate());
         battery.setWarrantyEndDate(dto.getWarrantyEndDate());
+        battery.setServiceWarrantyStartDate(dto.getServiceWarrantyStartDate());
+        battery.setServiceWarrantyEndDate(dto.getServiceWarrantyEndDate());
         battery.setCreatedByAdminEmail(adminEmail);
         return battery;
     }
@@ -218,9 +222,30 @@ public class BatteryDataService {
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
         response.setAddress(battery.getAddress());
+
+        // Full Warranty
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
-        response.setWarrantyActive(!LocalDate.now().isAfter(battery.getWarrantyEndDate()));
+        LocalDate now = LocalDate.now();
+        boolean fullActive = !now.isAfter(battery.getWarrantyEndDate());
+        response.setFullWarrantyActive(fullActive);
+
+        // Service Warranty
+        response.setServiceWarrantyStartDate(battery.getServiceWarrantyStartDate());
+        response.setServiceWarrantyEndDate(battery.getServiceWarrantyEndDate());
+        boolean serviceActive = battery.getServiceWarrantyEndDate() != null
+                && !now.isAfter(battery.getServiceWarrantyEndDate());
+        response.setServiceWarrantyActive(serviceActive);
+
+        // Overall warranty status
+        if (fullActive) {
+            response.setActiveWarrantyType("full_warranty");
+        } else if (serviceActive) {
+            response.setActiveWarrantyType("service_warranty");
+        } else {
+            response.setActiveWarrantyType("expired");
+        }
+
         response.setCreatedByAdminEmail(battery.getCreatedByAdminEmail());
         response.setCreatedAt(battery.getCreatedAt());
         return response;
