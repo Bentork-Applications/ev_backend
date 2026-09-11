@@ -172,6 +172,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/warranty-claims/user/**").hasAuthority("ROLE_USER")
                                                 .requestMatchers("/api/warranty-claims/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
 
+                                                // Product Catalog - Admin & Staff manage
+                                                .requestMatchers("/api/products/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
+                                                .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
+
                                                 // Support Requests - role-specific access
                                                 .requestMatchers("/api/support-requests/user/**").hasAuthority("ROLE_USER")
                                                 .requestMatchers("/api/support-requests/dealer/**").hasAuthority("DEALER")

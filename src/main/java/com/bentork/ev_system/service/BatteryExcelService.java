@@ -24,7 +24,9 @@ import com.bentork.ev_system.dto.response.BatteryExcelUploadResponse;
 import com.bentork.ev_system.dto.response.BatteryExcelUploadResponse.RowError;
 import com.bentork.ev_system.exception.domain.InvalidExcelFileException;
 import com.bentork.ev_system.model.BatteryData;
+import com.bentork.ev_system.model.Product;
 import com.bentork.ev_system.repository.BatteryDataRepository;
+import com.bentork.ev_system.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 public class BatteryExcelService {
 
     private final BatteryDataRepository batteryDataRepository;
+    private final ProductRepository productRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -144,6 +147,29 @@ public class BatteryExcelService {
         String address = getCellStringValue(row.getCell(6));
         LocalDate serviceWarrantyStartDate = getCellDateValue(row.getCell(7));
         LocalDate serviceWarrantyEndDate = getCellDateValue(row.getCell(8));
+        String productIdStr = getCellStringValue(row.getCell(9)); // Optional: product ID from catalog
+
+        // Resolve product from catalog if productId is provided
+        Product product = null;
+        if (productIdStr != null && !productIdStr.trim().isEmpty()) {
+            try {
+                Long productId = Long.parseLong(productIdStr.trim());
+                product = productRepository.findById(productId)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Product not found with ID: " + productId));
+                if (!product.isActive()) {
+                    throw new IllegalArgumentException(
+                            "Product '" + product.getName() + "' is inactive");
+                }
+                // Auto-populate productDetails from catalog if not provided
+                if (isBlank(productDetails)) {
+                    productDetails = product.buildSpecString();
+                }
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Invalid product ID: '" + productIdStr + "'. Must be a numeric ID.");
+            }
+        }
 
         // Validate required fields
         validateRequiredFields(rowIndex, customerName, productDetails, invoiceNumber,
@@ -167,6 +193,11 @@ public class BatteryExcelService {
         battery.setServiceWarrantyStartDate(serviceWarrantyStartDate);
         battery.setServiceWarrantyEndDate(serviceWarrantyEndDate);
         battery.setCreatedByAdminEmail(adminEmail);
+
+        // Link to product catalog if resolved
+        if (product != null) {
+            battery.setProductId(product.getId());
+        }
 
         BatteryData saved = batteryDataRepository.save(battery);
         registeredBatteries.add(mapToResponse(saved));
@@ -274,7 +305,7 @@ public class BatteryExcelService {
      * Checks if a row is completely empty (all cells are blank or null).
      */
     private boolean isRowEmpty(Row row) {
-        for (int cellIndex = 0; cellIndex < 9; cellIndex++) {
+        for (int cellIndex = 0; cellIndex < 10; cellIndex++) { // 10 columns (A-J, including optional productId)
             Cell cell = row.getCell(cellIndex);
             if (cell != null && cell.getCellType() != CellType.BLANK) {
                 String value = getCellStringValue(cell);
@@ -298,6 +329,17 @@ public class BatteryExcelService {
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
         response.setAddress(battery.getAddress());
+
+        // Resolve product info from catalog if linked
+        if (battery.getProductId() != null) {
+            response.setProductId(battery.getProductId());
+            productRepository.findById(battery.getProductId()).ifPresent(product -> {
+                response.setProductName(product.getName());
+                response.setProductCategory(product.getCategory());
+                response.setProductModelNumber(product.getModelNumber());
+                response.setProductSpecString(product.buildSpecString());
+            });
+        }
 
         // Full Warranty
         response.setWarrantyStartDate(battery.getWarrantyStartDate());

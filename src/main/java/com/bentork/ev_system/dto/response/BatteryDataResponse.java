@@ -7,6 +7,11 @@ public class BatteryDataResponse {
 
     private Long id;
     private String customerName;
+    private Long productId;
+    private String productName;
+    private String productCategory;
+    private String productModelNumber;
+    private String productSpecString; // Auto-built: "EV Battery — 48V 30Ah Chemistry = NMC"
     private String productDetails;
     private String invoiceNumber;
     private String barcode;
@@ -44,6 +49,46 @@ public class BatteryDataResponse {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Long productId) {
+        this.productId = productId;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public String getProductCategory() {
+        return productCategory;
+    }
+
+    public void setProductCategory(String productCategory) {
+        this.productCategory = productCategory;
+    }
+
+    public String getProductModelNumber() {
+        return productModelNumber;
+    }
+
+    public void setProductModelNumber(String productModelNumber) {
+        this.productModelNumber = productModelNumber;
+    }
+
+    public String getProductSpecString() {
+        return productSpecString;
+    }
+
+    public void setProductSpecString(String productSpecString) {
+        this.productSpecString = productSpecString;
     }
 
     public String getProductDetails() {

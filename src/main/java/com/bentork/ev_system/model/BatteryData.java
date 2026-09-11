@@ -27,6 +27,9 @@ public class BatteryData {
     @Column(nullable = false)
     private String customerName;
 
+    // Optional: references a product from the catalog (new registrations)
+    private Long productId;
+
     @Column(nullable = false)
     private String productDetails;
 
@@ -79,6 +82,14 @@ public class BatteryData {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Long productId) {
+        this.productId = productId;
     }
 
     public String getCustomerName() {

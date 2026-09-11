@@ -6,6 +6,7 @@ import java.time.LocalDate;
 public class BatteryDataDTO {
 
     private String customerName;
+    private Long productId; // Optional: select from product catalog
     private String productDetails;
     private String invoiceNumber;
     private String barcode;
@@ -33,6 +34,14 @@ public class BatteryDataDTO {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Long productId) {
+        this.productId = productId;
     }
 
     public String getProductDetails() {

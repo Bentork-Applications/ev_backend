@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 import com.bentork.ev_system.dto.request.BatteryDataDTO;
 import com.bentork.ev_system.dto.response.BatteryDataResponse;
 import com.bentork.ev_system.model.BatteryData;
+import com.bentork.ev_system.model.Product;
 import com.bentork.ev_system.model.User;
 import com.bentork.ev_system.repository.BatteryDataRepository;
 import com.bentork.ev_system.repository.OrderRepository;
+import com.bentork.ev_system.repository.ProductRepository;
 import com.bentork.ev_system.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -28,19 +30,26 @@ public class BatteryDataService {
     private final BatteryDataRepository batteryDataRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
     /**
      * Register battery data. If startBarcode and endBarcode are provided,
      * expands the range into individual battery records.
      * Otherwise, creates a single battery record using the barcode field.
+     *
+     * If productId is provided, resolves the product from the catalog
+     * and auto-populates productDetails from the Product spec string.
      */
     public List<BatteryDataResponse> registerBattery(BatteryDataDTO dto, String adminEmail) {
+        // Resolve product if productId is provided
+        Product product = resolveProduct(dto);
+
         List<BatteryData> savedBatteries = new ArrayList<>();
 
         if (dto.getStartBarcode() != null && !dto.getStartBarcode().isEmpty()
                 && dto.getEndBarcode() != null && !dto.getEndBarcode().isEmpty()) {
             // Bulk barcode expansion mode
-            savedBatteries = expandAndSaveBarcodes(dto, adminEmail);
+            savedBatteries = expandAndSaveBarcodes(dto, product, adminEmail);
         } else {
             // Single battery mode
             if (dto.getBarcode() == null || dto.getBarcode().trim().isEmpty()) {
@@ -52,7 +61,7 @@ public class BatteryDataService {
                         "Battery with barcode " + dto.getBarcode() + " already exists");
             }
 
-            BatteryData battery = createBatteryFromDTO(dto, dto.getBarcode(), adminEmail);
+            BatteryData battery = createBatteryFromDTO(dto, dto.getBarcode(), product, adminEmail);
             BatteryData saved = batteryDataRepository.save(battery);
             savedBatteries.add(saved);
             log.info("Registered single battery with barcode {} by admin {}", saved.getBarcode(), PiiMaskingUtil.maskEmail(adminEmail));
@@ -123,13 +132,25 @@ public class BatteryDataService {
         }
 
         if (dto.getCustomerName() != null) battery.setCustomerName(dto.getCustomerName());
-        if (dto.getProductDetails() != null) battery.setProductDetails(dto.getProductDetails());
         if (dto.getInvoiceNumber() != null) battery.setInvoiceNumber(dto.getInvoiceNumber());
         if (dto.getAddress() != null) battery.setAddress(dto.getAddress());
         if (dto.getWarrantyStartDate() != null) battery.setWarrantyStartDate(dto.getWarrantyStartDate());
         if (dto.getWarrantyEndDate() != null) battery.setWarrantyEndDate(dto.getWarrantyEndDate());
         if (dto.getServiceWarrantyStartDate() != null) battery.setServiceWarrantyStartDate(dto.getServiceWarrantyStartDate());
         if (dto.getServiceWarrantyEndDate() != null) battery.setServiceWarrantyEndDate(dto.getServiceWarrantyEndDate());
+
+        // Update product reference if provided
+        if (dto.getProductId() != null) {
+            Product product = productRepository.findById(dto.getProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + dto.getProductId()));
+            if (!product.isActive()) {
+                throw new IllegalArgumentException("Product '" + product.getName() + "' is inactive and cannot be assigned");
+            }
+            battery.setProductId(product.getId());
+            battery.setProductDetails(product.buildSpecString());
+        } else if (dto.getProductDetails() != null) {
+            battery.setProductDetails(dto.getProductDetails());
+        }
 
         BatteryData updated = batteryDataRepository.save(battery);
         log.info("Admin {} updated battery with ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -149,13 +170,34 @@ public class BatteryDataService {
     // ==================== PRIVATE HELPERS ====================
 
     /**
+     * Resolves a Product from the catalog if productId is provided.
+     * If productId is given, validates the product exists and is active,
+     * and auto-populates productDetails on the DTO from the product spec string.
+     */
+    private Product resolveProduct(BatteryDataDTO dto) {
+        if (dto.getProductId() == null) {
+            return null;
+        }
+        Product product = productRepository.findById(dto.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + dto.getProductId()));
+        if (!product.isActive()) {
+            throw new IllegalArgumentException("Product '" + product.getName() + "' is inactive and cannot be used for registration");
+        }
+        // Auto-populate productDetails from the product catalog if not explicitly set
+        if (dto.getProductDetails() == null || dto.getProductDetails().trim().isEmpty()) {
+            dto.setProductDetails(product.buildSpecString());
+        }
+        return product;
+    }
+
+    /**
      * Expands a barcode range into individual battery records.
      * Extracts the numeric suffix from startBarcode and endBarcode,
      * preserves the alpha prefix, and creates one record per barcode.
      *
      * Example: start="BAR001", end="BAR005" → creates BAR001, BAR002, BAR003, BAR004, BAR005
      */
-    private List<BatteryData> expandAndSaveBarcodes(BatteryDataDTO dto, String adminEmail) {
+    private List<BatteryData> expandAndSaveBarcodes(BatteryDataDTO dto, Product product, String adminEmail) {
         String startBarcode = dto.getStartBarcode();
         String endBarcode = dto.getEndBarcode();
 
@@ -184,7 +226,7 @@ public class BatteryDataService {
                 continue;
             }
 
-            BatteryData battery = createBatteryFromDTO(dto, barcodeValue, adminEmail);
+            BatteryData battery = createBatteryFromDTO(dto, barcodeValue, product, adminEmail);
             savedBatteries.add(batteryDataRepository.save(battery));
         }
 
@@ -199,7 +241,7 @@ public class BatteryDataService {
         return savedBatteries;
     }
 
-    private BatteryData createBatteryFromDTO(BatteryDataDTO dto, String barcode, String adminEmail) {
+    private BatteryData createBatteryFromDTO(BatteryDataDTO dto, String barcode, Product product, String adminEmail) {
         BatteryData battery = new BatteryData();
         battery.setCustomerName(dto.getCustomerName());
         battery.setProductDetails(dto.getProductDetails());
@@ -211,6 +253,12 @@ public class BatteryDataService {
         battery.setServiceWarrantyStartDate(dto.getServiceWarrantyStartDate());
         battery.setServiceWarrantyEndDate(dto.getServiceWarrantyEndDate());
         battery.setCreatedByAdminEmail(adminEmail);
+
+        // Link to product catalog if resolved
+        if (product != null) {
+            battery.setProductId(product.getId());
+        }
+
         return battery;
     }
 
@@ -222,6 +270,17 @@ public class BatteryDataService {
         response.setInvoiceNumber(battery.getInvoiceNumber());
         response.setBarcode(battery.getBarcode());
         response.setAddress(battery.getAddress());
+
+        // Resolve product info from catalog if linked
+        if (battery.getProductId() != null) {
+            response.setProductId(battery.getProductId());
+            productRepository.findById(battery.getProductId()).ifPresent(product -> {
+                response.setProductName(product.getName());
+                response.setProductCategory(product.getCategory());
+                response.setProductModelNumber(product.getModelNumber());
+                response.setProductSpecString(product.buildSpecString());
+            });
+        }
 
         // Full Warranty
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
