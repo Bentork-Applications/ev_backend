@@ -460,6 +460,46 @@ public class OrderService {
         return mapToResponse(saved);
     }
 
+    /**
+     * Admin marks a dispatched order as delivered (SCM Admin / Super Admin).
+     * This is the admin-side counterpart to user's confirmDelivery().
+     */
+    @Transactional
+    public OrderResponse markDelivered(Long orderId, String adminNotes, String scmAdminEmail) {
+        Order order = findOrderById(orderId);
+
+        OrderStatus currentStatus = OrderStatus.fromString(order.getOrderStatus());
+        if (currentStatus != OrderStatus.DISPATCHED) {
+            throw new IllegalArgumentException(
+                    "Order can only be marked as delivered when status is DISPATCHED. Current status: "
+                            + order.getOrderStatus());
+        }
+
+        order.setOrderStatus(OrderStatus.DELIVERED.getValue());
+        order.setDeliveredAt(LocalDateTime.now());
+        order.setScmUpdatedByEmail(scmAdminEmail);
+
+        // Add a tracking update for audit trail
+        OrderTracking tracking = new OrderTracking();
+        tracking.setOrder(order);
+        tracking.setStatus("delivered");
+        tracking.setDescription(adminNotes != null ? "Admin confirmed delivery: " + adminNotes
+                : "Admin confirmed delivery");
+        tracking.setCreatedByAdminEmail(scmAdminEmail);
+        tracking.setTrackingTimestamp(LocalDateTime.now());
+        order.getTrackingUpdates().add(tracking);
+
+        Order saved = orderRepository.save(order);
+        log.info("Order {} marked as DELIVERED by Admin {}", orderId, PiiMaskingUtil.maskEmail(scmAdminEmail));
+
+        userNotificationService.createNotification(saved.getAssignedUserId(),
+                "Order Delivered",
+                "Your order " + saved.getOrderNumber() + " has been confirmed as delivered.",
+                "ORDER_UPDATE");
+
+        return mapToResponse(saved);
+    }
+
     // ==================== SALES ADMIN — RECORD PAYMENT ====================
 
     /**

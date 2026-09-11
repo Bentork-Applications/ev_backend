@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.CreateOrderDTO;
+import com.bentork.ev_system.dto.request.MarkDeliveredDTO;
 import com.bentork.ev_system.dto.request.RecordPaymentDTO;
 import com.bentork.ev_system.dto.request.UpdateProductionStatusDTO;
 import com.bentork.ev_system.dto.request.UpdateScmDetailsDTO;
@@ -209,6 +210,23 @@ public class OrderController {
         log.info("SCM Admin {} dispatching order {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             return ResponseEntity.ok(orderService.markDispatched(id, adminEmail));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Admin marks a dispatched order as delivered.
+     */
+    @PutMapping("/scm/{id}/deliver")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> markDelivered(@PathVariable Long id,
+                                           @RequestBody(required = false) MarkDeliveredDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("SCM Admin {} marking order {} as delivered", PiiMaskingUtil.maskEmail(adminEmail), id);
+        try {
+            String notes = (dto != null) ? dto.getAdminNotes() : null;
+            return ResponseEntity.ok(orderService.markDelivered(id, notes, adminEmail));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
