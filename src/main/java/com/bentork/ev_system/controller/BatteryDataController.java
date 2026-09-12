@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.bentork.ev_system.dto.request.BatteryDataDTO;
+import com.bentork.ev_system.dto.request.WarrantyStatusUpdateDTO;
 import com.bentork.ev_system.dto.response.BatteryDataResponse;
 import com.bentork.ev_system.dto.response.BatteryExcelUploadResponse;
 import com.bentork.ev_system.service.BatteryDataService;
@@ -113,6 +114,22 @@ public class BatteryDataController {
         log.info("Admin/Staff {} updating battery data for ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             BatteryDataResponse response = batteryDataService.updateBattery(id, dto, adminEmail);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Update an existing battery's warranty status and reason manually. Accessible by ADMIN and ADMIN_STAFF.
+     */
+    @PutMapping("/admin/update-warranty-status/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    public ResponseEntity<?> updateWarrantyStatus(@PathVariable Long id, @RequestBody WarrantyStatusUpdateDTO dto) {
+        String adminEmail = getCurrentUserEmail();
+        log.info("Admin/Staff {} updating warranty status for battery ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+        try {
+            BatteryDataResponse response = batteryDataService.updateWarrantyStatus(id, dto, adminEmail);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

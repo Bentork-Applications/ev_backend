@@ -21,11 +21,13 @@ public class BatteryDataResponse {
     private LocalDate warrantyStartDate;
     private LocalDate warrantyEndDate;
     private boolean fullWarrantyActive;
+    private String fullWarrantyStatusReason;
 
     // Service Warranty (Repair/Servicing)
     private LocalDate serviceWarrantyStartDate;
     private LocalDate serviceWarrantyEndDate;
     private boolean serviceWarrantyActive;
+    private String serviceWarrantyStatusReason;
 
     // Overall warranty status: "full_warranty", "service_warranty", or "expired"
     private String activeWarrantyType;
@@ -172,6 +174,22 @@ public class BatteryDataResponse {
 
     public void setServiceWarrantyActive(boolean serviceWarrantyActive) {
         this.serviceWarrantyActive = serviceWarrantyActive;
+    }
+
+    public String getFullWarrantyStatusReason() {
+        return fullWarrantyStatusReason;
+    }
+
+    public void setFullWarrantyStatusReason(String fullWarrantyStatusReason) {
+        this.fullWarrantyStatusReason = fullWarrantyStatusReason;
+    }
+
+    public String getServiceWarrantyStatusReason() {
+        return serviceWarrantyStatusReason;
+    }
+
+    public void setServiceWarrantyStatusReason(String serviceWarrantyStatusReason) {
+        this.serviceWarrantyStatusReason = serviceWarrantyStatusReason;
     }
 
     public String getActiveWarrantyType() {

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.bentork.ev_system.dto.request.BatteryDataDTO;
+import com.bentork.ev_system.dto.request.WarrantyStatusUpdateDTO;
 import com.bentork.ev_system.dto.response.BatteryDataResponse;
 import com.bentork.ev_system.model.BatteryData;
 import com.bentork.ev_system.model.Product;
@@ -167,6 +168,32 @@ public class BatteryDataService {
         log.info("Admin {} deleted battery with ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
     }
 
+    /**
+     * Update the warranty status and reason manually. Admin only.
+     */
+    public BatteryDataResponse updateWarrantyStatus(Long id, WarrantyStatusUpdateDTO dto, String adminEmail) {
+        BatteryData battery = batteryDataRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Battery not found with ID: " + id));
+
+        if (dto.getFullWarrantyActive() != null) {
+            battery.setFullWarrantyActive(dto.getFullWarrantyActive());
+        }
+        if (dto.getFullWarrantyStatusReason() != null) {
+            battery.setFullWarrantyStatusReason(dto.getFullWarrantyStatusReason());
+        }
+        
+        if (dto.getServiceWarrantyActive() != null) {
+            battery.setServiceWarrantyActive(dto.getServiceWarrantyActive());
+        }
+        if (dto.getServiceWarrantyStatusReason() != null) {
+            battery.setServiceWarrantyStatusReason(dto.getServiceWarrantyStatusReason());
+        }
+
+        BatteryData updated = batteryDataRepository.save(battery);
+        log.info("Admin {} updated warranty status for battery ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
+        return mapToResponse(updated);
+    }
+
     // ==================== PRIVATE HELPERS ====================
 
     /**
@@ -285,14 +312,16 @@ public class BatteryDataService {
         // Full Warranty
         response.setWarrantyStartDate(battery.getWarrantyStartDate());
         response.setWarrantyEndDate(battery.getWarrantyEndDate());
+        response.setFullWarrantyStatusReason(battery.getFullWarrantyStatusReason());
         LocalDate now = LocalDate.now();
-        boolean fullActive = !now.isAfter(battery.getWarrantyEndDate());
+        boolean fullActive = battery.isFullWarrantyActive() && !now.isAfter(battery.getWarrantyEndDate());
         response.setFullWarrantyActive(fullActive);
 
         // Service Warranty
         response.setServiceWarrantyStartDate(battery.getServiceWarrantyStartDate());
         response.setServiceWarrantyEndDate(battery.getServiceWarrantyEndDate());
-        boolean serviceActive = battery.getServiceWarrantyEndDate() != null
+        response.setServiceWarrantyStatusReason(battery.getServiceWarrantyStatusReason());
+        boolean serviceActive = battery.isServiceWarrantyActive() && battery.getServiceWarrantyEndDate() != null
                 && !now.isAfter(battery.getServiceWarrantyEndDate());
         response.setServiceWarrantyActive(serviceActive);
 

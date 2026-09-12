@@ -50,10 +50,20 @@ public class BatteryData {
     @Column(nullable = false)
     private LocalDate warrantyEndDate;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean isFullWarrantyActive = true;
+
+    private String fullWarrantyStatusReason;
+
     // Service Warranty (Repair/Servicing) — optional, extends beyond full warranty
     private LocalDate serviceWarrantyStartDate;
 
     private LocalDate serviceWarrantyEndDate;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean isServiceWarrantyActive = true;
+
+    private String serviceWarrantyStatusReason;
 
     private String createdByAdminEmail;
 
@@ -165,6 +175,38 @@ public class BatteryData {
 
     public void setServiceWarrantyEndDate(LocalDate serviceWarrantyEndDate) {
         this.serviceWarrantyEndDate = serviceWarrantyEndDate;
+    }
+
+    public boolean isFullWarrantyActive() {
+        return isFullWarrantyActive;
+    }
+
+    public void setFullWarrantyActive(boolean fullWarrantyActive) {
+        isFullWarrantyActive = fullWarrantyActive;
+    }
+
+    public String getFullWarrantyStatusReason() {
+        return fullWarrantyStatusReason;
+    }
+
+    public void setFullWarrantyStatusReason(String fullWarrantyStatusReason) {
+        this.fullWarrantyStatusReason = fullWarrantyStatusReason;
+    }
+
+    public boolean isServiceWarrantyActive() {
+        return isServiceWarrantyActive;
+    }
+
+    public void setServiceWarrantyActive(boolean serviceWarrantyActive) {
+        isServiceWarrantyActive = serviceWarrantyActive;
+    }
+
+    public String getServiceWarrantyStatusReason() {
+        return serviceWarrantyStatusReason;
+    }
+
+    public void setServiceWarrantyStatusReason(String serviceWarrantyStatusReason) {
+        this.serviceWarrantyStatusReason = serviceWarrantyStatusReason;
     }
 
     public String getCreatedByAdminEmail() {

@@ -50,8 +50,8 @@ public class WarrantyClaimService {
 
         // Validate warranty is active (check both full warranty and service warranty)
         LocalDate now = LocalDate.now();
-        boolean fullWarrantyActive = !now.isAfter(battery.getWarrantyEndDate());
-        boolean serviceWarrantyActive = battery.getServiceWarrantyEndDate() != null
+        boolean fullWarrantyActive = battery.isFullWarrantyActive() && !now.isAfter(battery.getWarrantyEndDate());
+        boolean serviceWarrantyActive = battery.isServiceWarrantyActive() && battery.getServiceWarrantyEndDate() != null
                 && !now.isAfter(battery.getServiceWarrantyEndDate());
 
         if (!fullWarrantyActive && !serviceWarrantyActive) {
