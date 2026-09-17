@@ -35,6 +35,9 @@ public class Product {
     private String modelNumber;
 
     private String brand;
+    
+    @Column(unique = true)
+    private String barcode;
 
     // ==================== PRODUCT SPECIFICATIONS ====================
 
@@ -137,6 +140,14 @@ public class Product {
 
     public void setBrand(String brand) {
         this.brand = brand;
+    }
+
+    public String getBarcode() {
+        return barcode;
+    }
+
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
     }
 
     public String getVoltage() {

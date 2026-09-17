@@ -19,4 +19,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findAllByOrderByCreatedAtDesc();
 
     boolean existsByNameAndModelNumber(String name, String modelNumber);
+    
+    java.util.Optional<Product> findByBarcode(String barcode);
 }
