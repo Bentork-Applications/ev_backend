@@ -17,9 +17,6 @@ public class PurchaseOrderResponseDTO {
     private LocalDate expectedDeliveryDate;
     private String deliveryLocation;
     private String termsAndConditions;
-    private Double totalAmount;
-    private Double taxAmount;
-    private Double netAmount;
     private String createdByEmail;
     private String approvedByEmail;
     private LocalDateTime createdAt;

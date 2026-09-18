@@ -11,6 +11,8 @@ public class VendorRequestDTO {
     @NotBlank(message = "Vendor name is required")
     private String name;
     
+    private String companyName;
+    
     private String gstNumber;
     private String contactPerson;
     private String contactNumber;

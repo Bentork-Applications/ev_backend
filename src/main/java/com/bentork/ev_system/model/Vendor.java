@@ -26,6 +26,8 @@ public class Vendor {
     @Column(nullable = false)
     private String name;
 
+    private String companyName;
+
     private String gstNumber;
 
     private String contactPerson;

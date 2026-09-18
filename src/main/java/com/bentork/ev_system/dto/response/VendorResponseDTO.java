@@ -9,6 +9,7 @@ import lombok.Setter;
 public class VendorResponseDTO {
     private Long id;
     private String name;
+    private String companyName;
     private String gstNumber;
     private String contactPerson;
     private String contactNumber;

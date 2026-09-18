@@ -53,12 +53,6 @@ public class PurchaseOrder {
     @Column(columnDefinition = "TEXT")
     private String termsAndConditions;
 
-    private Double totalAmount = 0.0;
-
-    private Double taxAmount = 0.0;
-
-    private Double netAmount = 0.0;
-
     private String createdByEmail;
 
     private String approvedByEmail;

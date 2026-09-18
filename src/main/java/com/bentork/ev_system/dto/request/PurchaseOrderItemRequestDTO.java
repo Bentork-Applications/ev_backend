@@ -15,10 +15,4 @@ public class PurchaseOrderItemRequestDTO {
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be greater than zero")
     private Integer quantity;
-    
-    @NotNull(message = "Unit price is required")
-    @Min(value = 0, message = "Unit price cannot be negative")
-    private Double unitPrice;
-    
-    private Double taxPercentage = 0.0;
 }

@@ -33,14 +33,4 @@ public class PurchaseOrderItem {
     private Integer quantity;
 
     private Integer receivedQuantity = 0;
-
-    @Column(nullable = false)
-    private Double unitPrice;
-
-    private Double taxPercentage = 0.0;
-
-    private Double taxAmount = 0.0;
-
-    @Column(nullable = false)
-    private Double totalPrice;
 }

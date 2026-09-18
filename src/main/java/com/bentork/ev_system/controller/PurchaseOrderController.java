@@ -57,6 +57,12 @@ public class PurchaseOrderController {
         }
     }
 
+    @GetMapping("/vendor/{vendorId}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN', 'SCM_ADMIN')")
+    public ResponseEntity<List<PurchaseOrderResponseDTO>> getPurchaseOrdersByVendorId(@PathVariable Long vendorId) {
+        return ResponseEntity.ok(purchaseOrderService.getPurchaseOrdersByVendorId(vendorId));
+    }
+
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> approvePurchaseOrder(@PathVariable Long id) {

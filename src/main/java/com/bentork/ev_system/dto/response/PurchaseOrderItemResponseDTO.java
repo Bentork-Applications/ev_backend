@@ -11,8 +11,4 @@ public class PurchaseOrderItemResponseDTO {
     private ProductResponse product;
     private Integer quantity;
     private Integer receivedQuantity;
-    private Double unitPrice;
-    private Double taxPercentage;
-    private Double taxAmount;
-    private Double totalPrice;
 }

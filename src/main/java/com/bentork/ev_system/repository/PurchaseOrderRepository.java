@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Long> {
     Optional<PurchaseOrder> findByPoNumber(String poNumber);
+    
+    java.util.List<PurchaseOrder> findByVendorId(Long vendorId);
 }

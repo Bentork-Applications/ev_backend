@@ -21,6 +21,7 @@ public class VendorService {
     public VendorResponseDTO createVendor(VendorRequestDTO dto, String createdByEmail) {
         Vendor vendor = new Vendor();
         vendor.setName(dto.getName());
+        vendor.setCompanyName(dto.getCompanyName());
         vendor.setGstNumber(dto.getGstNumber());
         vendor.setContactPerson(dto.getContactPerson());
         vendor.setContactNumber(dto.getContactNumber());
@@ -51,6 +52,7 @@ public class VendorService {
         VendorResponseDTO dto = new VendorResponseDTO();
         dto.setId(vendor.getId());
         dto.setName(vendor.getName());
+        dto.setCompanyName(vendor.getCompanyName());
         dto.setGstNumber(vendor.getGstNumber());
         dto.setContactPerson(vendor.getContactPerson());
         dto.setContactNumber(vendor.getContactNumber());

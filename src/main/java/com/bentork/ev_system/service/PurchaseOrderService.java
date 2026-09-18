@@ -47,10 +47,6 @@ public class PurchaseOrderService {
         po.setCreatedByEmail(createdByEmail);
         po.setStatus(PurchaseOrderStatus.DRAFT);
 
-        double totalAmount = 0.0;
-        double totalTaxAmount = 0.0;
-        double netAmount = 0.0;
-
         for (PurchaseOrderItemRequestDTO itemDto : dto.getItems()) {
             Product product = productRepository.findById(itemDto.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + itemDto.getProductId()));
@@ -59,24 +55,9 @@ public class PurchaseOrderService {
             item.setPurchaseOrder(po);
             item.setProduct(product);
             item.setQuantity(itemDto.getQuantity());
-            item.setUnitPrice(itemDto.getUnitPrice());
-            item.setTaxPercentage(itemDto.getTaxPercentage());
-            
-            double itemTotal = itemDto.getQuantity() * itemDto.getUnitPrice();
-            double itemTax = itemTotal * (itemDto.getTaxPercentage() / 100);
-            item.setTaxAmount(itemTax);
-            item.setTotalPrice(itemTotal + itemTax);
             
             po.getOrderItems().add(item);
-            
-            totalAmount += itemTotal;
-            totalTaxAmount += itemTax;
-            netAmount += item.getTotalPrice();
         }
-
-        po.setTotalAmount(totalAmount);
-        po.setTaxAmount(totalTaxAmount);
-        po.setNetAmount(netAmount);
 
         PurchaseOrder savedPo = purchaseOrderRepository.save(po);
         return mapToResponse(savedPo);
@@ -84,6 +65,12 @@ public class PurchaseOrderService {
 
     public List<PurchaseOrderResponseDTO> getAllPurchaseOrders() {
         return purchaseOrderRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<PurchaseOrderResponseDTO> getPurchaseOrdersByVendorId(Long vendorId) {
+        return purchaseOrderRepository.findByVendorId(vendorId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -119,9 +106,6 @@ public class PurchaseOrderService {
         dto.setExpectedDeliveryDate(po.getExpectedDeliveryDate());
         dto.setDeliveryLocation(po.getDeliveryLocation());
         dto.setTermsAndConditions(po.getTermsAndConditions());
-        dto.setTotalAmount(po.getTotalAmount());
-        dto.setTaxAmount(po.getTaxAmount());
-        dto.setNetAmount(po.getNetAmount());
         dto.setCreatedByEmail(po.getCreatedByEmail());
         dto.setApprovedByEmail(po.getApprovedByEmail());
         dto.setCreatedAt(po.getCreatedAt());
@@ -131,10 +115,6 @@ public class PurchaseOrderService {
             itemDto.setId(item.getId());
             itemDto.setQuantity(item.getQuantity());
             itemDto.setReceivedQuantity(item.getReceivedQuantity());
-            itemDto.setUnitPrice(item.getUnitPrice());
-            itemDto.setTaxPercentage(item.getTaxPercentage());
-            itemDto.setTaxAmount(item.getTaxAmount());
-            itemDto.setTotalPrice(item.getTotalPrice());
             
             // Map product - simpler representation
             ProductResponse productResponse = new ProductResponse();
