@@ -131,5 +131,21 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             // Usually means column already exists
         }
 
+        // Fix: If the dev database has 'total_price' or 'unit_price' without a default value, it breaks inserts
+        // since the entity currently doesn't map them.
+        try {
+            jdbcTemplate.execute("ALTER TABLE purchase_order_items MODIFY COLUMN total_price DECIMAL(10,2) DEFAULT 0");
+            log.info("Successfully added default value to total_price in purchase_order_items");
+        } catch (Exception e) {
+            // Ignore if column doesn't exist
+        }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE purchase_order_items MODIFY COLUMN unit_price DECIMAL(10,2) DEFAULT 0");
+            log.info("Successfully added default value to unit_price in purchase_order_items");
+        } catch (Exception e) {
+            // Ignore if column doesn't exist
+        }
+
     }
 }
