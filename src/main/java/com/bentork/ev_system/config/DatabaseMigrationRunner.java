@@ -91,5 +91,45 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             log.warn("Could not modify assigned_user_id in orders: {}", e.getMessage());
         }
 
+        // ==================== Purchase Orders Schema Fallback ====================
+        // Ensure tables exist in case ddl-auto=update failed in the dev environment.
+        try {
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS purchase_orders (" +
+                    "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                    "po_number VARCHAR(255) NOT NULL UNIQUE, " +
+                    "vendor_id BIGINT NOT NULL, " +
+                    "status VARCHAR(255) NOT NULL, " +
+                    "expected_delivery_date DATE, " +
+                    "delivery_location TEXT, " +
+                    "terms_and_conditions TEXT, " +
+                    "created_by_email VARCHAR(255), " +
+                    "approved_by_email VARCHAR(255), " +
+                    "created_at DATETIME, " +
+                    "updated_at DATETIME)");
+            log.info("Successfully ensured purchase_orders table exists");
+        } catch (Exception e) {
+            log.warn("Could not create purchase_orders table: {}", e.getMessage());
+        }
+
+        try {
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS purchase_order_items (" +
+                    "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                    "purchase_order_id BIGINT NOT NULL, " +
+                    "product_id BIGINT NOT NULL, " +
+                    "quantity INT NOT NULL, " +
+                    "received_quantity INT DEFAULT 0)");
+            log.info("Successfully ensured purchase_order_items table exists");
+        } catch (Exception e) {
+            log.warn("Could not create purchase_order_items table: {}", e.getMessage());
+        }
+
+        // Add columns in case the tables were created previously but are missing fields
+        try {
+            jdbcTemplate.execute("ALTER TABLE purchase_order_items ADD COLUMN received_quantity INT DEFAULT 0");
+            log.info("Successfully added received_quantity to purchase_order_items");
+        } catch (Exception e) {
+            // Usually means column already exists
+        }
+
     }
 }
