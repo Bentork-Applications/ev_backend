@@ -75,7 +75,7 @@ public class ProductController {
      * Accessible by ADMIN and ADMIN_STAFF.
      */
     @GetMapping("/admin/all")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SALES_ADMIN', 'SCM_ADMIN')")
     public ResponseEntity<List<ProductResponse>> getAllProducts() {
         log.info("Admin/Staff fetching all products");
         return ResponseEntity.ok(productService.getAllProducts());
