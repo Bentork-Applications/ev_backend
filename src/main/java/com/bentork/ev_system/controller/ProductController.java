@@ -105,7 +105,7 @@ public class ProductController {
      * Accessible by any authenticated admin/staff user.
      */
     @GetMapping("/active")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SALES_ADMIN', 'SCM_ADMIN')")
     public ResponseEntity<List<ProductResponse>> getActiveProducts() {
         return ResponseEntity.ok(productService.getAllActiveProducts());
     }
