@@ -40,8 +40,7 @@ public class AdminAuthService implements IAdminAuthService {
         admin.setName(request.getName());
         admin.setEmail(request.getEmail());
         admin.setPassword(passwordEncoder.encode(request.getPassword()));
-        admin.setRole("SALES_ADMIN"); // TEMPORARY FOR TESTING
-        admin.setActive(true); // TEMPORARY FOR TESTING
+        
         adminRepo.save(admin);
 
         return "Admin registered successfully";
