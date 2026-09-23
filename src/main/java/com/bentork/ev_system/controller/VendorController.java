@@ -29,7 +29,7 @@ public class VendorController {
     private final VendorService vendorService;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<VendorResponseDTO> createVendor(@Valid @RequestBody VendorRequestDTO dto) {
         String adminEmail = getCurrentUserEmail();
         VendorResponseDTO response = vendorService.createVendor(dto, adminEmail);
@@ -37,13 +37,13 @@ public class VendorController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<List<VendorResponseDTO>> getAllVendors() {
         return ResponseEntity.ok(vendorService.getAllActiveVendors());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<VendorResponseDTO> getVendorById(@PathVariable Long id) {
         return ResponseEntity.ok(vendorService.getVendorById(id));
     }

@@ -190,7 +190,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/orders/user/**").hasAnyAuthority("ROLE_USER", "DEALER")
 
                                                 // Procurement & Inventory - role-specific access
-                                                .requestMatchers("/api/admin/procurement/**").hasAnyAuthority("SALES_ADMIN", "SCM_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/admin/procurement/**").hasAnyAuthority("SCM_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/admin/inventory/**").hasAnyAuthority("SCM_ADMIN", "SALES_ADMIN", "ADMIN")
 
                                                 // Everything else requires login

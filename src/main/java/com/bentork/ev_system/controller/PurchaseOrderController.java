@@ -30,7 +30,7 @@ public class PurchaseOrderController {
     private final PurchaseOrderService purchaseOrderService;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createPurchaseOrder(@Valid @RequestBody PurchaseOrderRequestDTO dto) {
         String adminEmail = getCurrentUserEmail();
         try {
@@ -42,13 +42,13 @@ public class PurchaseOrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN', 'SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<List<PurchaseOrderResponseDTO>> getAllPurchaseOrders() {
         return ResponseEntity.ok(purchaseOrderService.getAllPurchaseOrders());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN', 'SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getPurchaseOrderById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(purchaseOrderService.getPurchaseOrderById(id));
@@ -58,13 +58,13 @@ public class PurchaseOrderController {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN', 'SCM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<List<PurchaseOrderResponseDTO>> getPurchaseOrdersByVendorId(@PathVariable Long vendorId) {
         return ResponseEntity.ok(purchaseOrderService.getPurchaseOrdersByVendorId(vendorId));
     }
 
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('SCM_ADMIN', 'ADMIN')")
     public ResponseEntity<?> approvePurchaseOrder(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
         try {
