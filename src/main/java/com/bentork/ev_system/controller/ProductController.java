@@ -41,7 +41,7 @@ public class ProductController {
      * Accessible by ADMIN and ADMIN_STAFF.
      */
     @PostMapping("/admin/create")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN')")
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Admin/Staff {} creating product '{}'", PiiMaskingUtil.maskEmail(adminEmail), dto.getName());
@@ -58,7 +58,7 @@ public class ProductController {
      * Accessible by ADMIN and ADMIN_STAFF.
      */
     @PutMapping("/admin/update/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductDTO dto) {
         String adminEmail = getCurrentUserEmail();
         log.info("Admin/Staff {} updating product ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -86,7 +86,7 @@ public class ProductController {
      * Accessible by ADMIN and ADMIN_STAFF.
      */
     @PutMapping("/admin/{id}/toggle-status")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN')")
     public ResponseEntity<?> toggleProductStatus(@PathVariable Long id) {
         String adminEmail = getCurrentUserEmail();
         log.info("Admin/Staff {} toggling product status for ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
@@ -115,7 +115,7 @@ public class ProductController {
      * Accessible by any authenticated admin/staff user.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN', 'SALES_ADMIN')")
     public ResponseEntity<?> getProductById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(productService.getProductById(id));
@@ -129,7 +129,7 @@ public class ProductController {
      * Accessible by any authenticated admin/staff user.
      */
     @GetMapping("/category/{category}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN', 'SALES_ADMIN')")
     public ResponseEntity<List<ProductResponse>> getProductsByCategory(@PathVariable String category) {
         return ResponseEntity.ok(productService.getProductsByCategory(category));
     }
