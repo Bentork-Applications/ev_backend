@@ -193,6 +193,17 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/admin/procurement/**").hasAnyAuthority("SCM_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/admin/inventory/**").hasAnyAuthority("SCM_ADMIN", "SALES_ADMIN", "ADMIN")
 
+                                                // ===== SALES CRM — SALES_ADMIN only =====
+                                                .requestMatchers("/api/crm/leads/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/companies/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/contacts/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/activities/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/opportunities/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/quotations/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/dashboard/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/indiamart/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+
                                                 // Everything else requires login
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
