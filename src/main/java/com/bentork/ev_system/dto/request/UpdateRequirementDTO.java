@@ -3,9 +3,7 @@ package com.bentork.ev_system.dto.request;
 import lombok.Data;
 
 @Data
-public class CreateRequirementDTO {
-    private Long leadId;
-    private Long companyId;
+public class UpdateRequirementDTO {
     private String productCategory;
     private String voltage;
     private String capacity;
