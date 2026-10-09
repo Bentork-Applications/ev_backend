@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.LogActivityDTO;
 import com.bentork.ev_system.dto.response.ActivityResponse;
@@ -104,6 +105,52 @@ public class ActivityService {
                 .map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    /**
+     * Mark an activity as completed. The activity is permanently saved with its
+     * completed status and timestamp — it is never soft-deleted or removed.
+     */
+    @Transactional
+    public ActivityResponse completeActivity(Long activityId, String adminEmail) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new IllegalArgumentException("Activity not found with ID: " + activityId));
+
+        if ("completed".equalsIgnoreCase(activity.getStatus())) {
+            throw new IllegalArgumentException("Activity is already completed");
+        }
+
+        activity.setStatus("completed");
+        activity.setCompletedAt(LocalDateTime.now());
+
+        Activity saved = activityRepository.save(activity);
+        log.info("Activity {} marked as completed by {}", activityId, adminEmail);
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Update the status of an activity to any valid value (pending, completed).
+     */
+    @Transactional
+    public ActivityResponse updateActivityStatus(Long activityId, String newStatus, String adminEmail) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new IllegalArgumentException("Activity not found with ID: " + activityId));
+
+        String normalized = newStatus.toLowerCase().trim();
+        if (!"pending".equals(normalized) && !"completed".equals(normalized)) {
+            throw new IllegalArgumentException("Invalid status: " + newStatus + ". Must be 'pending' or 'completed'");
+        }
+
+        activity.setStatus(normalized);
+        if ("completed".equals(normalized)) {
+            activity.setCompletedAt(LocalDateTime.now());
+        } else {
+            activity.setCompletedAt(null);
+        }
+
+        Activity saved = activityRepository.save(activity);
+        log.info("Activity {} status updated to '{}' by {}", activityId, normalized, adminEmail);
+        return mapToResponse(saved);
+    }
+
     // ==================== HELPERS ====================
 
     public ActivityResponse mapToResponse(Activity activity) {
@@ -116,6 +163,8 @@ public class ActivityService {
         response.setDurationMinutes(activity.getDurationMinutes());
         response.setFollowUpDate(activity.getFollowUpDate());
         response.setActivityDate(activity.getActivityDate());
+        response.setStatus(activity.getStatus());
+        response.setCompletedAt(activity.getCompletedAt());
         response.setCreatedAt(activity.getCreatedAt());
 
         if (activity.getLead() != null) response.setLeadId(activity.getLead().getId());

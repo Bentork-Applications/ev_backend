@@ -22,4 +22,6 @@ public interface QuotationRepository extends JpaRepository<Quotation, Long> {
 
     // For expiry job: find SENT quotes past their valid date
     List<Quotation> findByStatusAndValidUntilBefore(String status, LocalDate date);
+
+    List<Quotation> findAllByOrderByCreatedAtDesc();
 }

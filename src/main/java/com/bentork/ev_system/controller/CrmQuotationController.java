@@ -41,6 +41,12 @@ public class CrmQuotationController {
         }
     }
 
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<QuotationResponse>> getAllQuotations() {
+        return ResponseEntity.ok(quotationService.getAllQuotations());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getQuotation(@PathVariable Long id) {
@@ -85,6 +91,17 @@ public class CrmQuotationController {
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<QuotationResponse>> getQuotationsForOpportunity(@PathVariable Long opportunityId) {
         return ResponseEntity.ok(quotationService.getQuotationsForOpportunity(opportunityId));
+    }
+
+    @PostMapping("/{id}/convert-to-order")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> convertToOrder(@PathVariable Long id) {
+        try {
+            Long orderId = quotationService.convertToOrder(id, getCurrentUserEmail());
+            return ResponseEntity.ok("Quotation converted to Order ID: " + orderId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     private String getCurrentUserEmail() {

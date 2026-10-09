@@ -24,5 +24,7 @@ public class ActivityResponse {
     private Long performedByAdminId;
     private String performedByAdminName;
     private LocalDateTime activityDate;
+    private String status;
+    private LocalDateTime completedAt;
     private LocalDateTime createdAt;
 }

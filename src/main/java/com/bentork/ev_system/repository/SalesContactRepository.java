@@ -20,4 +20,6 @@ public interface SalesContactRepository extends JpaRepository<SalesContact, Long
     List<SalesContact> findByNameContainingIgnoreCase(String name);
 
     boolean existsByPhone(String phone);
+
+    List<SalesContact> findAllByOrderByCreatedAtDesc();
 }

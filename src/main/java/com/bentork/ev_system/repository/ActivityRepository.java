@@ -35,4 +35,11 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     long countByPerformedByAdminIdAndActivityDateBetween(Long adminId, LocalDateTime start, LocalDateTime end);
 
     long countByActivityTypeAndActivityDateBetween(String activityType, LocalDateTime start, LocalDateTime end);
+
+    // Status-based queries for activity completion
+    List<Activity> findByStatusOrderByActivityDateDesc(String status);
+
+    List<Activity> findByStatusAndPerformedByAdminIdOrderByActivityDateDesc(String status, Long adminId);
+
+    List<Activity> findByFollowUpDateAndStatusOrderByActivityDateAsc(LocalDate followUpDate, String status);
 }

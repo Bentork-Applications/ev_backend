@@ -75,6 +75,7 @@ public class SecurityConfig {
                                                                 "/api/user/google-login-success",
                                                 "/api/user/google-login",
                                                                 "/api/user/byemail/**",
+                                                                "/api/webhooks/**",
                                                                 "/error",
                                                                 "/favicon.ico")
                                                 .permitAll()
@@ -203,6 +204,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/crm/dashboard/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/indiamart/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/settings/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
 
                                                 // Everything else requires login
                                                 .anyRequest().authenticated())

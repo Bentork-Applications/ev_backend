@@ -2,6 +2,7 @@ package com.bentork.ev_system.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,6 +14,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -78,14 +80,31 @@ public class Activity {
     @Column(nullable = false)
     private LocalDateTime activityDate; // When the activity happened
 
+    @Column(nullable = false)
+    private String status = "pending"; // "pending" or "completed"
+
+    private LocalDateTime completedAt; // Set when status changes to completed
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
         if (this.activityDate == null) {
             this.activityDate = LocalDateTime.now();
         }
+        if (this.status == null) {
+            this.status = "pending";
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

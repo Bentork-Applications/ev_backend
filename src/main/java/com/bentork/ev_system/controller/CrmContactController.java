@@ -44,6 +44,12 @@ public class CrmContactController {
         return ResponseEntity.ok(contactService.getContactsByCompany(companyId));
     }
 
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<ContactResponse>> getAllContacts() {
+        return ResponseEntity.ok(contactService.getAllContacts());
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> searchByPhone(@RequestParam String phone) {

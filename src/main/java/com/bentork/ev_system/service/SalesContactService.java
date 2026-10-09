@@ -50,6 +50,12 @@ public class SalesContactService {
                 .collect(Collectors.toList());
     }
 
+    public List<ContactResponse> getAllContacts() {
+        return contactRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     public ContactResponse searchByPhone(String phone) {
         SalesContact contact = contactRepository.findByPhone(phone)
                 .orElse(null);
