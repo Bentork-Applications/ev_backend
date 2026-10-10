@@ -3,6 +3,8 @@ package com.bentork.ev_system.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -44,4 +46,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Modifying
     @Query("UPDATE Order o SET o.assignedUserId = null WHERE o.assignedUserId = :userId")
     void nullifyAssignedUser(@Param("userId") Long userId);
+
+    // ==================== PAGINATED QUERIES ====================
+
+    Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<Order> findByCreatedByAdminEmailOrderByCreatedAtDesc(String email, Pageable pageable);
+
+    Page<Order> findByOrderStatusOrderByCreatedAtDesc(String orderStatus, Pageable pageable);
 }
+

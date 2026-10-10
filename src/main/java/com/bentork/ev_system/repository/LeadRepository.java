@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -47,4 +49,18 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     List<Lead> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
 
     List<Lead> findByContactIdOrderByCreatedAtDesc(Long contactId);
+
+    // ==================== PAGINATED QUERIES ====================
+
+    Page<Lead> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<Lead> findByOwnerAdminIdOrderByCreatedAtDesc(Long adminId, Pageable pageable);
+
+    Page<Lead> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+
+    Page<Lead> findBySourceOrderByCreatedAtDesc(String source, Pageable pageable);
+
+    // Tag-based queries
+    List<Lead> findByTagsContainingIgnoreCase(String tag);
 }
+

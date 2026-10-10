@@ -55,7 +55,13 @@ public class CrmCompanyController {
 
     @GetMapping("/all")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<CompanyResponse>> getAllCompanies() {
+    public ResponseEntity<?> getAllCompanies(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean paged) {
+        if (Boolean.TRUE.equals(paged)) {
+            return ResponseEntity.ok(companyService.getAllCompaniesPaged(page, size));
+        }
         return ResponseEntity.ok(companyService.getAllCompanies());
     }
 

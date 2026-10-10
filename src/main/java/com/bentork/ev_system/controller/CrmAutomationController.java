@@ -27,6 +27,13 @@ import lombok.RequiredArgsConstructor;
 public class CrmAutomationController {
 
     private final AutomationRuleService automationRuleService;
+    private final com.bentork.ev_system.service.CrmAutomationExecutionService crmAutomationExecutionService;
+
+    @PostMapping("/execute")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> executeRulesManually() {
+        return ResponseEntity.ok(crmAutomationExecutionService.executeAllActiveRules());
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")

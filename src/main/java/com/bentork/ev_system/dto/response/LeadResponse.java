@@ -28,6 +28,7 @@ public class LeadResponse {
     private String notes;
     private LocalDate nextFollowUpDate;
     private String indiaMartLeadId;
+    private String tags;
     private Long convertedToOpportunityId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

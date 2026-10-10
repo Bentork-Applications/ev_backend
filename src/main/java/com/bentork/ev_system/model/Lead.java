@@ -78,6 +78,9 @@ public class Lead {
 
     private String indiaMartLeadId; // External reference ID for deduplication
 
+    @Column(columnDefinition = "TEXT")
+    private String tags; // Comma-separated tags for categorization
+
     private Long convertedToOpportunityId; // Set when lead is qualified and converted
 
     @Column(name = "created_at", updatable = false)

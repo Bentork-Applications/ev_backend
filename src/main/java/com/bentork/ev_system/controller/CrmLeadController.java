@@ -70,8 +70,36 @@ public class CrmLeadController {
 
     @GetMapping("/all")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<LeadResponse>> getAllLeads() {
+    public ResponseEntity<?> getAllLeads(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean paged) {
+        if (Boolean.TRUE.equals(paged)) {
+            return ResponseEntity.ok(leadService.getAllLeadsPaged(page, size));
+        }
         return ResponseEntity.ok(leadService.getAllLeads());
+    }
+
+    @PostMapping("/bulk-assign")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> bulkAssign(@RequestBody com.bentork.ev_system.dto.request.BulkLeadAssignDTO dto) {
+        return ResponseEntity.ok(leadService.bulkAssignOwner(dto.getLeadIds(), dto.getTargetOwnerAdminId()));
+    }
+
+    @PostMapping("/bulk-tag")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> bulkTag(@RequestBody com.bentork.ev_system.dto.request.BulkLeadTagDTO dto) {
+        return ResponseEntity.ok(leadService.bulkTag(dto.getLeadIds(), dto.getTags()));
+    }
+
+    @PostMapping(value = "/import", consumes = "multipart/form-data")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> importLeads(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            return ResponseEntity.ok(leadService.importFromCsv(file, getCurrentUserEmail()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")

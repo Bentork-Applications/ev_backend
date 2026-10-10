@@ -7,17 +7,27 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Represents a saved audience segment with filter criteria.
+ * 
+ * Segments allow sales admins to save and reuse audience filters
+ * for campaigns and targeted outreach.
+ */
 @Entity
-@Table(name = "crm_automation_rules")
+@Table(name = "crm_audience_segments", indexes = {
+        @Index(name = "idx_audience_segment_name", columnList = "name"),
+        @Index(name = "idx_audience_segment_created_by", columnList = "createdByAdminEmail")
+})
 @Getter
 @Setter
-public class AutomationRule {
+public class AudienceSegment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,23 +38,12 @@ public class AutomationRule {
 
     private String description;
 
-    @Column(nullable = false)
-    private String triggerEvent; // e.g., "lead_created", "opportunity_won"
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String filtersJson; // Serialized AudienceFilterDTO as JSON
 
-    @Column(nullable = false)
-    private String actionType; // e.g., "assign_owner", "send_email", "create_task"
+    private int matchedCount; // Snapshot of how many records matched at save time
 
-    @Column(columnDefinition = "TEXT")
-    private String actionPayload; // JSON string containing rule details
-
-    @Column(nullable = false)
-    private boolean isActive = true;
-
-    private Integer delayMinutes; // Delay before executing (e.g., "send follow-up after 30 min")
-
-    private LocalDateTime lastExecutedAt;
-
-    private int executionCount = 0;
+    private String createdByAdminEmail;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

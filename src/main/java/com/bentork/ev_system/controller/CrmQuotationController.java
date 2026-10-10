@@ -43,7 +43,13 @@ public class CrmQuotationController {
 
     @GetMapping("/all")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<QuotationResponse>> getAllQuotations() {
+    public ResponseEntity<?> getAllQuotations(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean paged) {
+        if (Boolean.TRUE.equals(paged)) {
+            return ResponseEntity.ok(quotationService.getAllQuotationsPaged(page, size));
+        }
         return ResponseEntity.ok(quotationService.getAllQuotations());
     }
 

@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -24,4 +26,11 @@ public interface QuotationRepository extends JpaRepository<Quotation, Long> {
     List<Quotation> findByStatusAndValidUntilBefore(String status, LocalDate date);
 
     List<Quotation> findAllByOrderByCreatedAtDesc();
+
+    // ==================== PAGINATED QUERIES ====================
+
+    Page<Quotation> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<Quotation> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 }
+

@@ -5,11 +5,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.CreateCompanyDTO;
 import com.bentork.ev_system.dto.response.CompanyResponse;
+import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.model.SalesCompany;
 import com.bentork.ev_system.repository.AdminRepository;
@@ -82,6 +86,15 @@ public class SalesCompanyService {
         return companyRepository.findByActiveTrueOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    public PagedResponse<CompanyResponse> getAllCompaniesPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SalesCompany> companyPage = companyRepository.findByActiveTrueOrderByCreatedAtDesc(pageable);
+        List<CompanyResponse> content = companyPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return PagedResponse.of(content, page, size, companyPage.getTotalElements(), companyPage.getTotalPages(), companyPage.isLast());
     }
 
     public List<CompanyResponse> getCompaniesByOwner(Long adminId) {

@@ -19,7 +19,7 @@ public class CrmIndiaMartController {
 
     private final IndiaMartService indiaMartService;
 
-    @GetMapping("/sync")
+    @org.springframework.web.bind.annotation.PostMapping("/sync")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> syncLeads() {
         try {

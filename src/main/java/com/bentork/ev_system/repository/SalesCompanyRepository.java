@@ -3,6 +3,8 @@ package com.bentork.ev_system.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -30,4 +32,9 @@ public interface SalesCompanyRepository extends JpaRepository<SalesCompany, Long
     long countByActiveTrue();
 
     long countByOwnerAdminIdAndActiveTrue(Long adminId);
+
+    // ==================== PAGINATED QUERIES ====================
+
+    Page<SalesCompany> findByActiveTrueOrderByCreatedAtDesc(Pageable pageable);
 }
+

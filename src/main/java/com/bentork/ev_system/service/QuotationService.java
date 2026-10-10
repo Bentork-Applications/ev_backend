@@ -7,10 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.CreateQuotationDTO;
+import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.dto.response.QuotationResponse;
 import com.bentork.ev_system.enums.OpportunityStage;
 import com.bentork.ev_system.enums.OrderStatus;
@@ -157,6 +161,15 @@ public class QuotationService {
     public List<QuotationResponse> getAllQuotations() {
         return quotationRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    public PagedResponse<QuotationResponse> getAllQuotationsPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Quotation> quotePage = quotationRepository.findAllByOrderByCreatedAtDesc(pageable);
+        List<QuotationResponse> content = quotePage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return PagedResponse.of(content, page, size, quotePage.getTotalElements(), quotePage.getTotalPages(), quotePage.isLast());
     }
 
     public List<QuotationResponse> getQuotationsForOpportunity(Long opportunityId) {

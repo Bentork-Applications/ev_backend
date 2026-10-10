@@ -1,18 +1,30 @@
 package com.bentork.ev_system.service;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.bentork.ev_system.dto.request.CombinedCallLeadDTO;
 import com.bentork.ev_system.dto.request.CreateLeadDTO;
+import com.bentork.ev_system.dto.response.BulkOperationResponse;
+import com.bentork.ev_system.dto.response.CsvImportResponse;
 import com.bentork.ev_system.dto.response.LeadResponse;
+import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.enums.LeadStatus;
 import com.bentork.ev_system.model.Activity;
 import com.bentork.ev_system.model.Admin;
@@ -186,6 +198,196 @@ public class LeadService {
         return mapToResponse(saved);
     }
 
+    // ==================== BULK OPERATIONS ====================
+
+    /**
+     * Bulk assign leads to a new owner admin.
+     */
+    @Transactional
+    public BulkOperationResponse bulkAssignOwner(List<Long> leadIds, Long targetOwnerAdminId) {
+        Admin targetOwner = adminRepository.findById(targetOwnerAdminId)
+                .orElseThrow(() -> new IllegalArgumentException("Target admin not found with ID: " + targetOwnerAdminId));
+
+        BulkOperationResponse response = new BulkOperationResponse();
+        response.setTotalRequested(leadIds.size());
+
+        int successCount = 0;
+        for (Long leadId : leadIds) {
+            try {
+                Lead lead = leadRepository.findById(leadId)
+                        .orElseThrow(() -> new IllegalArgumentException("Lead not found: " + leadId));
+                lead.setOwnerAdmin(targetOwner);
+                leadRepository.save(lead);
+                successCount++;
+            } catch (Exception e) {
+                response.getErrors().add("Lead ID " + leadId + ": " + e.getMessage());
+            }
+        }
+
+        response.setSuccessCount(successCount);
+        response.setFailureCount(leadIds.size() - successCount);
+        log.info("Bulk assign completed: {}/{} leads assigned to admin {}", successCount, leadIds.size(), targetOwnerAdminId);
+        return response;
+    }
+
+    /**
+     * Bulk tag leads. Tags are merged (not replaced) with existing tags.
+     */
+    @Transactional
+    public BulkOperationResponse bulkTag(List<Long> leadIds, List<String> newTags) {
+        BulkOperationResponse response = new BulkOperationResponse();
+        response.setTotalRequested(leadIds.size());
+
+        int successCount = 0;
+        for (Long leadId : leadIds) {
+            try {
+                Lead lead = leadRepository.findById(leadId)
+                        .orElseThrow(() -> new IllegalArgumentException("Lead not found: " + leadId));
+
+                // Merge existing tags with new tags
+                Set<String> allTags = new HashSet<>();
+                if (lead.getTags() != null && !lead.getTags().isEmpty()) {
+                    allTags.addAll(Arrays.asList(lead.getTags().split(",")));
+                }
+                for (String tag : newTags) {
+                    allTags.add(tag.trim().toLowerCase());
+                }
+                lead.setTags(String.join(",", allTags));
+                leadRepository.save(lead);
+                successCount++;
+            } catch (Exception e) {
+                response.getErrors().add("Lead ID " + leadId + ": " + e.getMessage());
+            }
+        }
+
+        response.setSuccessCount(successCount);
+        response.setFailureCount(leadIds.size() - successCount);
+        log.info("Bulk tag completed: {}/{} leads tagged", successCount, leadIds.size());
+        return response;
+    }
+
+    // ==================== CSV IMPORT ====================
+
+    /**
+     * Import leads from a CSV file.
+     * Expected CSV headers: title,source,city,state,estimatedValue,notes,contactName,contactPhone,contactEmail,companyName
+     */
+    @Transactional
+    public CsvImportResponse importFromCsv(MultipartFile file, String adminEmail) {
+        Admin owner = adminRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+
+        CsvImportResponse response = new CsvImportResponse();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                throw new IllegalArgumentException("CSV file is empty");
+            }
+
+            String[] headers = headerLine.split(",");
+            int rowNum = 1;
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                rowNum++;
+                response.setTotalRows(response.getTotalRows() + 1);
+
+                try {
+                    String[] values = parseCsvLine(line);
+                    if (values.length < 2) {
+                        response.setSkippedCount(response.getSkippedCount() + 1);
+                        response.getErrors().add("Row " + rowNum + ": insufficient columns");
+                        continue;
+                    }
+
+                    String title = getColumnValue(headers, values, "title");
+                    String source = getColumnValue(headers, values, "source");
+                    String city = getColumnValue(headers, values, "city");
+                    String state = getColumnValue(headers, values, "state");
+                    String estimatedValueStr = getColumnValue(headers, values, "estimatedvalue");
+                    String notes = getColumnValue(headers, values, "notes");
+                    String contactName = getColumnValue(headers, values, "contactname");
+                    String contactPhone = getColumnValue(headers, values, "contactphone");
+                    String contactEmail = getColumnValue(headers, values, "contactemail");
+                    String companyName = getColumnValue(headers, values, "companyname");
+
+                    if (title == null || title.isEmpty()) {
+                        title = "Imported Lead #" + rowNum;
+                    }
+
+                    // Create or find company
+                    SalesCompany company = null;
+                    if (companyName != null && !companyName.isEmpty()) {
+                        List<SalesCompany> existingCompanies = companyRepository.findByNameContainingIgnoreCaseAndActiveTrue(companyName);
+                        if (!existingCompanies.isEmpty()) {
+                            company = existingCompanies.get(0);
+                        } else {
+                            company = new SalesCompany();
+                            company.setName(companyName);
+                            company.setCity(city);
+                            company.setState(state);
+                            company.setSource("csv_import");
+                            company.setOwnerAdmin(owner);
+                            company = companyRepository.save(company);
+                        }
+                    }
+
+                    // Create or find contact
+                    SalesContact contact = null;
+                    if (contactPhone != null && !contactPhone.isEmpty()) {
+                        final SalesCompany finalCompany = company;
+                        contact = contactRepository.findByPhone(contactPhone).orElseGet(() -> {
+                            SalesContact newContact = new SalesContact();
+                            newContact.setName(contactName != null ? contactName : "Unknown");
+                            newContact.setPhone(contactPhone);
+                            newContact.setEmail(contactEmail);
+                            newContact.setCompany(finalCompany);
+                            newContact.setPrimary(true);
+                            return contactRepository.save(newContact);
+                        });
+                    }
+
+                    // Create lead
+                    Lead lead = new Lead();
+                    lead.setLeadNumber(generateLeadNumber());
+                    lead.setTitle(title);
+                    lead.setSource(source != null && !source.isEmpty() ? source : "csv_import");
+                    lead.setStatus(LeadStatus.NEW.getValue());
+                    lead.setOwnerAdmin(owner);
+                    lead.setCity(city);
+                    lead.setState(state);
+                    lead.setNotes(notes);
+                    lead.setCompany(company);
+                    lead.setContact(contact);
+
+                    if (estimatedValueStr != null && !estimatedValueStr.isEmpty()) {
+                        try {
+                            lead.setEstimatedValue(Double.parseDouble(estimatedValueStr));
+                        } catch (NumberFormatException ignored) {
+                            // Skip invalid numbers
+                        }
+                    }
+
+                    leadRepository.save(lead);
+                    response.setImportedCount(response.getImportedCount() + 1);
+
+                } catch (Exception e) {
+                    response.setSkippedCount(response.getSkippedCount() + 1);
+                    response.getErrors().add("Row " + rowNum + ": " + e.getMessage());
+                }
+            }
+
+            log.info("CSV import completed by {}: {} imported, {} skipped out of {} rows",
+                    adminEmail, response.getImportedCount(), response.getSkippedCount(), response.getTotalRows());
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse CSV file: " + e.getMessage());
+        }
+
+        return response;
+    }
+
     // ==================== QUERIES ====================
 
     public LeadResponse getLeadById(Long id) {
@@ -196,6 +398,18 @@ public class LeadService {
         return leadRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Server-side paginated query for all leads.
+     */
+    public PagedResponse<LeadResponse> getAllLeadsPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Lead> leadPage = leadRepository.findAllByOrderByCreatedAtDesc(pageable);
+        List<LeadResponse> content = leadPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return PagedResponse.of(content, page, size, leadPage.getTotalElements(), leadPage.getTotalPages(), leadPage.isLast());
     }
 
     public List<LeadResponse> getLeadsByOwner(Long adminId) {
@@ -244,6 +458,41 @@ public class LeadService {
         return "LD-" + datePart + "-" + randomPart;
     }
 
+    /**
+     * Parse a single CSV line, handling quoted values with commas inside.
+     */
+    private String[] parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        boolean inQuotes = false;
+        StringBuilder current = new StringBuilder();
+
+        for (char c : line.toCharArray()) {
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                values.add(current.toString().trim());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        values.add(current.toString().trim());
+        return values.toArray(new String[0]);
+    }
+
+    /**
+     * Get a column value by header name (case-insensitive).
+     */
+    private String getColumnValue(String[] headers, String[] values, String headerName) {
+        for (int i = 0; i < headers.length; i++) {
+            if (headers[i].trim().toLowerCase().replace("_", "").replace(" ", "")
+                    .equals(headerName.toLowerCase().replace("_", "").replace(" ", ""))) {
+                return i < values.length ? values[i].trim() : null;
+            }
+        }
+        return null;
+    }
+
     public LeadResponse mapToResponse(Lead lead) {
         LeadResponse response = new LeadResponse();
         response.setId(lead.getId());
@@ -257,6 +506,7 @@ public class LeadService {
         response.setNotes(lead.getNotes());
         response.setNextFollowUpDate(lead.getNextFollowUpDate());
         response.setIndiaMartLeadId(lead.getIndiaMartLeadId());
+        response.setTags(lead.getTags());
         response.setConvertedToOpportunityId(lead.getConvertedToOpportunityId());
         response.setCreatedAt(lead.getCreatedAt());
         response.setUpdatedAt(lead.getUpdatedAt());
@@ -278,3 +528,4 @@ public class LeadService {
         return response;
     }
 }
+
