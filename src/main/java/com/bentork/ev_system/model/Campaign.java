@@ -45,6 +45,16 @@ public class Campaign {
     private LocalDate scheduledDate;
 
     @Column(nullable = false)
+    private String channel = "EMAIL"; // "EMAIL", "WHATSAPP", "BOTH"
+
+    private String subject; // Email subject or campaign notification title
+
+    @Column(columnDefinition = "TEXT")
+    private String messageBody; // Content with {{contactName}}, {{companyName}} placeholders
+
+    private Long targetAudienceSegmentId; // Optional link to saved AudienceSegment
+
+    @Column(nullable = false)
     private String status; // "DRAFT", "SCHEDULED", "SENT", "COMPLETED"
 
     private Integer totalRecipients = 0;
@@ -69,6 +79,9 @@ public class Campaign {
         this.updatedAt = LocalDateTime.now();
         if (this.status == null) {
             this.status = "DRAFT";
+        }
+        if (this.channel == null) {
+            this.channel = "EMAIL";
         }
     }
 

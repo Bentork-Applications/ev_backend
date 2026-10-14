@@ -51,6 +51,20 @@ public class CampaignRecipient {
     @Column(nullable = false)
     private boolean sent = false;
 
+    @Column(nullable = false)
+    private String deliveryStatus = "PENDING"; // "PENDING", "SENT", "FAILED"
+
+    private String channelUsed; // "EMAIL", "WHATSAPP", "BOTH"
+
+    private String recipientEmail;
+
+    private String recipientPhone;
+
+    @Column(columnDefinition = "TEXT")
+    private String errorMessage;
+
+    private LocalDateTime sentAt;
+
     private boolean opened = false;
 
     private boolean responded = false;
@@ -61,5 +75,8 @@ public class CampaignRecipient {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        if (this.deliveryStatus == null) {
+            this.deliveryStatus = "PENDING";
+        }
     }
 }

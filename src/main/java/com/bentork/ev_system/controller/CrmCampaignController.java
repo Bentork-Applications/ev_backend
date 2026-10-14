@@ -81,6 +81,43 @@ public class CrmCampaignController {
         }
     }
 
+    @PostMapping("/{id}/add-from-segment/{segmentId}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> addRecipientsFromSegment(
+            @PathVariable Long id,
+            @PathVariable Long segmentId) {
+        try {
+            return ResponseEntity.ok(campaignService.addRecipientsFromSegment(id, segmentId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/send")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> sendCampaign(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(campaignService.sendCampaign(id, getCurrentUserEmail()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Campaign dispatch failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/recipients")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getCampaignRecipients(
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(campaignService.getCampaignRecipients(id, page, size));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth.getName();

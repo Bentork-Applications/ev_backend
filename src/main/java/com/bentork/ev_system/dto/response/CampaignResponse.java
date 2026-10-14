@@ -10,6 +10,10 @@ public class CampaignResponse {
     private Long id;
     private String name;
     private String type;
+    private String channel;
+    private String subject;
+    private String messageBody;
+    private Long targetAudienceSegmentId;
     private String description;
     private LocalDate scheduledDate;
     private String status;

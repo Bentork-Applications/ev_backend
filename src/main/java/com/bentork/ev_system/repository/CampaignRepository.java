@@ -13,4 +13,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findAllByOrderByCreatedAtDesc();
 
     List<Campaign> findByStatusOrderByCreatedAtDesc(String status);
+
+    List<Campaign> findByStatusAndScheduledDateLessThanEqual(String status, java.time.LocalDate date);
 }
