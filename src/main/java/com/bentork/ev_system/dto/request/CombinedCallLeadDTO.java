@@ -37,4 +37,5 @@ public class CombinedCallLeadDTO {
     private String callNotes;
     private Integer callDurationMinutes;
     private String followUpDate; // yyyy-MM-dd
+    private String followUpTime; // HH:mm or HH:mm:ss
 }

@@ -2,6 +2,7 @@ package com.bentork.ev_system.dto.response;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +28,7 @@ public class LeadResponse {
     private Double estimatedValue;
     private String notes;
     private LocalDate nextFollowUpDate;
+    private LocalTime nextFollowUpTime;
     private String indiaMartLeadId;
     private String tags;
     private Long convertedToOpportunityId;

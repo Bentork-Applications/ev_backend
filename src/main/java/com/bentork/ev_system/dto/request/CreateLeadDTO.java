@@ -16,4 +16,5 @@ public class CreateLeadDTO {
     private Double estimatedValue;
     private String notes;
     private String nextFollowUpDate; // yyyy-MM-dd
+    private String nextFollowUpTime; // HH:mm or HH:mm:ss
 }

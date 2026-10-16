@@ -70,7 +70,8 @@ public class CrmReminderService {
         List<Lead> todayLeads = leadRepository.findByNextFollowUpDateBetween(today, today);
         for (Lead lead : todayLeads) {
             if (lead.getOwnerAdmin() != null && !terminalStatuses.contains(lead.getStatus())) {
-                String message = "📞 Follow-up today: " + lead.getTitle()
+                String timeStr = lead.getNextFollowUpTime() != null ? " at " + lead.getNextFollowUpTime() : "";
+                String message = "📞 Follow-up today" + timeStr + ": " + lead.getTitle()
                         + " (Lead: " + lead.getLeadNumber() + ")";
                 createNotification(lead.getOwnerAdmin(), message, "CRM_FOLLOW_UP");
                 remindersSent++;
@@ -85,7 +86,8 @@ public class CrmReminderService {
                     && activity.getFollowUpDate() != null
                     && activity.getFollowUpDate().equals(today)) {
                 String subject = activity.getSubject() != null ? activity.getSubject() : "Activity";
-                String message = "📋 Follow-up due today: " + subject;
+                String timeStr = activity.getFollowUpTime() != null ? " at " + activity.getFollowUpTime() : "";
+                String message = "📋 Follow-up due today" + timeStr + ": " + subject;
                 createNotification(activity.getPerformedByAdmin(), message, "CRM_FOLLOW_UP");
                 remindersSent++;
             }

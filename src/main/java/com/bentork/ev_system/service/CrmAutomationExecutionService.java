@@ -226,15 +226,21 @@ public class CrmAutomationExecutionService {
         activity.setActivityDate(LocalDateTime.now());
         activity.setStatus("pending");
 
-        // Set follow-up date based on delay
-        if (rule.getDelayMinutes() != null && rule.getDelayMinutes() > 0) {
-            activity.setFollowUpDate(LocalDate.now().plusDays(rule.getDelayMinutes() / 1440 + 1));
-        } else {
-            activity.setFollowUpDate(LocalDate.now().plusDays(1));
-        }
+        // Set follow-up date and time based on delay
+        int delay = (rule.getDelayMinutes() != null && rule.getDelayMinutes() > 0) ? rule.getDelayMinutes() : 1440;
+        LocalDateTime targetTime = LocalDateTime.now().plusMinutes(delay);
+        activity.setFollowUpDate(targetTime.toLocalDate());
+        activity.setFollowUpTime(targetTime.toLocalTime().withSecond(0).withNano(0));
 
         activityRepository.save(activity);
-        log.info("Automation created task '{}' for lead {} (rule: {})", subject, lead.getLeadNumber(), rule.getName());
+
+        // Synchronize parent lead
+        lead.setNextFollowUpDate(activity.getFollowUpDate());
+        lead.setNextFollowUpTime(activity.getFollowUpTime());
+        leadRepository.save(lead);
+
+        log.info("Automation created task '{}' for lead {} (due: {} {}, rule: {})",
+                subject, lead.getLeadNumber(), activity.getFollowUpDate(), activity.getFollowUpTime(), rule.getName());
     }
 
     /**

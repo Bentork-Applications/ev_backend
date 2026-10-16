@@ -2,6 +2,7 @@ package com.bentork.ev_system.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,6 +32,7 @@ import lombok.Setter;
         @Index(name = "idx_lead_source", columnList = "source"),
         @Index(name = "idx_lead_owner", columnList = "owner_admin_id"),
         @Index(name = "idx_lead_follow_up", columnList = "nextFollowUpDate"),
+        @Index(name = "idx_lead_follow_up_time", columnList = "nextFollowUpTime"),
         @Index(name = "idx_lead_indiamart", columnList = "indiaMartLeadId")
 })
 @Getter
@@ -75,6 +77,8 @@ public class Lead {
     private String notes;
 
     private LocalDate nextFollowUpDate;
+
+    private LocalTime nextFollowUpTime;
 
     private String indiaMartLeadId; // External reference ID for deduplication
 

@@ -2,6 +2,7 @@ package com.bentork.ev_system.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import org.springframework.stereotype.Service;
 
@@ -43,7 +44,7 @@ public class CrmDashboardService {
         long overdueLeads = leadRepository.findByNextFollowUpDateBeforeAndStatusNotIn(
                 LocalDate.now(),
                 java.util.Arrays.asList(LeadStatus.CONVERTED.getValue(), LeadStatus.LOST.getValue())).size();
-        long overdueActivities = activityRepository.findByFollowUpDateBeforeAndFollowUpDateIsNotNull(LocalDate.now()).size();
+        long overdueActivities = activityRepository.countOverdueFollowUps(LocalDate.now(), LocalTime.now(), null);
         response.setOverdueFollowUps(overdueLeads + overdueActivities);
 
         // Pipeline KPIs

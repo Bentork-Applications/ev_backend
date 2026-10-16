@@ -32,6 +32,8 @@ import lombok.Setter;
         @Index(name = "idx_activity_opportunity", columnList = "opportunity_id"),
         @Index(name = "idx_activity_type", columnList = "activityType"),
         @Index(name = "idx_activity_follow_up", columnList = "followUpDate"),
+        @Index(name = "idx_activity_follow_up_time", columnList = "followUpTime"),
+        @Index(name = "idx_activity_follow_status", columnList = "followUpDate, followUpTime, status"),
         @Index(name = "idx_activity_performed_by", columnList = "performed_by_admin_id"),
         @Index(name = "idx_activity_date", columnList = "activityDate")
 })
@@ -72,6 +74,8 @@ public class Activity {
     private Integer durationMinutes; // Call/meeting duration in minutes
 
     private LocalDate followUpDate; // Scheduled follow-up date (nullable)
+
+    private LocalTime followUpTime; // Scheduled follow-up time (nullable, e.g., 14:30:00)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "performed_by_admin_id")

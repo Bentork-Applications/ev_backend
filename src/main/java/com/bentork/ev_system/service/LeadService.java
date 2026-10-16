@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,7 +71,10 @@ public class LeadService {
         lead.setNotes(dto.getNotes());
 
         if (dto.getNextFollowUpDate() != null && !dto.getNextFollowUpDate().isEmpty()) {
-            lead.setNextFollowUpDate(LocalDate.parse(dto.getNextFollowUpDate()));
+            lead.setNextFollowUpDate(LocalDate.parse(dto.getNextFollowUpDate().trim()));
+        }
+        if (dto.getNextFollowUpTime() != null && !dto.getNextFollowUpTime().isEmpty()) {
+            lead.setNextFollowUpTime(LocalTime.parse(dto.getNextFollowUpTime().trim()));
         }
         if (dto.getCompanyId() != null) {
             lead.setCompany(companyRepository.findById(dto.getCompanyId())
@@ -146,7 +150,10 @@ public class LeadService {
         lead.setEstimatedValue(dto.getEstimatedValue());
 
         if (dto.getFollowUpDate() != null && !dto.getFollowUpDate().isEmpty()) {
-            lead.setNextFollowUpDate(LocalDate.parse(dto.getFollowUpDate()));
+            lead.setNextFollowUpDate(LocalDate.parse(dto.getFollowUpDate().trim()));
+        }
+        if (dto.getFollowUpTime() != null && !dto.getFollowUpTime().isEmpty()) {
+            lead.setNextFollowUpTime(LocalTime.parse(dto.getFollowUpTime().trim()));
         }
 
         lead = leadRepository.save(lead);
@@ -165,7 +172,10 @@ public class LeadService {
         activity.setActivityDate(LocalDateTime.now());
 
         if (dto.getFollowUpDate() != null && !dto.getFollowUpDate().isEmpty()) {
-            activity.setFollowUpDate(LocalDate.parse(dto.getFollowUpDate()));
+            activity.setFollowUpDate(LocalDate.parse(dto.getFollowUpDate().trim()));
+        }
+        if (dto.getFollowUpTime() != null && !dto.getFollowUpTime().isEmpty()) {
+            activity.setFollowUpTime(LocalTime.parse(dto.getFollowUpTime().trim()));
         }
 
         activityRepository.save(activity);
@@ -505,6 +515,7 @@ public class LeadService {
         response.setEstimatedValue(lead.getEstimatedValue());
         response.setNotes(lead.getNotes());
         response.setNextFollowUpDate(lead.getNextFollowUpDate());
+        response.setNextFollowUpTime(lead.getNextFollowUpTime());
         response.setIndiaMartLeadId(lead.getIndiaMartLeadId());
         response.setTags(lead.getTags());
         response.setConvertedToOpportunityId(lead.getConvertedToOpportunityId());

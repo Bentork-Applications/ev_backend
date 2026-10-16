@@ -18,5 +18,6 @@ public class LogActivityDTO {
     private String notes;
     private Integer durationMinutes;
     private String followUpDate; // yyyy-MM-dd
+    private String followUpTime; // HH:mm or HH:mm:ss (e.g. "14:30")
     private String activityDate; // yyyy-MM-dd'T'HH:mm:ss (optional, defaults to now)
 }
