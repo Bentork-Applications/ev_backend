@@ -89,6 +89,14 @@ public class Activity {
 
     private LocalDateTime completedAt; // Set when status changes to completed
 
+    // ==================== Campaign Integration Fields ====================
+
+    private Long campaignId;                // Optional: link to source campaign
+    private Long campaignRoundId;           // Optional: link to specific round
+    private Long campaignMessageId;         // Optional: link to specific message
+    private String messageDirection;         // "OUTBOUND", "INBOUND" (for WhatsApp)
+    private String providerMessageId;       // WAMID for traceability
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -87,6 +87,19 @@ public class Lead {
 
     private Long convertedToOpportunityId; // Set when lead is qualified and converted
 
+    // ==================== Campaign Integration Fields ====================
+
+    private String phone;                   // Direct phone field for campaign matching/messaging
+
+    private String email;                   // Direct email for campaign messaging
+
+    @Column(columnDefinition = "boolean default false")
+    private boolean optedOut = false;        // Global WhatsApp opt-out flag
+
+    private LocalDateTime optedOutAt;
+
+    private String campaignSource;           // Campaign name that originally created this lead
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

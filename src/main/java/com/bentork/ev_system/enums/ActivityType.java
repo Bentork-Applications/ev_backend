@@ -11,7 +11,10 @@ public enum ActivityType {
     MEETING("meeting"),
     EMAIL("email"),
     FOLLOW_UP("follow_up"),
-    NOTE("note");
+    NOTE("note"),
+    WHATSAPP_OUTBOUND("whatsapp_outbound"),
+    WHATSAPP_INBOUND("whatsapp_inbound"),
+    CAMPAIGN_MESSAGE("campaign_message");
 
     private final String value;
 
@@ -44,6 +47,12 @@ public enum ActivityType {
                 return FOLLOW_UP;
             case "note":
                 return NOTE;
+            case "whatsapp_outbound":
+                return WHATSAPP_OUTBOUND;
+            case "whatsapp_inbound":
+                return WHATSAPP_INBOUND;
+            case "campaign_message":
+                return CAMPAIGN_MESSAGE;
             default:
                 return null;
         }

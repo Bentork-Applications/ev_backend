@@ -13,7 +13,9 @@ public enum LeadSource {
     REFERRAL("referral"),
     EXHIBITION("exhibition"),
     WALK_IN("walk_in"),
-    SOCIAL_MEDIA("social_media");
+    SOCIAL_MEDIA("social_media"),
+    WHATSAPP_CAMPAIGN("whatsapp_campaign"),
+    CAMPAIGN_IMPORT("campaign_import");
 
     private final String value;
 
@@ -50,6 +52,10 @@ public enum LeadSource {
                 return WALK_IN;
             case "social_media":
                 return SOCIAL_MEDIA;
+            case "whatsapp_campaign":
+                return WHATSAPP_CAMPAIGN;
+            case "campaign_import":
+                return CAMPAIGN_IMPORT;
             default:
                 return null;
         }

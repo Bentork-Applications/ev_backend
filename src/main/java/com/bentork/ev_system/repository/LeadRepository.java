@@ -26,6 +26,14 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
 
     Optional<Lead> findByLeadNumber(String leadNumber);
 
+    List<Lead> findByPhone(String phone);
+
+    Optional<Lead> findFirstByPhoneOrderByCreatedAtDesc(String phone);
+
+    List<Lead> findByContactPhone(String phone);
+
+    Optional<Lead> findFirstByContactPhoneOrderByCreatedAtDesc(String phone);
+
     List<Lead> findByContactPhoneContaining(String phone);
 
     List<Lead> findByTitleContainingIgnoreCaseOrNotesContainingIgnoreCase(String title, String notes);
