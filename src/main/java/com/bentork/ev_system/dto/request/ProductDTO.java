@@ -24,6 +24,10 @@ public class ProductDTO {
 
     private String specifications;
 
+    private String imageUrl;
+
+    private String thumbnail;
+
     // Getters and Setters
 
     public String getName() {
@@ -96,5 +100,21 @@ public class ProductDTO {
 
     public void setSpecifications(String specifications) {
         this.specifications = specifications;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public String getThumbnail() {
+        return thumbnail;
+    }
+
+    public void setThumbnail(String thumbnail) {
+        this.thumbnail = thumbnail;
     }
 }

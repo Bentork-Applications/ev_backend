@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping({"/api/products", "/products"})
 @RequiredArgsConstructor
 @Slf4j
 public class ProductController {
@@ -64,6 +64,25 @@ public class ProductController {
         log.info("Admin/Staff {} updating product ID: {}", PiiMaskingUtil.maskEmail(adminEmail), id);
         try {
             ProductResponse response = productService.updateProduct(id, dto, adminEmail);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Update product image URL and thumbnail.
+     */
+    @PutMapping("/admin/{id}/image")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_STAFF', 'SCM_ADMIN')")
+    public ResponseEntity<?> updateProductImage(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> payload) {
+        String adminEmail = getCurrentUserEmail();
+        String imageUrl = payload.get("imageUrl");
+        String thumbnail = payload.get("thumbnail");
+        try {
+            ProductResponse response = productService.updateProductImage(id, imageUrl, thumbnail, adminEmail);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -138,6 +157,6 @@ public class ProductController {
 
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getName();
+        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
     }
 }

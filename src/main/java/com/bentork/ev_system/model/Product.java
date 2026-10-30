@@ -50,6 +50,14 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String specifications; // Additional specs / notes
 
+    // ==================== PRODUCT MEDIA ====================
+
+    @Column(length = 1000)
+    private String imageUrl;
+
+    @Column(length = 1000)
+    private String thumbnail;
+
     // ==================== STATUS ====================
 
     @Column(nullable = false)
@@ -212,5 +220,21 @@ public class Product {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public String getThumbnail() {
+        return thumbnail;
+    }
+
+    public void setThumbnail(String thumbnail) {
+        this.thumbnail = thumbnail;
     }
 }

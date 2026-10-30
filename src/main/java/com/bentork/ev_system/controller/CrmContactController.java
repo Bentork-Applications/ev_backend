@@ -5,15 +5,18 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.CreateContactDTO;
+import com.bentork.ev_system.dto.request.UpdateContactDTO;
 import com.bentork.ev_system.dto.response.ContactResponse;
 import com.bentork.ev_system.service.SalesContactService;
 
@@ -28,7 +31,7 @@ public class CrmContactController {
 
     private final SalesContactService contactService;
 
-    @PostMapping("/create")
+    @PostMapping({"", "/create"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createContact(@RequestBody CreateContactDTO dto) {
         try {
@@ -38,13 +41,47 @@ public class CrmContactController {
         }
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getContactById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(contactService.getContactById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping({"/{id}", "/{id}/update", "/update/{id}"})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> updateContact(@PathVariable Long id, @RequestBody UpdateContactDTO dto) {
+        try {
+            return ResponseEntity.ok(contactService.updateContact(id, dto));
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping({"/{id}", "/delete/{id}"})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> deleteContact(@PathVariable Long id) {
+        try {
+            contactService.deleteContact(id);
+            return ResponseEntity.ok("Contact deleted successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
     @GetMapping("/company/{companyId}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<ContactResponse>> getContactsByCompany(@PathVariable Long companyId) {
         return ResponseEntity.ok(contactService.getContactsByCompany(companyId));
     }
 
-    @GetMapping("/all")
+    @GetMapping({"", "/all"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<ContactResponse>> getAllContacts() {
         return ResponseEntity.ok(contactService.getAllContacts());

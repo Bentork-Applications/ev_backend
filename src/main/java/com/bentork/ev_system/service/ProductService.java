@@ -44,6 +44,9 @@ public class ProductService {
         product.setCapacity(dto.getCapacity());
         product.setChemistry(dto.getChemistry());
         product.setSpecifications(dto.getSpecifications());
+        product.setImageUrl(dto.getImageUrl());
+        product.setThumbnail(dto.getThumbnail() != null && !dto.getThumbnail().isBlank()
+                ? dto.getThumbnail() : dto.getImageUrl());
         product.setActive(true);
         product.setCreatedByAdminEmail(adminEmail);
 
@@ -68,9 +71,34 @@ public class ProductService {
         if (dto.getCapacity() != null) product.setCapacity(dto.getCapacity());
         if (dto.getChemistry() != null) product.setChemistry(dto.getChemistry());
         if (dto.getSpecifications() != null) product.setSpecifications(dto.getSpecifications());
+        if (dto.getImageUrl() != null) product.setImageUrl(dto.getImageUrl());
+        if (dto.getThumbnail() != null) {
+            product.setThumbnail(dto.getThumbnail());
+        } else if (dto.getImageUrl() != null && (product.getThumbnail() == null || product.getThumbnail().isBlank())) {
+            product.setThumbnail(dto.getImageUrl());
+        }
 
         Product saved = productRepository.save(product);
         log.info("Product '{}' (ID: {}) updated by admin {}", saved.getName(), id, PiiMaskingUtil.maskEmail(adminEmail));
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Update product image and thumbnail directly.
+     */
+    public ProductResponse updateProductImage(Long id, String imageUrl, String thumbnail, String adminEmail) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + id));
+
+        if (imageUrl != null) product.setImageUrl(imageUrl);
+        if (thumbnail != null) {
+            product.setThumbnail(thumbnail);
+        } else if (imageUrl != null) {
+            product.setThumbnail(imageUrl);
+        }
+
+        Product saved = productRepository.save(product);
+        log.info("Product '{}' (ID: {}) image updated by admin {}", saved.getName(), id, PiiMaskingUtil.maskEmail(adminEmail));
         return mapToResponse(saved);
     }
 
@@ -139,6 +167,8 @@ public class ProductService {
         response.setChemistry(product.getChemistry());
         response.setSpecifications(product.getSpecifications());
         response.setSpecString(product.buildSpecString());
+        response.setImageUrl(product.getImageUrl());
+        response.setThumbnail(product.getThumbnail() != null ? product.getThumbnail() : product.getImageUrl());
         response.setActive(product.isActive());
         response.setCreatedByAdminEmail(product.getCreatedByAdminEmail());
         response.setCreatedAt(product.getCreatedAt());

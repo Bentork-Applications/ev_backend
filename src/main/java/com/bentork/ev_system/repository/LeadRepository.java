@@ -1,12 +1,16 @@
 package com.bentork.ev_system.repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.bentork.ev_system.model.Lead;
@@ -45,7 +49,7 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
 
     List<Lead> findByNextFollowUpDateAndOwnerAdminId(LocalDate date, Long adminId);
 
-    // Dashboard queries
+    // Dashboard & Analytics queries
     long countByStatus(String status);
 
     long countBySource(String source);
@@ -53,6 +57,18 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     long countByOwnerAdminId(Long adminId);
 
     long countByOwnerAdminIdAndStatus(Long adminId, String status);
+
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    long countByStatusAndCreatedAtBetween(String status, LocalDateTime start, LocalDateTime end);
+
+    long countByOwnerAdminIdAndCreatedAtBetween(Long adminId, LocalDateTime start, LocalDateTime end);
+
+    long countByOwnerAdminIdAndStatusAndCreatedAtBetween(Long adminId, String status, LocalDateTime start, LocalDateTime end);
+
+    List<Lead> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<Lead> findByOwnerAdminIdAndCreatedAtBetween(Long adminId, LocalDateTime start, LocalDateTime end);
 
     List<Lead> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
 
@@ -70,5 +86,9 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
 
     // Tag-based queries
     List<Lead> findByTagsContainingIgnoreCase(String tag);
+
+    @Modifying
+    @Query("UPDATE Lead l SET l.contact = null WHERE l.contact.id = :contactId")
+    void nullifyContact(@Param("contactId") Long contactId);
 }
 

@@ -1,5 +1,6 @@
 package com.bentork.ev_system.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,6 +42,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Stats
     long countByOrderStatus(String orderStatus);
     long countByProductionStatus(String productionStatus);
+
+    List<Order> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(o.totalInvoiceAmount), 0.0) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end")
+    Double sumTotalInvoiceAmountInPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(o.receivedAmount), 0.0) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end")
+    Double sumReceivedAmountInPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // Nullify assigned user on orders when user deletes account (used for account deletion)
     @Modifying

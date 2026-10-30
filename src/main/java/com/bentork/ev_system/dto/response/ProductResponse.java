@@ -15,6 +15,8 @@ public class ProductResponse {
     private String chemistry;
     private String specifications;
     private String specString; // Auto-built: "EV Battery — 48V 30Ah Chemistry = NMC"
+    private String imageUrl;
+    private String thumbnail;
     private boolean active;
     private String createdByAdminEmail;
     private LocalDateTime createdAt;
@@ -140,5 +142,21 @@ public class ProductResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public String getThumbnail() {
+        return thumbnail;
+    }
+
+    public void setThumbnail(String thumbnail) {
+        this.thumbnail = thumbnail;
     }
 }

@@ -174,8 +174,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/warranty-claims/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF")
 
                                                 // Product Catalog - Admin & Staff manage
-                                                .requestMatchers("/api/products/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF", "SALES_ADMIN", "SCM_ADMIN")
-                                                .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF", "SALES_ADMIN", "SCM_ADMIN")
+                                                .requestMatchers("/api/products/admin/**", "/products/admin/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF", "SALES_ADMIN", "SCM_ADMIN")
+                                                .requestMatchers("/api/products/**", "/products/**").hasAnyAuthority("ADMIN", "ADMIN_STAFF", "SALES_ADMIN", "SCM_ADMIN")
 
                                                 // Support Requests - role-specific access
                                                 .requestMatchers("/api/support-requests/user/**").hasAuthority("ROLE_USER")
@@ -194,19 +194,23 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/admin/procurement/**").hasAnyAuthority("SCM_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/admin/inventory/**").hasAnyAuthority("SCM_ADMIN", "SALES_ADMIN", "ADMIN")
 
-                                                // ===== SALES CRM — SALES_ADMIN only =====
+                                                // ===== SALES CRM — SALES_ADMIN & ADMIN =====
                                                 .requestMatchers("/api/crm/leads/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/companies/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
-                                                .requestMatchers("/api/crm/contacts/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/contacts", "/api/crm/contacts/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/activities/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/opportunities/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/quotations/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/dashboard/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/reports/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/targets/**", "/crm/targets/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/analytics/**", "/crm/analytics/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/whatsapp-campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/whatsapp-templates/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/indiamart/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/settings/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/crm/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
 
                                                 // Everything else requires login
                                                 .anyRequest().authenticated())

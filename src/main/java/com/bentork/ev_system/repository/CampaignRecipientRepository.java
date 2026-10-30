@@ -3,6 +3,9 @@ package com.bentork.ev_system.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.bentork.ev_system.model.CampaignRecipient;
@@ -31,4 +34,8 @@ public interface CampaignRecipientRepository extends JpaRepository<CampaignRecip
     long countByCampaignIdAndOpenedTrue(Long campaignId);
 
     long countByCampaignIdAndRespondedTrue(Long campaignId);
+
+    @Modifying
+    @Query("UPDATE CampaignRecipient cr SET cr.contact = null WHERE cr.contact.id = :contactId")
+    void nullifyContact(@Param("contactId") Long contactId);
 }

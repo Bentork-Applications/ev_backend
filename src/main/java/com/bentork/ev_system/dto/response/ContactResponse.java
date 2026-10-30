@@ -2,6 +2,8 @@ package com.bentork.ev_system.dto.response;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,6 +18,9 @@ public class ContactResponse {
     private String designation;
     private String phone;
     private String email;
+
+    @JsonProperty("isPrimary")
     private boolean isPrimary;
+
     private LocalDateTime createdAt;
 }
