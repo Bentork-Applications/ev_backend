@@ -207,6 +207,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/crm/analytics/**", "/crm/analytics/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/whatsapp-campaigns/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
+                                                .requestMatchers("/api/crm/follow-up/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/whatsapp-templates/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/indiamart/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
                                                 .requestMatchers("/api/crm/settings/**").hasAnyAuthority("SALES_ADMIN", "ADMIN")
