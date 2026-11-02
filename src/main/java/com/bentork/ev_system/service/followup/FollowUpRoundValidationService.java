@@ -1,5 +1,7 @@
 package com.bentork.ev_system.service.followup;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -148,6 +150,47 @@ public class FollowUpRoundValidationService {
                 (round.getSubject() == null || round.getSubject().trim().isEmpty())) {
             throw new IllegalStateException(String.format(
                     "Round %d requires an email subject for channel %s.", round.getRoundNumber(), channel));
+        }
+    }
+
+    /**
+     * Validates next round schedule options supplied before dispatching current round.
+     */
+    public void validateNextRoundSchedule(LeadFollowUpCampaign campaign, int currentRoundNumber, LocalDate nextDate, LocalTime nextTime) {
+        if (currentRoundNumber >= campaign.getTotalRounds()) {
+            throw new IllegalArgumentException(String.format(
+                    "Round %d is the final round (%d/%d). No subsequent round can be scheduled.",
+                    currentRoundNumber, currentRoundNumber, campaign.getTotalRounds()));
+        }
+        if (nextDate != null) {
+            LocalDate today = LocalDate.now();
+            if (nextDate.isBefore(today)) {
+                throw new IllegalArgumentException("Next round planned date cannot be in the past (" + nextDate + ").");
+            }
+            if (nextDate.isEqual(today) && nextTime != null && nextTime.isBefore(LocalTime.now())) {
+                throw new IllegalArgumentException("Next round planned time cannot be in the past (" + nextTime + ").");
+            }
+        }
+    }
+
+    /**
+     * Validates explicit scheduling for a round.
+     */
+    public void validateRoundSchedule(LeadFollowUpRound round, LocalDate plannedDate, LocalTime plannedTime) {
+        if ("COMPLETED".equalsIgnoreCase(round.getStatus())) {
+            throw new IllegalStateException(String.format("Round %d is already completed and cannot be scheduled.", round.getRoundNumber()));
+        }
+        if ("IN_PROGRESS".equalsIgnoreCase(round.getStatus())) {
+            throw new IllegalStateException(String.format("Round %d is currently in progress and cannot be scheduled.", round.getRoundNumber()));
+        }
+        if (plannedDate != null) {
+            LocalDate today = LocalDate.now();
+            if (plannedDate.isBefore(today)) {
+                throw new IllegalArgumentException("Planned date cannot be in the past: " + plannedDate);
+            }
+            if (plannedDate.isEqual(today) && plannedTime != null && plannedTime.isBefore(LocalTime.now())) {
+                throw new IllegalArgumentException("Planned time cannot be in the past: " + plannedTime);
+            }
         }
     }
 }

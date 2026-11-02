@@ -1,6 +1,8 @@
 package com.bentork.ev_system.dto.followup;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
@@ -23,6 +25,10 @@ public class FollowUpRoundResponse {
     private String channel;
     private String subject;
     private String messageBody;
+    private LocalDate plannedDate;
+    private LocalTime plannedTime;
+    private String timezone;
+    private String sendMode;
     private String status;
     private Integer selectedLeadCount;
     private Integer sentCount;
@@ -31,6 +37,8 @@ public class FollowUpRoundResponse {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private String lastTriggeredByEmail;
+    private Boolean isFinalRound;
+    private Integer nextRoundNumber;
     private List<FollowUpAttachmentResponse> attachments;
 }
 

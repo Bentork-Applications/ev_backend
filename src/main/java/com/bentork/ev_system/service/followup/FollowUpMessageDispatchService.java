@@ -1,7 +1,9 @@
 package com.bentork.ev_system.service.followup;
 
 import java.io.File;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -18,11 +20,15 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bentork.ev_system.dto.followup.FollowUpAttachmentResponse;
 import com.bentork.ev_system.dto.followup.FollowUpDispatchResultDTO;
 import com.bentork.ev_system.dto.followup.FollowUpMessageConfigDTO;
 import com.bentork.ev_system.dto.followup.FollowUpMessageHistoryResponse;
 import com.bentork.ev_system.dto.followup.FollowUpProgressResponse;
 import com.bentork.ev_system.dto.followup.FollowUpProgressResponse.RoundProgressItem;
+import com.bentork.ev_system.dto.followup.FollowUpRoundResponse;
+import com.bentork.ev_system.dto.followup.FollowUpRoundScheduleDTO;
+import com.bentork.ev_system.dto.followup.FollowUpRoundSendRequestDTO;
 import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.dto.response.WhatsAppSendResult;
 import com.bentork.ev_system.model.Lead;
@@ -121,6 +127,19 @@ public class FollowUpMessageDispatchService {
      */
     @Transactional
     public FollowUpDispatchResultDTO dispatchRound(Long campaignId, Integer roundNumber, String adminEmail) {
+        return dispatchRound(campaignId, roundNumber, null, adminEmail);
+    }
+
+    /**
+     * Dispatches messages to all selected leads in a round and optionally schedules the next round.
+     */
+    @Transactional
+    public FollowUpDispatchResultDTO dispatchRound(
+            Long campaignId,
+            Integer roundNumber,
+            FollowUpRoundSendRequestDTO sendRequest,
+            String adminEmail) {
+
         LeadFollowUpCampaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found with id: " + campaignId));
 
@@ -130,6 +149,12 @@ public class FollowUpMessageDispatchService {
 
         // 1. Strict validation check before triggering dispatch
         validationService.validateRoundReadyForSend(round);
+
+        // Validate next round schedule if requested
+        if (sendRequest != null && sendRequest.getNextRoundPlannedDate() != null) {
+            validationService.validateNextRoundSchedule(
+                    campaign, roundNumber, sendRequest.getNextRoundPlannedDate(), sendRequest.getNextRoundPlannedTime());
+        }
 
         // 2. Mark round as IN_PROGRESS
         round.setStatus("IN_PROGRESS");
@@ -281,19 +306,57 @@ public class FollowUpMessageDispatchService {
         campaign.setCompletedRounds(campaign.getCompletedRounds() + 1);
 
         Integer nextRoundUnlocked = null;
-        if (roundNumber == 5) {
+        LocalDate nextPlannedDate = null;
+        LocalTime nextPlannedTime = null;
+        String nextStatus = null;
+
+        int totalCampaignRounds = (campaign.getTotalRounds() != null) ? campaign.getTotalRounds() : 5;
+
+        if (roundNumber >= totalCampaignRounds) {
             campaign.setStatus("COMPLETED");
             campaign.setCompletedAt(LocalDateTime.now());
-            log.info("Campaign '{}' (ID: {}) successfully COMPLETED after Round 5 dispatch!",
-                    campaign.getName(), campaign.getId());
+            log.info("Campaign '{}' (ID: {}) successfully COMPLETED after final Round {} dispatch!",
+                    campaign.getName(), campaign.getId(), roundNumber);
         } else {
             campaign.setCurrentRoundNumber(roundNumber + 1);
             nextRoundUnlocked = roundNumber + 1;
+
+            if (sendRequest != null && sendRequest.getNextRoundPlannedDate() != null) {
+                Optional<LeadFollowUpRound> nextRoundOpt = roundRepository.findByCampaignIdAndRoundNumber(campaignId, roundNumber + 1);
+                if (nextRoundOpt.isPresent()) {
+                    LeadFollowUpRound nextRound = nextRoundOpt.get();
+                    nextRound.setPlannedDate(sendRequest.getNextRoundPlannedDate());
+                    nextRound.setPlannedTime(sendRequest.getNextRoundPlannedTime());
+                    if (sendRequest.getNextRoundSendMode() != null && !sendRequest.getNextRoundSendMode().trim().isEmpty()) {
+                        nextRound.setSendMode(sendRequest.getNextRoundSendMode().trim().toUpperCase());
+                    }
+                    if (sendRequest.getNextRoundSubject() != null && !sendRequest.getNextRoundSubject().trim().isEmpty()) {
+                        nextRound.setSubject(sendRequest.getNextRoundSubject().trim());
+                    }
+                    if (sendRequest.getNextRoundMessageBody() != null && !sendRequest.getNextRoundMessageBody().trim().isEmpty()) {
+                        nextRound.setMessageBody(sendRequest.getNextRoundMessageBody().trim());
+                    }
+                    nextRound.setStatus("SCHEDULED");
+                    roundRepository.save(nextRound);
+
+                    nextPlannedDate = nextRound.getPlannedDate();
+                    nextPlannedTime = nextRound.getPlannedTime();
+                    nextStatus = nextRound.getStatus();
+                    log.info("Configured schedule for next Round {} of Campaign {}: date={}, time={}, mode={}",
+                            nextRound.getRoundNumber(), campaignId, nextPlannedDate, nextPlannedTime, nextRound.getSendMode());
+                }
+            }
         }
         campaignRepository.save(campaign);
 
         log.info("Round {} completed for Campaign {}: sent={}, failed={}, optedOut={}",
                 roundNumber, campaignId, sentCount, failedCount, optedOutCount);
+
+        String messageText = String.format("Round %d execution finished: %d sent, %d failed", roundNumber, sentCount, failedCount);
+        if (nextRoundUnlocked != null && nextPlannedDate != null) {
+            messageText += String.format(". Next Round %d scheduled for %s%s",
+                    nextRoundUnlocked, nextPlannedDate, nextPlannedTime != null ? " at " + nextPlannedTime : "");
+        }
 
         return FollowUpDispatchResultDTO.builder()
                 .campaignId(campaignId)
@@ -306,7 +369,85 @@ public class FollowUpMessageDispatchService {
                 .startedAt(round.getStartedAt())
                 .completedAt(round.getCompletedAt())
                 .nextRoundUnlocked(nextRoundUnlocked)
-                .message(String.format("Round %d execution finished: %d sent, %d failed", roundNumber, sentCount, failedCount))
+                .nextRoundPlannedDate(nextPlannedDate)
+                .nextRoundPlannedTime(nextPlannedTime)
+                .nextRoundStatus(nextStatus)
+                .message(messageText)
+                .build();
+    }
+
+    /**
+     * Explicitly schedules or reschedules a round's planned execution date, time, and send mode.
+     */
+    @Transactional
+    public FollowUpRoundResponse scheduleRound(
+            Long campaignId, Integer roundNumber, FollowUpRoundScheduleDTO dto, String adminEmail) {
+
+        LeadFollowUpCampaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new IllegalArgumentException("Campaign not found with id: " + campaignId));
+
+        LeadFollowUpRound round = roundRepository.findByCampaignIdAndRoundNumber(campaignId, roundNumber)
+                .orElseThrow(() -> new IllegalArgumentException(String.format(
+                        "Round %d not found for Campaign %d", roundNumber, campaignId)));
+
+        validationService.validateRoundSchedule(round, dto.getPlannedDate(), dto.getPlannedTime());
+
+        round.setPlannedDate(dto.getPlannedDate());
+        if (dto.getPlannedTime() != null) {
+            round.setPlannedTime(dto.getPlannedTime());
+        }
+        if (dto.getSendMode() != null && !dto.getSendMode().trim().isEmpty()) {
+            round.setSendMode(dto.getSendMode().trim().toUpperCase());
+        }
+        if (dto.getSubject() != null && !dto.getSubject().trim().isEmpty()) {
+            round.setSubject(dto.getSubject().trim());
+        }
+        if (dto.getMessageBody() != null && !dto.getMessageBody().trim().isEmpty()) {
+            round.setMessageBody(dto.getMessageBody().trim());
+        }
+        round.setStatus("SCHEDULED");
+        round = roundRepository.save(round);
+
+        log.info("Explicitly scheduled Campaign {} Round {} for date: {}, time: {}, mode: {} by {}",
+                campaignId, roundNumber, round.getPlannedDate(), round.getPlannedTime(), round.getSendMode(), adminEmail);
+
+        List<FollowUpAttachmentResponse> atts = attachmentService.getAttachmentsForRound(campaignId, roundNumber);
+        return mapRoundEntityToResponse(round, campaign.getTotalRounds(), atts);
+    }
+
+    /**
+     * Maps LeadFollowUpRound to FollowUpRoundResponse with full scheduling and metadata.
+     */
+    public FollowUpRoundResponse mapRoundEntityToResponse(
+            LeadFollowUpRound r, Integer totalRounds, List<FollowUpAttachmentResponse> atts) {
+
+        int total = (totalRounds != null) ? totalRounds : 5;
+        boolean isFinal = r.getRoundNumber() >= total;
+        Integer nextRound = isFinal ? null : (r.getRoundNumber() + 1);
+
+        return FollowUpRoundResponse.builder()
+                .id(r.getId())
+                .campaignId(r.getCampaign() != null ? r.getCampaign().getId() : null)
+                .roundNumber(r.getRoundNumber())
+                .parentRoundId(r.getParentRound() != null ? r.getParentRound().getId() : null)
+                .channel(r.getChannel())
+                .subject(r.getSubject())
+                .messageBody(r.getMessageBody())
+                .plannedDate(r.getPlannedDate())
+                .plannedTime(r.getPlannedTime())
+                .timezone(r.getTimezone())
+                .sendMode(r.getSendMode())
+                .status(r.getStatus())
+                .selectedLeadCount(r.getSelectedLeadCount())
+                .sentCount(r.getSentCount())
+                .deliveredCount(r.getDeliveredCount())
+                .failedCount(r.getFailedCount())
+                .startedAt(r.getStartedAt())
+                .completedAt(r.getCompletedAt())
+                .lastTriggeredByEmail(r.getLastTriggeredByEmail())
+                .isFinalRound(isFinal)
+                .nextRoundNumber(nextRound)
+                .attachments(atts)
                 .build();
     }
 

@@ -34,6 +34,8 @@ import com.bentork.ev_system.dto.followup.FollowUpMessageHistoryResponse;
 import com.bentork.ev_system.dto.followup.FollowUpProgressResponse;
 import com.bentork.ev_system.dto.followup.FollowUpRetryDTO;
 import com.bentork.ev_system.dto.followup.FollowUpRoundResponse;
+import com.bentork.ev_system.dto.followup.FollowUpRoundScheduleDTO;
+import com.bentork.ev_system.dto.followup.FollowUpRoundSendRequestDTO;
 import com.bentork.ev_system.dto.followup.FollowUpSelectLeadsDTO;
 import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.model.followup.LeadFollowUpCampaign;
@@ -136,28 +138,13 @@ public class LeadFollowUpCampaignController {
     @GetMapping("/campaigns/{campaignId}/rounds")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<FollowUpRoundResponse>> getRounds(@PathVariable Long campaignId) {
+        LeadFollowUpCampaign campaign = campaignRepository.findById(campaignId).orElse(null);
+        int totalRounds = (campaign != null && campaign.getTotalRounds() != null) ? campaign.getTotalRounds() : 5;
         List<LeadFollowUpRound> rounds = roundRepository.findByCampaignIdOrderByRoundNumberAsc(campaignId);
         List<FollowUpRoundResponse> responses = rounds.stream()
                 .map(r -> {
                     List<FollowUpAttachmentResponse> atts = attachmentService.getAttachmentsForRound(campaignId, r.getRoundNumber());
-                    return FollowUpRoundResponse.builder()
-                            .id(r.getId())
-                            .campaignId(campaignId)
-                            .roundNumber(r.getRoundNumber())
-                            .parentRoundId(r.getParentRound() != null ? r.getParentRound().getId() : null)
-                            .channel(r.getChannel())
-                            .subject(r.getSubject())
-                            .messageBody(r.getMessageBody())
-                            .status(r.getStatus())
-                            .selectedLeadCount(r.getSelectedLeadCount())
-                            .sentCount(r.getSentCount())
-                            .deliveredCount(r.getDeliveredCount())
-                            .failedCount(r.getFailedCount())
-                            .startedAt(r.getStartedAt())
-                            .completedAt(r.getCompletedAt())
-                            .lastTriggeredByEmail(r.getLastTriggeredByEmail())
-                            .attachments(atts)
-                            .build();
+                    return dispatchService.mapRoundEntityToResponse(r, totalRounds, atts);
                 })
                 .collect(Collectors.toList());
 
@@ -281,22 +268,44 @@ public class LeadFollowUpCampaignController {
     }
 
     /**
-     * 11. Execute message dispatch for the round.
+     * 11. Execute message dispatch for the round, with optional scheduling for the next round.
      */
     @PostMapping("/campaigns/{campaignId}/rounds/{roundNumber}/send")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> triggerRoundSend(
             @PathVariable Long campaignId,
-            @PathVariable Integer roundNumber) {
+            @PathVariable Integer roundNumber,
+            @RequestBody(required = false) FollowUpRoundSendRequestDTO sendRequest) {
         try {
             FollowUpDispatchResultDTO result = dispatchService.dispatchRound(
-                    campaignId, roundNumber, getCurrentUserEmail());
+                    campaignId, roundNumber, sendRequest, getCurrentUserEmail());
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             log.error("Round dispatch failed: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Round dispatch failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 11b. Explicitly schedule or update date/time for a round.
+     */
+    @PutMapping("/campaigns/{campaignId}/rounds/{roundNumber}/schedule")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> scheduleRound(
+            @PathVariable Long campaignId,
+            @PathVariable Integer roundNumber,
+            @RequestBody FollowUpRoundScheduleDTO dto) {
+        try {
+            FollowUpRoundResponse response = dispatchService.scheduleRound(
+                    campaignId, roundNumber, dto, getCurrentUserEmail());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Round scheduling failed: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Round scheduling failed: " + e.getMessage());
         }
     }
 

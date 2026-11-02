@@ -3,7 +3,9 @@ package com.bentork.ev_system.service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,6 +30,9 @@ import com.bentork.ev_system.dto.followup.FollowUpCampaignResponse;
 import com.bentork.ev_system.dto.followup.FollowUpDispatchResultDTO;
 import com.bentork.ev_system.dto.followup.FollowUpMessageConfigDTO;
 import com.bentork.ev_system.dto.followup.FollowUpProgressResponse;
+import com.bentork.ev_system.dto.followup.FollowUpRoundResponse;
+import com.bentork.ev_system.dto.followup.FollowUpRoundScheduleDTO;
+import com.bentork.ev_system.dto.followup.FollowUpRoundSendRequestDTO;
 import com.bentork.ev_system.dto.followup.FollowUpSelectLeadsDTO;
 import com.bentork.ev_system.dto.response.WhatsAppSendResult;
 import com.bentork.ev_system.model.Admin;
@@ -558,6 +563,129 @@ public class FollowUpCampaignServiceTest {
         assertEquals(100, progress.getWaterfall().get(3).getSelectedCount());
         assertEquals(10, progress.getWaterfall().get(4).getSelectedCount());
         assertEquals("2.0%", progress.getOverallRetentionRate()); // 10 / 500 = 2.0%
+    }
+
+    @Test
+    @DisplayName("11. Dispatch Round 1 and schedule Round 2 date and time before send")
+    void testDispatchRoundWithNextRoundScheduling() {
+        when(campaignRepository.findById(100L)).thenReturn(Optional.of(campaign));
+        when(roundRepository.findByCampaignIdAndRoundNumber(100L, 1)).thenReturn(Optional.of(rounds.get(0)));
+        when(roundRepository.findByCampaignIdAndRoundNumber(100L, 2)).thenReturn(Optional.of(rounds.get(1)));
+
+        rounds.get(0).setSelectedLeadCount(1);
+        rounds.get(0).setMessageBody("Round 1 Initial Message");
+
+        LeadFollowUpRoundLead rl1 = LeadFollowUpRoundLead.builder()
+                .id(11L)
+                .round(rounds.get(0))
+                .campaign(campaign)
+                .lead(testLeads.get(0))
+                .selectionStatus("SELECTED")
+                .deliveryStatus("PENDING")
+                .build();
+
+        when(roundLeadRepository.findByRoundIdAndSelectionStatus(rounds.get(0).getId(), "SELECTED"))
+                .thenReturn(Collections.singletonList(rl1));
+
+        when(whatsAppDispatchService.sendCampaignMessage(anyString(), anyString(), any(), anyString(), anyString()))
+                .thenReturn(WhatsAppSendResult.builder()
+                        .success(true)
+                        .providerMessageId("wamid.test_round1")
+                        .status("SUBMITTED")
+                        .build());
+
+        when(messageRepository.save(any(LeadFollowUpMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalTime morning = LocalTime.of(10, 30);
+
+        FollowUpRoundSendRequestDTO sendRequest = FollowUpRoundSendRequestDTO.builder()
+                .nextRoundPlannedDate(tomorrow)
+                .nextRoundPlannedTime(morning)
+                .nextRoundSendMode("MANUAL")
+                .nextRoundSubject("Follow-up Round 2 Discussion")
+                .nextRoundMessageBody("Hello {{name}}, following up on our previous offer.")
+                .build();
+
+        FollowUpDispatchResultDTO result = dispatchService.dispatchRound(100L, 1, sendRequest, "admin@bentork.com");
+
+        assertNotNull(result);
+        assertEquals("COMPLETED", result.getStatus());
+        assertEquals(2, result.getNextRoundUnlocked());
+        assertEquals(tomorrow, result.getNextRoundPlannedDate());
+        assertEquals(morning, result.getNextRoundPlannedTime());
+        assertEquals("SCHEDULED", result.getNextRoundStatus());
+
+        // Verify Round 2 was updated with schedule
+        LeadFollowUpRound round2 = rounds.get(1);
+        assertEquals(tomorrow, round2.getPlannedDate());
+        assertEquals(morning, round2.getPlannedTime());
+        assertEquals("SCHEDULED", round2.getStatus());
+        assertEquals("MANUAL", round2.getSendMode());
+        assertEquals("Follow-up Round 2 Discussion", round2.getSubject());
+        verify(roundRepository, atLeastOnce()).save(round2);
+    }
+
+    @Test
+    @DisplayName("12. Reject next round scheduling when past date or final round")
+    void testRejectInvalidNextRoundSchedule() {
+        when(campaignRepository.findById(100L)).thenReturn(Optional.of(campaign));
+        when(roundRepository.findByCampaignIdAndRoundNumber(100L, 1)).thenReturn(Optional.of(rounds.get(0)));
+
+        rounds.get(0).setSelectedLeadCount(1);
+        rounds.get(0).setMessageBody("Message body");
+
+        // Past date
+        FollowUpRoundSendRequestDTO pastRequest = FollowUpRoundSendRequestDTO.builder()
+                .nextRoundPlannedDate(LocalDate.now().minusDays(1))
+                .build();
+
+        IllegalArgumentException exPast = assertThrows(IllegalArgumentException.class, () ->
+                dispatchService.dispatchRound(100L, 1, pastRequest, "admin@bentork.com"));
+        assertTrue(exPast.getMessage().contains("cannot be in the past"));
+
+        // Round 5 is final round (5/5)
+        when(roundRepository.findByCampaignIdAndRoundNumber(100L, 5)).thenReturn(Optional.of(rounds.get(4)));
+        rounds.get(3).setStatus("COMPLETED"); // parent round must be completed
+        rounds.get(4).setSelectedLeadCount(1);
+        rounds.get(4).setMessageBody("Final message body");
+
+        FollowUpRoundSendRequestDTO finalRoundRequest = FollowUpRoundSendRequestDTO.builder()
+                .nextRoundPlannedDate(LocalDate.now().plusDays(2))
+                .build();
+
+        IllegalArgumentException exFinal = assertThrows(IllegalArgumentException.class, () ->
+                dispatchService.dispatchRound(100L, 5, finalRoundRequest, "admin@bentork.com"));
+        assertTrue(exFinal.getMessage().contains("final round"));
+    }
+
+    @Test
+    @DisplayName("13. Explicitly schedule round date, time, and send mode")
+    void testExplicitScheduleRound() {
+        when(campaignRepository.findById(100L)).thenReturn(Optional.of(campaign));
+        when(roundRepository.findByCampaignIdAndRoundNumber(100L, 2)).thenReturn(Optional.of(rounds.get(1)));
+        when(roundRepository.save(any(LeadFollowUpRound.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LocalDate nextWeek = LocalDate.now().plusDays(7);
+        LocalTime time = LocalTime.of(14, 0);
+
+        FollowUpRoundScheduleDTO dto = FollowUpRoundScheduleDTO.builder()
+                .plannedDate(nextWeek)
+                .plannedTime(time)
+                .sendMode("AUTOMATIC")
+                .subject("Automated Round 2")
+                .messageBody("Round 2 message")
+                .build();
+
+        FollowUpRoundResponse resp = dispatchService.scheduleRound(100L, 2, dto, "admin@bentork.com");
+
+        assertNotNull(resp);
+        assertEquals("SCHEDULED", resp.getStatus());
+        assertEquals(nextWeek, resp.getPlannedDate());
+        assertEquals(time, resp.getPlannedTime());
+        assertEquals("AUTOMATIC", resp.getSendMode());
+        assertFalse(resp.getIsFinalRound());
+        assertEquals(3, resp.getNextRoundNumber());
     }
 }
 

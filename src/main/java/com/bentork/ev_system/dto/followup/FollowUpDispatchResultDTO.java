@@ -1,6 +1,8 @@
 package com.bentork.ev_system.dto.followup;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +27,9 @@ public class FollowUpDispatchResultDTO {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private Integer nextRoundUnlocked;
+    private LocalDate nextRoundPlannedDate;
+    private LocalTime nextRoundPlannedTime;
+    private String nextRoundStatus;
     private String message;
 }
 

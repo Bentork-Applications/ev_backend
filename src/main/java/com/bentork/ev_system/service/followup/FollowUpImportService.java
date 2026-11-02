@@ -294,7 +294,9 @@ public class FollowUpImportService {
 
         List<FollowUpRoundResponse> roundResponses = new ArrayList<>();
         if (rounds != null) {
+            int total = (campaign.getTotalRounds() != null) ? campaign.getTotalRounds() : 5;
             for (LeadFollowUpRound r : rounds) {
+                boolean isFinal = r.getRoundNumber() >= total;
                 roundResponses.add(FollowUpRoundResponse.builder()
                         .id(r.getId())
                         .campaignId(campaign.getId())
@@ -303,6 +305,10 @@ public class FollowUpImportService {
                         .channel(r.getChannel())
                         .subject(r.getSubject())
                         .messageBody(r.getMessageBody())
+                        .plannedDate(r.getPlannedDate())
+                        .plannedTime(r.getPlannedTime())
+                        .timezone(r.getTimezone())
+                        .sendMode(r.getSendMode())
                         .status(r.getStatus())
                         .selectedLeadCount(r.getSelectedLeadCount())
                         .sentCount(r.getSentCount())
@@ -311,6 +317,8 @@ public class FollowUpImportService {
                         .startedAt(r.getStartedAt())
                         .completedAt(r.getCompletedAt())
                         .lastTriggeredByEmail(r.getLastTriggeredByEmail())
+                        .isFinalRound(isFinal)
+                        .nextRoundNumber(isFinal ? null : (r.getRoundNumber() + 1))
                         .attachments(new ArrayList<>())
                         .build());
             }

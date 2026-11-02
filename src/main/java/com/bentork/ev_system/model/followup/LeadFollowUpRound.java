@@ -1,6 +1,8 @@
 package com.bentork.ev_system.model.followup;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,7 +32,8 @@ import lombok.Setter;
         @Index(name = "idx_fup_rnd_campaign", columnList = "campaign_id"),
         @Index(name = "idx_fup_rnd_parent", columnList = "parent_round_id"),
         @Index(name = "idx_fup_rnd_status", columnList = "status"),
-        @Index(name = "idx_fup_rnd_number", columnList = "campaign_id, roundNumber")
+        @Index(name = "idx_fup_rnd_number", columnList = "campaign_id, roundNumber"),
+        @Index(name = "idx_fup_rnd_schedule", columnList = "status, plannedDate")
 }, uniqueConstraints = {
         @UniqueConstraint(name = "uk_campaign_round_num", columnNames = {"campaign_id", "roundNumber"})
 })
@@ -65,9 +68,20 @@ public class LeadFollowUpRound {
     @Column(columnDefinition = "TEXT")
     private String messageBody; // Message body with placeholders
 
+    private LocalDate plannedDate;
+    private LocalTime plannedTime;
+
+    @Column(length = 50)
+    @Builder.Default
+    private String timezone = "Asia/Kolkata";
+
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String sendMode = "MANUAL"; // "MANUAL", "AUTOMATIC"
+
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private String status = "PENDING"; // "PENDING", "CONFIGURED", "IN_PROGRESS", "COMPLETED", "FAILED"
+    private String status = "PENDING"; // "PENDING", "CONFIGURED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "FAILED"
 
     @Column(nullable = false)
     @Builder.Default
@@ -106,6 +120,12 @@ public class LeadFollowUpRound {
         }
         if (this.channel == null) {
             this.channel = "WHATSAPP";
+        }
+        if (this.sendMode == null) {
+            this.sendMode = "MANUAL";
+        }
+        if (this.timezone == null) {
+            this.timezone = "Asia/Kolkata";
         }
     }
 
