@@ -23,6 +23,32 @@ jobs:
       - name: Build JAR
         run: |
           mvn clean package -DskipTests
+
+      - name: Prepare EC2 Environment (Permissions, Disk Space & Stop Service)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "--- Stopping service before deployment ---"
+            sudo systemctl stop ocpp.service 2>/dev/null || true
+
+            echo "--- Ensuring app directory exists and has correct ownership ---"
+            mkdir -p /home/ubuntu/app
+            sudo chown -R $USER:$USER /home/ubuntu/app
+            chmod -R 775 /home/ubuntu/app
+
+            echo "--- Cleaning up disk space and old artifacts ---"
+            rm -f /home/ubuntu/app/*.hprof
+            rm -f /home/ubuntu/app/*.jar.bak
+            rm -f /tmp/*.tar.gz
+            sudo journalctl --vacuum-size=50M 2>/dev/null || true
+            sudo apt-get clean 2>/dev/null || true
+
+            echo "--- Current Disk Space ---"
+            df -h /
+
       - name: Copy to EC2
         uses: appleboy/scp-action@master
         with:
@@ -32,6 +58,7 @@ jobs:
           source: "target/*.jar"
           target: "/home/ubuntu/app"
           strip_components: 1
+          overwrite: true
 
       - name: Set Environment Variables on EC2
         uses: appleboy/ssh-action@master
