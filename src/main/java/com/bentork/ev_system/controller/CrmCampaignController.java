@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.AddRecipientsDTO;
 import com.bentork.ev_system.dto.request.CreateCampaignDTO;
+import com.bentork.ev_system.dto.request.UpdateCampaignDTO;
 import com.bentork.ev_system.dto.request.UpdateCampaignStatusDTO;
 import com.bentork.ev_system.dto.response.CampaignResponse;
 import com.bentork.ev_system.service.CampaignService;
@@ -54,6 +55,25 @@ public class CrmCampaignController {
             return ResponseEntity.ok(campaignService.getCampaignById(id));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> updateCampaign(
+            @PathVariable Long id,
+            @RequestBody UpdateCampaignDTO dto) {
+        try {
+            return ResponseEntity.ok(campaignService.updateCampaign(id, dto, getCurrentUserEmail()));
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Failed to update campaign: " + e.getMessage());
         }
     }
 
@@ -120,6 +140,6 @@ public class CrmCampaignController {
 
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getName();
+        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
     }
 }

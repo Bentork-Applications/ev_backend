@@ -14,16 +14,21 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bentork.ev_system.dto.request.AddRecipientsDTO;
 import com.bentork.ev_system.dto.request.AudienceFilterDTO;
 import com.bentork.ev_system.dto.request.CreateCampaignDTO;
+import com.bentork.ev_system.dto.request.UpdateCampaignDTO;
 import com.bentork.ev_system.dto.response.AudienceSegmentResponse;
 import com.bentork.ev_system.dto.response.CampaignDispatchResultDTO;
 import com.bentork.ev_system.dto.response.CampaignRecipientResponse;
 import com.bentork.ev_system.dto.response.CampaignResponse;
 import com.bentork.ev_system.dto.response.PagedResponse;
+import com.bentork.ev_system.enums.CampaignAuditAction;
+import com.bentork.ev_system.enums.CampaignStatus;
+import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.model.AudienceSegment;
 import com.bentork.ev_system.model.Campaign;
 import com.bentork.ev_system.model.CampaignRecipient;
 import com.bentork.ev_system.model.SalesCompany;
 import com.bentork.ev_system.model.SalesContact;
+import com.bentork.ev_system.repository.AdminRepository;
 import com.bentork.ev_system.repository.AudienceSegmentRepository;
 import com.bentork.ev_system.repository.CampaignRecipientRepository;
 import com.bentork.ev_system.repository.CampaignRepository;
@@ -47,6 +52,8 @@ public class CampaignService {
     private final AudienceService audienceService;
     private final EmailDispatchService emailDispatchService;
     private final WhatsAppDispatchService whatsAppDispatchService;
+    private final AdminRepository adminRepository;
+    private final CampaignAuditService auditService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ==================== CRUD & LIFECYCLE ====================
@@ -60,7 +67,21 @@ public class CampaignService {
         campaign.setSubject(dto.getSubject());
         campaign.setMessageBody(dto.getMessageBody() != null ? dto.getMessageBody() : dto.getDescription());
         campaign.setDescription(dto.getDescription());
+        campaign.setObjective(dto.getObjective());
         campaign.setScheduledDate(dto.getScheduledDate());
+        campaign.setStartDate(dto.getStartDate());
+        campaign.setEndDate(dto.getEndDate());
+        if (dto.getTimezone() != null && !dto.getTimezone().trim().isEmpty()) {
+            campaign.setTimezone(dto.getTimezone().trim());
+        }
+        if (dto.getSendMode() != null && !dto.getSendMode().trim().isEmpty()) {
+            campaign.setSendMode(dto.getSendMode().toUpperCase().trim());
+        }
+        if (dto.getOwnerAdminId() != null) {
+            adminRepository.findById(dto.getOwnerAdminId()).ifPresent(campaign::setOwnerAdmin);
+        } else if (adminEmail != null) {
+            adminRepository.findByEmail(adminEmail).ifPresent(campaign::setOwnerAdmin);
+        }
         campaign.setTargetAudienceSegmentId(dto.getTargetAudienceSegmentId());
         campaign.setCreatedByAdminEmail(adminEmail);
         campaign.setStatus(dto.getScheduledDate() != null ? "SCHEDULED" : "DRAFT");
@@ -76,6 +97,13 @@ public class CampaignService {
                 log.warn("Campaign {} created, but failed to auto-attach segment {}: {}",
                         saved.getId(), dto.getTargetAudienceSegmentId(), e.getMessage());
             }
+        }
+
+        try {
+            auditService.logCampaign(saved.getId(), CampaignAuditAction.CAMPAIGN_CREATED.getValue(),
+                    "Campaign created with name: " + saved.getName(), adminEmail);
+        } catch (Exception e) {
+            log.warn("Failed to log audit for campaign {}: {}", saved.getId(), e.getMessage());
         }
 
         log.info("Campaign '{}' (ID: {}) created by {} with channel {}", saved.getName(), saved.getId(), adminEmail, saved.getChannel());
@@ -101,6 +129,84 @@ public class CampaignService {
 
         campaign.setStatus(status.toUpperCase().trim());
         Campaign updated = campaignRepository.save(campaign);
+        return mapToResponse(updated);
+    }
+
+    @Transactional
+    public CampaignResponse updateCampaign(Long id, UpdateCampaignDTO dto, String adminEmail) {
+        Campaign campaign = campaignRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Campaign not found with id: " + id));
+
+        if (CampaignStatus.COMPLETED.getValue().equalsIgnoreCase(campaign.getStatus())
+                || CampaignStatus.CANCELLED.getValue().equalsIgnoreCase(campaign.getStatus())) {
+            throw new IllegalStateException("Cannot modify a " + campaign.getStatus() + " campaign");
+        }
+
+        if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
+            campaign.setName(dto.getName().trim());
+        }
+        if (dto.getType() != null && !dto.getType().trim().isEmpty()) {
+            campaign.setType(dto.getType().trim());
+        }
+        if (dto.getChannel() != null && !dto.getChannel().trim().isEmpty()) {
+            campaign.setChannel(dto.getChannel().toUpperCase().trim());
+        }
+        if (dto.getSubject() != null) {
+            campaign.setSubject(dto.getSubject());
+        }
+        if (dto.getMessageBody() != null) {
+            campaign.setMessageBody(dto.getMessageBody());
+        }
+        if (dto.getDescription() != null) {
+            campaign.setDescription(dto.getDescription());
+        }
+        if (dto.getObjective() != null) {
+            campaign.setObjective(dto.getObjective());
+        }
+        if (dto.getScheduledDate() != null) {
+            campaign.setScheduledDate(dto.getScheduledDate());
+        }
+        if (dto.getStartDate() != null) {
+            campaign.setStartDate(dto.getStartDate());
+        }
+        if (dto.getEndDate() != null) {
+            campaign.setEndDate(dto.getEndDate());
+        }
+        if (dto.getTimezone() != null && !dto.getTimezone().trim().isEmpty()) {
+            campaign.setTimezone(dto.getTimezone().trim());
+        }
+        if (dto.getSendMode() != null && !dto.getSendMode().trim().isEmpty()) {
+            campaign.setSendMode(dto.getSendMode().toUpperCase().trim());
+        }
+        if (dto.getStatus() != null && !dto.getStatus().trim().isEmpty()) {
+            campaign.setStatus(dto.getStatus().toUpperCase().trim());
+        }
+        if (dto.getOwnerAdminId() != null) {
+            adminRepository.findById(dto.getOwnerAdminId()).ifPresent(campaign::setOwnerAdmin);
+        }
+
+        // If target audience segment changed, re-sync recipients
+        if (dto.getTargetAudienceSegmentId() != null
+                && !dto.getTargetAudienceSegmentId().equals(campaign.getTargetAudienceSegmentId())) {
+            campaign.setTargetAudienceSegmentId(dto.getTargetAudienceSegmentId());
+            try {
+                addRecipientsFromSegment(campaign.getId(), dto.getTargetAudienceSegmentId());
+            } catch (Exception e) {
+                log.warn("Campaign {} updated, but failed to auto-attach segment {}: {}",
+                        campaign.getId(), dto.getTargetAudienceSegmentId(), e.getMessage());
+            }
+        }
+
+        Campaign updated = campaignRepository.save(campaign);
+
+        try {
+            auditService.logCampaign(id, CampaignAuditAction.CAMPAIGN_UPDATED.getValue(),
+                    "Campaign details updated via PUT /api/crm/campaigns/" + id, adminEmail);
+        } catch (Exception e) {
+            log.warn("Failed to log audit for campaign {}: {}", id, e.getMessage());
+        }
+
+        log.info("Campaign '{}' (ID: {}) updated by {}", updated.getName(), updated.getId(), adminEmail);
         return mapToResponse(updated);
     }
 
@@ -334,12 +440,34 @@ public class CampaignService {
         response.setMessageBody(campaign.getMessageBody());
         response.setTargetAudienceSegmentId(campaign.getTargetAudienceSegmentId());
         response.setDescription(campaign.getDescription());
+        response.setObjective(campaign.getObjective());
         response.setScheduledDate(campaign.getScheduledDate());
+        response.setStartDate(campaign.getStartDate());
+        response.setEndDate(campaign.getEndDate());
+        response.setTimezone(campaign.getTimezone());
+        response.setSendMode(campaign.getSendMode());
         response.setStatus(campaign.getStatus());
+
+        if (campaign.getOwnerAdmin() != null) {
+            response.setOwnerAdminId(campaign.getOwnerAdmin().getId());
+            response.setOwnerAdminName(campaign.getOwnerAdmin().getName());
+            response.setOwnerAdminEmail(campaign.getOwnerAdmin().getEmail());
+        }
+
+        response.setTotalRounds(campaign.getTotalRounds());
+        response.setCompletedRounds(campaign.getCompletedRounds());
         response.setTotalRecipients(campaign.getTotalRecipients());
         response.setSentCount(campaign.getSentCount());
+        response.setDeliveredCount(campaign.getDeliveredCount());
+        response.setReadCount(campaign.getReadCount());
         response.setOpenedCount(campaign.getOpenedCount());
         response.setRespondedCount(campaign.getRespondedCount());
+        response.setFailedCount(campaign.getFailedCount());
+
+        response.setPauseReason(campaign.getPauseReason());
+        response.setPausedAt(campaign.getPausedAt());
+        response.setPausedByAdminEmail(campaign.getPausedByAdminEmail());
+
         response.setCreatedByAdminEmail(campaign.getCreatedByAdminEmail());
         response.setCreatedAt(campaign.getCreatedAt());
         response.setUpdatedAt(campaign.getUpdatedAt());
