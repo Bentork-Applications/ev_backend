@@ -2,16 +2,28 @@ package com.bentork.ev_system.dto.request;
 
 import java.util.List;
 
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class BulkLeadAssignDTO {
 
-    @NotEmpty(message = "At least one lead ID is required")
+    @JsonAlias({"ids", "selectedLeadIds", "leads", "leadIdList"})
     private List<Long> leadIds;
 
-    @NotNull(message = "Target owner admin ID is required")
+    @JsonAlias({"ownerId", "adminId", "assignedTo", "ownerAdminId", "targetAdminId"})
     private Long targetOwnerAdminId;
+
+    public Long getEffectiveTargetOwnerAdminId() {
+        return targetOwnerAdminId;
+    }
 }

@@ -2,6 +2,9 @@ package com.bentork.ev_system.dto.response;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.bentork.ev_system.dto.request.CampaignRoundDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -41,6 +44,8 @@ public class CampaignResponse {
     private Integer openedCount;
     private Integer respondedCount;
     private Integer failedCount;
+
+    private List<CampaignRoundDTO> rounds;
 
     private String pauseReason;
     private LocalDateTime pausedAt;

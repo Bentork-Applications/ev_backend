@@ -3,12 +3,16 @@ package com.bentork.ev_system.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bentork.ev_system.dto.request.CreateContactDTO;
 import com.bentork.ev_system.dto.request.UpdateContactDTO;
 import com.bentork.ev_system.dto.response.ContactResponse;
+import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.model.SalesCompany;
 import com.bentork.ev_system.model.SalesContact;
 import com.bentork.ev_system.repository.ActivityRepository;
@@ -76,6 +80,15 @@ public class SalesContactService {
         return contactRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    public PagedResponse<ContactResponse> getAllContactsPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SalesContact> contactPage = contactRepository.findAllByOrderByCreatedAtDesc(pageable);
+        List<ContactResponse> content = contactPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        return PagedResponse.of(content, page, size, contactPage.getTotalElements(), contactPage.getTotalPages(), contactPage.isLast());
     }
 
     public ContactResponse searchByPhone(String phone) {

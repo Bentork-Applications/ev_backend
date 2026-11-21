@@ -310,14 +310,34 @@ public class ActivityService {
         Activity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new IllegalArgumentException("Activity not found with ID: " + activityId));
 
-        if (dto.getNewFollowUpDate() == null || dto.getNewFollowUpDate().trim().isEmpty()) {
+        if (dto == null || dto.getEffectiveFollowUpDate() == null || dto.getEffectiveFollowUpDate().trim().isEmpty()) {
             throw new IllegalArgumentException("New follow-up date is required");
         }
 
-        LocalDate newDate = LocalDate.parse(dto.getNewFollowUpDate().trim());
+        String rawDate = dto.getEffectiveFollowUpDate().trim();
+        String rawTime = dto.getEffectiveFollowUpTime() != null ? dto.getEffectiveFollowUpTime().trim() : null;
+
+        if (rawDate.contains("T")) {
+            String[] parts = rawDate.split("T");
+            rawDate = parts[0];
+            if ((rawTime == null || rawTime.isEmpty()) && parts.length > 1) {
+                rawTime = parts[1].replace("Z", "");
+                if (rawTime.contains(".")) {
+                    rawTime = rawTime.substring(0, rawTime.indexOf("."));
+                }
+            }
+        }
+
+        LocalDate newDate = LocalDate.parse(rawDate);
         LocalTime newTime = null;
-        if (dto.getNewFollowUpTime() != null && !dto.getNewFollowUpTime().trim().isEmpty()) {
-            newTime = LocalTime.parse(dto.getNewFollowUpTime().trim());
+        if (rawTime != null && !rawTime.isEmpty()) {
+            if (rawTime.length() > 8) {
+                rawTime = rawTime.substring(0, 8);
+            }
+            if (rawTime.length() == 5) {
+                rawTime = rawTime + ":00";
+            }
+            newTime = LocalTime.parse(rawTime);
         }
 
         activity.setFollowUpDate(newDate);
@@ -328,7 +348,7 @@ public class ActivityService {
         // Append reschedule reason to notes
         String auditNote = "[Rescheduled on " + LocalDate.now() + " to " + newDate
                 + (newTime != null ? " " + newTime : "")
-                + (dto.getReason() != null && !dto.getReason().trim().isEmpty() ? " - Reason: " + dto.getReason().trim() : "")
+                + (dto.getEffectiveReason() != null && !dto.getEffectiveReason().trim().isEmpty() ? " - Reason: " + dto.getEffectiveReason().trim() : "")
                 + " by " + adminEmail + "]";
 
         activity.setNotes(activity.getNotes() != null && !activity.getNotes().isEmpty()
@@ -380,6 +400,12 @@ public class ActivityService {
         Activity saved = activityRepository.save(activity);
         log.info("Activity {} marked as completed by {}", activityId, adminEmail);
         return mapToResponse(saved);
+    }
+
+    public ActivityResponse getActivityById(Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new IllegalArgumentException("Activity not found with ID: " + activityId));
+        return mapToResponse(activity);
     }
 
     @Transactional

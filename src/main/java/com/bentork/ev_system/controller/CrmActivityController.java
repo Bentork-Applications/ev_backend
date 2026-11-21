@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,7 +40,7 @@ public class CrmActivityController {
     private final ActivityService activityService;
     private final AdminRepository adminRepository;
 
-    @PostMapping("/log")
+    @PostMapping({"", "/log", "/create"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> logActivity(@RequestBody LogActivityDTO dto) {
         try {
@@ -52,31 +53,44 @@ public class CrmActivityController {
 
     /**
      * Paginated and filterable query for all activities across the system.
-     * Useful for the main Activities table on the Activities & Follow-up page.
+     * Supports /all, /list, and root path /api/crm/activities.
      */
-    @GetMapping("/all")
+    @GetMapping({"", "/all", "/list"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<PagedResponse<ActivityResponse>> getAllActivities(
+    public ResponseEntity<?> getAllActivities(
             @RequestParam(required = false) String activityType,
+            @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String callOutcome,
+            @RequestParam(required = false) String outcome,
             @RequestParam(required = false) Long adminId,
             @RequestParam(required = false) Boolean myOnly,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "activityDate") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir) {
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) Boolean paged) {
+
+        String effectiveType = activityType != null ? activityType : type;
+        String effectiveOutcome = callOutcome != null ? callOutcome : outcome;
+        String effectiveSearch = search != null ? search : query;
 
         Long effectiveAdminId = adminId;
         if (Boolean.TRUE.equals(myOnly)) {
             effectiveAdminId = getCurrentAdminId();
         }
 
-        return ResponseEntity.ok(activityService.getAllActivitiesPaged(
-                activityType, status, callOutcome, effectiveAdminId, startDate, endDate, search, page, size, sortBy, sortDir));
+        PagedResponse<ActivityResponse> result = activityService.getAllActivitiesPaged(
+                effectiveType, status, effectiveOutcome, effectiveAdminId, startDate, endDate, effectiveSearch, page, size, sortBy, sortDir);
+
+        if (Boolean.FALSE.equals(paged)) {
+            return ResponseEntity.ok(result.getContent());
+        }
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -87,21 +101,28 @@ public class CrmActivityController {
      * - "completed": follow-ups that have been completed
      * - "all": all activities that have a follow-up date
      */
-    @GetMapping("/follow-ups")
+    @GetMapping({"/follow-ups", "/followups", "/follow-up", "/followup"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<PagedResponse<ActivityResponse>> getFollowUps(
+    public ResponseEntity<?> getFollowUps(
             @RequestParam(defaultValue = "all") String bucket,
+            @RequestParam(required = false) String filter,
             @RequestParam(required = false) Long adminId,
             @RequestParam(required = false) Boolean myOnly,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean paged) {
 
+        String effectiveBucket = (bucket != null && !bucket.equals("all")) ? bucket : (filter != null ? filter : "all");
         Long effectiveAdminId = adminId;
         if (Boolean.TRUE.equals(myOnly)) {
             effectiveAdminId = getCurrentAdminId();
         }
 
-        return ResponseEntity.ok(activityService.getFollowUpsPaged(bucket, effectiveAdminId, page, size));
+        PagedResponse<ActivityResponse> result = activityService.getFollowUpsPaged(effectiveBucket, effectiveAdminId, page, size);
+        if (Boolean.FALSE.equals(paged)) {
+            return ResponseEntity.ok(result.getContent());
+        }
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -111,7 +132,7 @@ public class CrmActivityController {
      * - Today's meetings
      * - Follow-ups count by bucket: overdue, today, upcoming, completed
      */
-    @GetMapping("/summary")
+    @GetMapping({"/summary", "/stats", "/overview"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<ActivityOverviewStatsDTO> getActivitySummary(
             @RequestParam(required = false) Long adminId,
@@ -127,9 +148,9 @@ public class CrmActivityController {
 
     /**
      * Reschedule an existing follow-up with a new date and optional time.
-     * Updates audit notes and synchronizes with any associated Lead.
+     * Supports both PUT and POST methods.
      */
-    @PutMapping("/{id}/reschedule")
+    @RequestMapping(value = {"/{id:[0-9]+}/reschedule", "/reschedule/{id:[0-9]+}"}, method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> rescheduleActivity(
             @PathVariable Long id,
@@ -143,8 +164,9 @@ public class CrmActivityController {
 
     /**
      * Mark an activity as completed. Can accept optional completion notes and outcome in the body.
+     * Supports both PUT and POST methods.
      */
-    @PutMapping("/{id}/complete")
+    @RequestMapping(value = {"/{id:[0-9]+}/complete", "/complete/{id:[0-9]+}"}, method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> completeActivity(
             @PathVariable Long id,
@@ -159,13 +181,13 @@ public class CrmActivityController {
     /**
      * Update the status of an activity. Valid statuses: "pending", "completed".
      */
-    @PutMapping("/{id}/status")
+    @RequestMapping(value = {"/{id:[0-9]+}/status", "/status/{id:[0-9]+}"}, method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateActivityStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         try {
-            String status = body.get("status");
+            String status = body != null ? body.get("status") : null;
             if (status == null || status.isEmpty()) {
                 return ResponseEntity.badRequest().body("Status is required");
             }
@@ -175,19 +197,29 @@ public class CrmActivityController {
         }
     }
 
-    @GetMapping("/lead/{leadId}")
+    @GetMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getActivityById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(activityService.getActivityById(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/lead/{leadId:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<ActivityResponse>> getActivitiesForLead(@PathVariable Long leadId) {
         return ResponseEntity.ok(activityService.getActivitiesForLead(leadId));
     }
 
-    @GetMapping("/company/{companyId}")
+    @GetMapping("/company/{companyId:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<ActivityResponse>> getActivitiesForCompany(@PathVariable Long companyId) {
         return ResponseEntity.ok(activityService.getActivitiesForCompany(companyId));
     }
 
-    @GetMapping("/opportunity/{opportunityId}")
+    @GetMapping("/opportunity/{opportunityId:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<ActivityResponse>> getActivitiesForOpportunity(@PathVariable Long opportunityId) {
         return ResponseEntity.ok(activityService.getActivitiesForOpportunity(opportunityId));
@@ -210,4 +242,3 @@ public class CrmActivityController {
         return admin.getId();
     }
 }
-

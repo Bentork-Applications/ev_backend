@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.CreateQuotationDTO;
@@ -30,7 +31,7 @@ public class CrmQuotationController {
 
     private final QuotationService quotationService;
 
-    @PostMapping("/create")
+    @PostMapping({"", "/create"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createQuotation(@RequestBody CreateQuotationDTO dto) {
         try {
@@ -41,19 +42,23 @@ public class CrmQuotationController {
         }
     }
 
-    @GetMapping("/all")
+    /**
+     * Get all quotations across opportunities and companies.
+     * Supports both paginated and flat list modes.
+     */
+    @GetMapping({"", "/all", "/list"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getAllQuotations(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size,
-            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean paged) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean paged) {
         if (Boolean.TRUE.equals(paged)) {
             return ResponseEntity.ok(quotationService.getAllQuotationsPaged(page, size));
         }
         return ResponseEntity.ok(quotationService.getAllQuotations());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getQuotation(@PathVariable Long id) {
         try {
@@ -63,7 +68,7 @@ public class CrmQuotationController {
         }
     }
 
-    @PutMapping("/{id}/send")
+    @PutMapping("/{id:[0-9]+}/send")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> markAsSent(@PathVariable Long id) {
         try {
@@ -73,7 +78,7 @@ public class CrmQuotationController {
         }
     }
 
-    @PutMapping("/{id}/accept")
+    @PutMapping("/{id:[0-9]+}/accept")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> markAsAccepted(@PathVariable Long id) {
         try {
@@ -83,7 +88,7 @@ public class CrmQuotationController {
         }
     }
 
-    @PutMapping("/{id}/reject")
+    @PutMapping("/{id:[0-9]+}/reject")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> markAsRejected(@PathVariable Long id) {
         try {
@@ -93,13 +98,19 @@ public class CrmQuotationController {
         }
     }
 
-    @GetMapping("/opportunity/{opportunityId}")
+    @GetMapping("/opportunity/{opportunityId:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<QuotationResponse>> getQuotationsForOpportunity(@PathVariable Long opportunityId) {
         return ResponseEntity.ok(quotationService.getQuotationsForOpportunity(opportunityId));
     }
 
-    @PostMapping("/{id}/convert-to-order")
+    @GetMapping("/company/{companyId:[0-9]+}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<QuotationResponse>> getQuotationsForCompany(@PathVariable Long companyId) {
+        return ResponseEntity.ok(quotationService.getQuotationsForCompany(companyId));
+    }
+
+    @PostMapping("/{id:[0-9]+}/convert-to-order")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> convertToOrder(@PathVariable Long id) {
         try {

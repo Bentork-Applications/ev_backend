@@ -311,19 +311,25 @@ public class LeadService {
                         continue;
                     }
 
-                    String title = getColumnValue(headers, values, "title");
-                    String source = getColumnValue(headers, values, "source");
-                    String city = getColumnValue(headers, values, "city");
-                    String state = getColumnValue(headers, values, "state");
-                    String estimatedValueStr = getColumnValue(headers, values, "estimatedvalue");
-                    String notes = getColumnValue(headers, values, "notes");
-                    String contactName = getColumnValue(headers, values, "contactname");
-                    String contactPhone = getColumnValue(headers, values, "contactphone");
-                    String contactEmail = getColumnValue(headers, values, "contactemail");
-                    String companyName = getColumnValue(headers, values, "companyname");
+                    String title = getColumnValue(headers, values, "title", "leadtitle", "leadname", "name", "subject");
+                    String source = getColumnValue(headers, values, "source", "leadsource", "channel", "leadchannel");
+                    String city = getColumnValue(headers, values, "city", "location", "town");
+                    String state = getColumnValue(headers, values, "state", "province", "region");
+                    String estimatedValueStr = getColumnValue(headers, values, "estimatedvalue", "value", "dealvalue", "amount", "budget");
+                    String notes = getColumnValue(headers, values, "notes", "note", "remarks", "remark", "comment", "description");
+                    String contactName = getColumnValue(headers, values, "contactname", "name", "contact", "person", "fullname", "customername");
+                    String contactPhone = getColumnValue(headers, values, "contactphone", "phone", "mobile", "phonenumber", "mobilenumber", "contactnumber", "contactno", "tel");
+                    String contactEmail = getColumnValue(headers, values, "contactemail", "email", "emailaddress", "mail");
+                    String companyName = getColumnValue(headers, values, "companyname", "company", "organization", "org", "firm", "businessname", "account");
 
                     if (title == null || title.isEmpty()) {
-                        title = "Imported Lead #" + rowNum;
+                        if (contactName != null && !contactName.isEmpty()) {
+                            title = contactName + (companyName != null ? " - " + companyName : "");
+                        } else if (companyName != null && !companyName.isEmpty()) {
+                            title = companyName + " Lead";
+                        } else {
+                            title = "Imported Lead #" + rowNum;
+                        }
                     }
 
                     // Create or find company
@@ -491,13 +497,16 @@ public class LeadService {
     }
 
     /**
-     * Get a column value by header name (case-insensitive).
+     * Get a column value by header name or any of its alias names (case and punctuation insensitive).
      */
-    private String getColumnValue(String[] headers, String[] values, String headerName) {
+    private String getColumnValue(String[] headers, String[] values, String... aliasNames) {
         for (int i = 0; i < headers.length; i++) {
-            if (headers[i].trim().toLowerCase().replace("_", "").replace(" ", "")
-                    .equals(headerName.toLowerCase().replace("_", "").replace(" ", ""))) {
-                return i < values.length ? values[i].trim() : null;
+            String normalizedHeader = headers[i].trim().toLowerCase().replaceAll("[^a-z0-9]", "");
+            for (String alias : aliasNames) {
+                String normalizedAlias = alias.trim().toLowerCase().replaceAll("[^a-z0-9]", "");
+                if (normalizedHeader.equals(normalizedAlias)) {
+                    return i < values.length ? values[i].trim() : null;
+                }
             }
         }
         return null;

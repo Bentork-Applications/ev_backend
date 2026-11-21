@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -112,5 +113,60 @@ class CrmCampaignControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/crm/campaigns/{id} should update campaign with 5 sequential follow-up rounds")
+    void testUpdateCampaign_WithFiveRounds() throws Exception {
+        java.util.List<com.bentork.ev_system.dto.request.CampaignRoundDTO> rounds = new java.util.ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            rounds.add(com.bentork.ev_system.dto.request.CampaignRoundDTO.builder()
+                    .roundNumber(i)
+                    .channel("WHATSAPP")
+                    .subject("Round " + i + " Follow-up")
+                    .messageBody("Round " + i + " body content")
+                    .sendMode("MANUAL")
+                    .status("CONFIGURED")
+                    .build());
+        }
+
+        UpdateCampaignDTO dto = UpdateCampaignDTO.builder()
+                .name("5-Round Lead Outreach")
+                .type("FOLLOW_UP")
+                .channel("WHATSAPP")
+                .rounds(rounds)
+                .build();
+
+        CampaignResponse response = CampaignResponse.builder()
+                .id(10L)
+                .name("5-Round Lead Outreach")
+                .type("FOLLOW_UP")
+                .channel("WHATSAPP")
+                .totalRounds(5)
+                .rounds(rounds)
+                .build();
+
+        when(campaignService.updateCampaign(eq(10L), any(UpdateCampaignDTO.class), anyString())).thenReturn(response);
+
+        mockMvc.perform(put("/api/crm/campaigns/10")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10L))
+                .andExpect(jsonPath("$.name").value("5-Round Lead Outreach"))
+                .andExpect(jsonPath("$.totalRounds").value(5))
+                .andExpect(jsonPath("$.rounds.length()").value(5));
+    }
+
+    @Test
+    @DisplayName("GET /api/crm/campaigns/all should return all campaigns successfully")
+    void testGetAllCampaigns_AllEndpoint() throws Exception {
+        CampaignResponse c1 = CampaignResponse.builder().id(1L).name("C1").build();
+        CampaignResponse c2 = CampaignResponse.builder().id(2L).name("C2").build();
+        when(campaignService.getAllCampaigns()).thenReturn(java.util.List.of(c1, c2));
+
+        mockMvc.perform(get("/api/crm/campaigns/all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 }

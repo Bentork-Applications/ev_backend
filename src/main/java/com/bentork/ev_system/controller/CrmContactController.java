@@ -41,7 +41,47 @@ public class CrmContactController {
         }
     }
 
-    @GetMapping("/{id}")
+    /**
+     * Get all contacts across companies and standalone contacts.
+     * Supports pagination, company filter, and query search.
+     */
+    @GetMapping({"", "/all", "/list"})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> getAllContacts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Boolean paged,
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) String search) {
+        if (companyId != null) {
+            return ResponseEntity.ok(contactService.getContactsByCompany(companyId));
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            return ResponseEntity.ok(contactService.searchContacts(search.trim()));
+        }
+        if (Boolean.TRUE.equals(paged)) {
+            return ResponseEntity.ok(contactService.getAllContactsPaged(page, size));
+        }
+        return ResponseEntity.ok(contactService.getAllContacts());
+    }
+
+    @GetMapping("/company/{companyId:[0-9]+}")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<ContactResponse>> getContactsByCompany(@PathVariable Long companyId) {
+        return ResponseEntity.ok(contactService.getContactsByCompany(companyId));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> searchByPhone(@RequestParam String phone) {
+        ContactResponse contact = contactService.searchByPhone(phone);
+        if (contact == null) {
+            return ResponseEntity.ok(java.util.Collections.emptyMap());
+        }
+        return ResponseEntity.ok(contact);
+    }
+
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getContactById(@PathVariable Long id) {
         try {
@@ -51,7 +91,7 @@ public class CrmContactController {
         }
     }
 
-    @PutMapping({"/{id}", "/{id}/update", "/update/{id}"})
+    @PutMapping({"/{id:[0-9]+}", "/{id:[0-9]+}/update", "/update/{id:[0-9]+}"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateContact(@PathVariable Long id, @RequestBody UpdateContactDTO dto) {
         try {
@@ -64,7 +104,7 @@ public class CrmContactController {
         }
     }
 
-    @DeleteMapping({"/{id}", "/delete/{id}"})
+    @DeleteMapping({"/{id:[0-9]+}", "/delete/{id:[0-9]+}"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> deleteContact(@PathVariable Long id) {
         try {
@@ -73,28 +113,6 @@ public class CrmContactController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-    }
-
-    @GetMapping("/company/{companyId}")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<ContactResponse>> getContactsByCompany(@PathVariable Long companyId) {
-        return ResponseEntity.ok(contactService.getContactsByCompany(companyId));
-    }
-
-    @GetMapping({"", "/all"})
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<ContactResponse>> getAllContacts() {
-        return ResponseEntity.ok(contactService.getAllContacts());
-    }
-
-    @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> searchByPhone(@RequestParam String phone) {
-        ContactResponse contact = contactService.searchByPhone(phone);
-        if (contact == null) {
-            return ResponseEntity.ok(java.util.Collections.emptyMap());
-        }
-        return ResponseEntity.ok(contact);
     }
 
     private String getCurrentUserEmail() {

@@ -147,6 +147,10 @@ class CrmContactControllerTest {
         mockMvc.perform(get("/api/crm/contacts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+
+        mockMvc.perform(get("/api/crm/contacts/all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 }
 

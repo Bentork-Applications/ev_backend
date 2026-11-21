@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,11 +38,13 @@ import com.bentork.ev_system.dto.followup.FollowUpRoundResponse;
 import com.bentork.ev_system.dto.followup.FollowUpRoundScheduleDTO;
 import com.bentork.ev_system.dto.followup.FollowUpRoundSendRequestDTO;
 import com.bentork.ev_system.dto.followup.FollowUpSelectLeadsDTO;
+import com.bentork.ev_system.dto.request.UpdateCampaignDTO;
 import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.model.followup.LeadFollowUpCampaign;
 import com.bentork.ev_system.model.followup.LeadFollowUpRound;
 import com.bentork.ev_system.repository.followup.LeadFollowUpCampaignRepository;
 import com.bentork.ev_system.repository.followup.LeadFollowUpRoundRepository;
+import com.bentork.ev_system.service.CampaignService;
 import com.bentork.ev_system.service.followup.FollowUpAttachmentService;
 import com.bentork.ev_system.service.followup.FollowUpImportService;
 import com.bentork.ev_system.service.followup.FollowUpMessageDispatchService;
@@ -66,6 +69,7 @@ public class LeadFollowUpCampaignController {
     private final FollowUpAttachmentService attachmentService;
     private final LeadFollowUpCampaignRepository campaignRepository;
     private final LeadFollowUpRoundRepository roundRepository;
+    private final CampaignService campaignService;
 
     /**
      * 1. Single Excel/CSV file upload to initialize campaign and scaffold all 5 cascading rounds.
@@ -130,6 +134,29 @@ public class LeadFollowUpCampaignController {
                     return ResponseEntity.ok(importService.mapCampaignToResponse(c, c.getBatch(), rounds));
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("Campaign not found with ID: " + campaignId));
+    }
+
+    /**
+     * 3b. Update campaign details and 5 cascading rounds.
+     */
+    @RequestMapping(value = {"/campaigns/{campaignId}", "/campaigns/{campaignId}/update"}, method = {RequestMethod.PUT, RequestMethod.POST})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> updateFollowUpCampaign(
+            @PathVariable Long campaignId,
+            @RequestBody UpdateCampaignDTO dto) {
+        try {
+            return ResponseEntity.ok(campaignService.updateCampaign(campaignId, dto, getCurrentUserEmail()));
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to update follow-up campaign {}: {}", campaignId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to update campaign: " + e.getMessage());
+        }
     }
 
     /**

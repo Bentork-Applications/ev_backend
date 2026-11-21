@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bentork.ev_system.dto.request.AddRecipientsDTO;
@@ -31,7 +32,7 @@ public class CrmCampaignController {
 
     private final CampaignService campaignService;
 
-    @PostMapping
+    @PostMapping({"", "/create"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createCampaign(@RequestBody CreateCampaignDTO dto) {
         try {
@@ -42,13 +43,13 @@ public class CrmCampaignController {
         }
     }
 
-    @GetMapping
+    @GetMapping({"", "/all", "/list"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<List<CampaignResponse>> getAllCampaigns() {
         return ResponseEntity.ok(campaignService.getAllCampaigns());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getCampaignById(@PathVariable Long id) {
         try {
@@ -58,7 +59,7 @@ public class CrmCampaignController {
         }
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = {"/{id:[0-9]+}", "/{id:[0-9]+}/update", "/update/{id:[0-9]+}"}, method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateCampaign(
             @PathVariable Long id,
@@ -77,7 +78,7 @@ public class CrmCampaignController {
         }
     }
 
-    @PutMapping("/{id}/status")
+    @RequestMapping(value = {"/{id:[0-9]+}/status", "/status/{id:[0-9]+}"}, method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateCampaignStatus(
             @PathVariable Long id, 
@@ -89,7 +90,7 @@ public class CrmCampaignController {
         }
     }
 
-    @PostMapping("/{id}/recipients")
+    @PostMapping("/{id:[0-9]+}/recipients")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> addRecipients(
             @PathVariable Long id, 
@@ -101,7 +102,7 @@ public class CrmCampaignController {
         }
     }
 
-    @PostMapping("/{id}/add-from-segment/{segmentId}")
+    @PostMapping("/{id:[0-9]+}/add-from-segment/{segmentId:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> addRecipientsFromSegment(
             @PathVariable Long id,
@@ -113,7 +114,7 @@ public class CrmCampaignController {
         }
     }
 
-    @PostMapping("/{id}/send")
+    @PostMapping("/{id:[0-9]+}/send")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> sendCampaign(@PathVariable Long id) {
         try {
@@ -125,7 +126,7 @@ public class CrmCampaignController {
         }
     }
 
-    @GetMapping("/{id}/recipients")
+    @GetMapping("/{id:[0-9]+}/recipients")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getCampaignRecipients(
             @PathVariable Long id,
