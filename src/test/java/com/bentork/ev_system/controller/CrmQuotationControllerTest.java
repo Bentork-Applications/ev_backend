@@ -41,7 +41,7 @@ class CrmQuotationControllerTest {
     void testGetAllQuotations_All() throws Exception {
         QuotationResponse q1 = new QuotationResponse();
         q1.setId(1L);
-        q1.setQuotationNumber("QT-001");
+        q1.setQuoteNumber("QT-001");
 
         when(quotationService.getAllQuotations()).thenReturn(List.of(q1));
 
@@ -49,7 +49,7 @@ class CrmQuotationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].quotationNumber").value("QT-001"));
+                .andExpect(jsonPath("$[0].quoteNumber").value("QT-001"));
     }
 
     @Test
@@ -78,13 +78,13 @@ class CrmQuotationControllerTest {
     void testGetQuotationById() throws Exception {
         QuotationResponse q1 = new QuotationResponse();
         q1.setId(5L);
-        q1.setQuotationNumber("QT-005");
+        q1.setQuoteNumber("QT-005");
 
         when(quotationService.getQuotationById(5L)).thenReturn(q1);
 
         mockMvc.perform(get("/api/crm/quotations/5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(5L))
-                .andExpect(jsonPath("$.quotationNumber").value("QT-005"));
+                .andExpect(jsonPath("$.quoteNumber").value("QT-005"));
     }
 }
