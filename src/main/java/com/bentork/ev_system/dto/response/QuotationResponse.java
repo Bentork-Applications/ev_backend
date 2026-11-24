@@ -4,6 +4,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,7 +15,11 @@ import lombok.Setter;
 public class QuotationResponse {
 
     private Long id;
+
+    @JsonProperty("quoteNumber")
+    @JsonAlias({"quotationNumber", "quote_number"})
     private String quoteNumber;
+
     private Long opportunityId;
     private String opportunityTitle;
     private Long companyId;
@@ -28,6 +35,18 @@ public class QuotationResponse {
     private String createdByAdminEmail;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /**
+     * Compatibility alias methods for quotationNumber.
+     * Ensures both getQuoteNumber/setQuoteNumber and getQuotationNumber/setQuotationNumber compile.
+     */
+    public String getQuotationNumber() {
+        return this.quoteNumber;
+    }
+
+    public void setQuotationNumber(String quotationNumber) {
+        this.quoteNumber = quotationNumber;
+    }
 
     @Getter
     @Setter
