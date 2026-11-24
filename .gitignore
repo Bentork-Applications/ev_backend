@@ -41,3 +41,6 @@ Note.txt
 # Firebase credentials
 src/main/resources/firebase-service-account.json
 **/firebase-service-account.json
+
+# Documentation / Reference
+FRONTEND_API_WALKTHROUGH.md
