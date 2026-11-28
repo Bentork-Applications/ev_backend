@@ -7,7 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -204,22 +206,42 @@ public class CampaignImportService {
         List<CampaignMembership> createdMemberships = new ArrayList<>();
         int newLeadsCreated = 0;
         int existingLeadsLinked = 0;
+        Map<String, Lead> batchLeadsByPhone = new HashMap<>();
+        Map<String, Lead> batchLeadsByEmail = new HashMap<>();
 
         for (CampaignImportConfirmDTO.RowData row : dto.getRows()) {
             if (row.getName() == null || row.getPhone() == null) continue;
 
             String normalizedPhone = PhoneNormalizationUtil.normalize(row.getPhone());
             if (!PhoneNormalizationUtil.isValid(normalizedPhone)) continue;
+            String normalizedEmail = DuplicateMatchingService.normalizeEmail(row.getEmail());
 
-            // 1. Check duplicate matching (FR-05)
-            DuplicateMatchingService.MatchResult match = matchingService.matchByPhone(normalizedPhone);
-            Lead targetLead;
-
-            if (match.isMatched() && match.getMatchedLead() != null) {
-                // Link to existing lead without overwriting existing data (FR-07)
-                targetLead = match.getMatchedLead();
+            Lead targetLead = null;
+            if (batchLeadsByPhone.containsKey(normalizedPhone)) {
+                targetLead = batchLeadsByPhone.get(normalizedPhone);
                 existingLeadsLinked++;
-            } else {
+            } else if (normalizedEmail != null && batchLeadsByEmail.containsKey(normalizedEmail)) {
+                targetLead = batchLeadsByEmail.get(normalizedEmail);
+                existingLeadsLinked++;
+            }
+
+            // 1. Check duplicate matching by phone then email (FR-05)
+            if (targetLead == null) {
+                DuplicateMatchingService.MatchResult match = matchingService.matchByPhone(normalizedPhone);
+                if (match != null && match.isMatched() && match.getMatchedLead() != null) {
+                    targetLead = match.getMatchedLead();
+                    existingLeadsLinked++;
+                }
+            }
+            if (targetLead == null && normalizedEmail != null) {
+                DuplicateMatchingService.MatchResult emailMatch = matchingService.matchByEmail(normalizedEmail);
+                if (emailMatch != null && emailMatch.isMatched() && emailMatch.getMatchedLead() != null) {
+                    targetLead = emailMatch.getMatchedLead();
+                    existingLeadsLinked++;
+                }
+            }
+
+            if (targetLead == null) {
                 // Create new canonical CRM Lead (BR-01, FR-06)
                 targetLead = new Lead();
                 targetLead.setLeadNumber(generateLeadNumber());
@@ -227,7 +249,7 @@ public class CampaignImportService {
                 targetLead.setSource(LeadSource.WHATSAPP_CAMPAIGN.getValue());
                 targetLead.setStatus(LeadStatus.NEW.getValue());
                 targetLead.setPhone(normalizedPhone);
-                targetLead.setEmail(row.getEmail());
+                targetLead.setEmail(normalizedEmail);
                 targetLead.setCity(row.getCity());
                 targetLead.setState(row.getState());
                 targetLead.setEstimatedValue(row.getEstimatedValue());
@@ -237,6 +259,11 @@ public class CampaignImportService {
                 targetLead.setOwnerAdmin(defaultOwner);
                 targetLead = leadRepository.save(targetLead);
                 newLeadsCreated++;
+            }
+
+            batchLeadsByPhone.putIfAbsent(normalizedPhone, targetLead);
+            if (normalizedEmail != null) {
+                batchLeadsByEmail.putIfAbsent(normalizedEmail, targetLead);
             }
 
             // 2. Prevent duplicate membership in this campaign (BR-02)

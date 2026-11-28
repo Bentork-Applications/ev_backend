@@ -1,9 +1,13 @@
 package com.bentork.ev_system.controller;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,10 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
+import com.bentork.ev_system.dto.request.AdminLostActionDTO;
 import com.bentork.ev_system.dto.request.CombinedCallLeadDTO;
 import com.bentork.ev_system.dto.request.CreateLeadDTO;
+import com.bentork.ev_system.dto.request.LostRequestDTO;
 import com.bentork.ev_system.dto.request.UpdateLeadStatusDTO;
 import com.bentork.ev_system.dto.response.LeadResponse;
+import com.bentork.ev_system.exception.DuplicateLeadException;
+import com.bentork.ev_system.exception.GlobalExceptionHandler;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.repository.AdminRepository;
 import com.bentork.ev_system.service.LeadService;
@@ -42,12 +50,19 @@ public class CrmLeadController {
     private final OpportunityService opportunityService;
     private final AdminRepository adminRepository;
 
-    @PostMapping("/create")
+    @PostMapping({"", "/create"})
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createLead(@RequestBody CreateLeadDTO dto) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(leadService.createLead(dto, getCurrentUserEmail()));
+        } catch (DuplicateLeadException e) {
+            return buildDuplicateConflictResponse(e);
+        } catch (DataIntegrityViolationException e) {
+            if (GlobalExceptionHandler.isDuplicateConstraintViolation(e)) {
+                return buildConflictMessageResponse("Duplicate mobile number or email already exists");
+            }
+            return ResponseEntity.badRequest().body("Failed to create lead due to data constraint");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -59,6 +74,13 @@ public class CrmLeadController {
         try {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(leadService.combinedCallAndLead(dto, getCurrentUserEmail()));
+        } catch (DuplicateLeadException e) {
+            return buildDuplicateConflictResponse(e);
+        } catch (DataIntegrityViolationException e) {
+            if (GlobalExceptionHandler.isDuplicateConstraintViolation(e)) {
+                return buildConflictMessageResponse("Duplicate mobile number or email already exists");
+            }
+            return ResponseEntity.badRequest().body("Failed to create lead due to data constraint");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -165,10 +187,74 @@ public class CrmLeadController {
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateLeadStatus(@PathVariable Long id, @RequestBody UpdateLeadStatusDTO dto) {
         try {
-            return ResponseEntity.ok(leadService.updateLeadStatus(id, dto.getStatus()));
+            return ResponseEntity.ok(leadService.updateLeadStatus(id, dto, getCurrentUserEmail()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    /**
+     * Step 1: Request to mark a Lead as Lost (pending Admin approval).
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost-request", "/{id:[0-9]+}/request-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> requestLeadLost(@PathVariable Long id, @RequestBody LostRequestDTO dto) {
+        try {
+            return ResponseEntity.ok(leadService.requestLost(id, dto, getCurrentUserEmail()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Step 2: Admin approves a pending Lead Lost Request (transitions Lead to LOST).
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost/approve", "/{id:[0-9]+}/approve-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> approveLeadLost(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminLostActionDTO dto) {
+        try {
+            return ResponseEntity.ok(leadService.approveLost(id, dto, getCurrentUserEmail()));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Step 3: Admin revokes Lost status (or rejects pending Lost Request) and restores Lead to pipeline.
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost/revoke", "/{id:[0-9]+}/revoke-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> revokeLeadLost(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminLostActionDTO dto) {
+        try {
+            return ResponseEntity.ok(leadService.revokeLost(id, dto, getCurrentUserEmail()));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * List Leads with pending Lost Requests awaiting Admin approval.
+     */
+    @GetMapping({"/lost-requests", "/pending-lost"})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<LeadResponse>> getPendingLostRequests() {
+        return ResponseEntity.ok(leadService.getPendingLostRequests());
     }
 
     @PutMapping("/{id:[0-9]+}/convert")
@@ -176,6 +262,8 @@ public class CrmLeadController {
     public ResponseEntity<?> convertLeadToOpportunity(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(opportunityService.convertLeadToOpportunity(id, getCurrentUserEmail()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -193,8 +281,31 @@ public class CrmLeadController {
         return ResponseEntity.ok(leadService.searchByPhone(phone));
     }
 
+    private ResponseEntity<Map<String, Object>> buildDuplicateConflictResponse(DuplicateLeadException e) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("message", e.getMessage());
+        if (e.getDuplicateField() != null) {
+            body.put("duplicateField", e.getDuplicateField());
+        }
+        if (e.getExistingLeadId() != null) {
+            body.put("existingLeadId", e.getExistingLeadId());
+        }
+        if (e.getExistingLeadNumber() != null) {
+            body.put("existingLeadNumber", e.getExistingLeadNumber());
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    private ResponseEntity<Map<String, Object>> buildConflictMessageResponse(String message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("message", message);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getName();
+        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
     }
 }

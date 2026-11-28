@@ -94,6 +94,13 @@ public enum LeadStatus {
         }
     }
 
+    /**
+     * Returns true if this status represents an active (non-terminal) pipeline stage.
+     */
+    public boolean isActiveStatus() {
+        return this != CONVERTED && this != LOST;
+    }
+
     @Override
     public String toString() {
         return value;

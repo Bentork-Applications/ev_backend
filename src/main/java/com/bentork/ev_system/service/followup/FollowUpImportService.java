@@ -172,6 +172,8 @@ public class FollowUpImportService {
         int matchedLeads = 0;
 
         Set<Long> processedLeadIdsInBatch = new HashSet<>();
+        Map<String, Lead> batchLeadsByPhone = new HashMap<>();
+        Map<String, Lead> batchLeadsByEmail = new HashMap<>();
 
         for (ParsedRow row : rows) {
             if ((row.getName() == null || row.getName().trim().isEmpty()) &&
@@ -184,14 +186,31 @@ public class FollowUpImportService {
             if (row.getPhone() != null && !row.getPhone().trim().isEmpty()) {
                 normalizedPhone = PhoneNormalizationUtil.normalize(row.getPhone());
             }
+            String normalizedEmail = DuplicateMatchingService.normalizeEmail(row.getEmail());
 
             Lead targetLead = null;
 
-            // Check duplicate matching against existing canonical CRM leads
-            if (normalizedPhone != null && !normalizedPhone.isEmpty()) {
+            // 0. Check intra-batch duplicates first
+            if (normalizedPhone != null && batchLeadsByPhone.containsKey(normalizedPhone)) {
+                targetLead = batchLeadsByPhone.get(normalizedPhone);
+                matchedLeads++;
+            } else if (normalizedEmail != null && batchLeadsByEmail.containsKey(normalizedEmail)) {
+                targetLead = batchLeadsByEmail.get(normalizedEmail);
+                matchedLeads++;
+            }
+
+            // 1. Check duplicate matching against existing canonical CRM leads by phone, then email
+            if (targetLead == null && normalizedPhone != null && !normalizedPhone.isEmpty()) {
                 DuplicateMatchingService.MatchResult match = duplicateMatchingService.matchByPhone(normalizedPhone);
-                if (match.isMatched() && match.getMatchedLead() != null) {
+                if (match != null && match.isMatched() && match.getMatchedLead() != null) {
                     targetLead = match.getMatchedLead();
+                    matchedLeads++;
+                }
+            }
+            if (targetLead == null && normalizedEmail != null) {
+                DuplicateMatchingService.MatchResult emailMatch = duplicateMatchingService.matchByEmail(normalizedEmail);
+                if (emailMatch != null && emailMatch.isMatched() && emailMatch.getMatchedLead() != null) {
+                    targetLead = emailMatch.getMatchedLead();
                     matchedLeads++;
                 }
             }
@@ -205,7 +224,7 @@ public class FollowUpImportService {
                 targetLead.setSource(LeadSource.WHATSAPP_CAMPAIGN.getValue());
                 targetLead.setStatus(LeadStatus.NEW.getValue());
                 targetLead.setPhone(normalizedPhone);
-                targetLead.setEmail(row.getEmail());
+                targetLead.setEmail(normalizedEmail);
                 targetLead.setCity(row.getCity());
                 targetLead.setState(row.getState());
                 targetLead.setEstimatedValue(row.getEstimatedValue());
@@ -214,6 +233,13 @@ public class FollowUpImportService {
                 targetLead.setCampaignSource(campaignName);
                 targetLead = leadRepository.save(targetLead);
                 newLeads++;
+            }
+
+            if (normalizedPhone != null && !normalizedPhone.isEmpty()) {
+                batchLeadsByPhone.putIfAbsent(normalizedPhone, targetLead);
+            }
+            if (normalizedEmail != null) {
+                batchLeadsByEmail.putIfAbsent(normalizedEmail, targetLead);
             }
 
             // Ensure uniqueness within the batch

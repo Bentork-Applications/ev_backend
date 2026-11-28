@@ -1,5 +1,6 @@
 package com.bentork.ev_system.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,12 @@ import com.bentork.ev_system.model.SalesContact;
 public interface SalesContactRepository extends JpaRepository<SalesContact, Long> {
 
     Optional<SalesContact> findByPhone(String phone);
+
+    Optional<SalesContact> findFirstByPhoneIn(Collection<String> phones);
+
+    Optional<SalesContact> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
 
     List<SalesContact> findByCompanyIdOrderByIsPrimaryDescNameAsc(Long companyId);
 

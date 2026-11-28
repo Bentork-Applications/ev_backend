@@ -11,5 +11,6 @@ public class CsvImportResponse {
     private int totalRows;
     private int importedCount;
     private int skippedCount;
+    private int duplicateCount;
     private List<String> errors = new ArrayList<>();
 }

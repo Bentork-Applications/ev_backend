@@ -1,7 +1,9 @@
 package com.bentork.ev_system.service;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -9,24 +11,37 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.bentork.ev_system.dto.request.AdminLostActionDTO;
 import com.bentork.ev_system.dto.request.CombinedCallLeadDTO;
 import com.bentork.ev_system.dto.request.CreateLeadDTO;
+import com.bentork.ev_system.dto.request.LostRequestDTO;
+import com.bentork.ev_system.dto.request.UpdateLeadStatusDTO;
 import com.bentork.ev_system.dto.response.BulkOperationResponse;
 import com.bentork.ev_system.dto.response.CsvImportResponse;
 import com.bentork.ev_system.dto.response.LeadResponse;
 import com.bentork.ev_system.dto.response.PagedResponse;
 import com.bentork.ev_system.enums.LeadStatus;
+import com.bentork.ev_system.exception.DuplicateLeadException;
 import com.bentork.ev_system.model.Activity;
 import com.bentork.ev_system.model.Admin;
 import com.bentork.ev_system.model.Lead;
@@ -37,6 +52,7 @@ import com.bentork.ev_system.repository.AdminRepository;
 import com.bentork.ev_system.repository.LeadRepository;
 import com.bentork.ev_system.repository.SalesCompanyRepository;
 import com.bentork.ev_system.repository.SalesContactRepository;
+import com.bentork.ev_system.service.interfaces.IAdminNotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +67,8 @@ public class LeadService {
     private final SalesContactRepository contactRepository;
     private final ActivityRepository activityRepository;
     private final AdminRepository adminRepository;
+    private final DuplicateMatchingService duplicateMatchingService;
+    private final IAdminNotificationService adminNotificationService;
 
     // ==================== STANDARD LEAD CRUD ====================
 
@@ -58,6 +76,42 @@ public class LeadService {
     public LeadResponse createLead(CreateLeadDTO dto, String adminEmail) {
         Admin owner = adminRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+
+        SalesCompany company = null;
+        if (dto.getCompanyId() != null) {
+            company = companyRepository.findById(dto.getCompanyId())
+                    .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+        }
+
+        SalesContact contact = null;
+        if (dto.getContactId() != null) {
+            contact = contactRepository.findById(dto.getContactId())
+                    .orElseThrow(() -> new IllegalArgumentException("Contact not found"));
+        }
+
+        String rawPhone = (dto.getPhone() != null && !dto.getPhone().trim().isEmpty())
+                ? dto.getPhone().trim()
+                : (contact != null ? contact.getPhone() : null);
+        String rawEmail = (dto.getEmail() != null && !dto.getEmail().trim().isEmpty())
+                ? dto.getEmail().trim()
+                : (contact != null ? contact.getEmail() : null);
+
+        // Enforce duplicate mobile & email prevention before saving
+        duplicateMatchingService.checkDuplicateForNewLead(rawPhone, rawEmail, dto.getContactId());
+
+        String normalizedPhone = DuplicateMatchingService.normalizePhoneOrRaw(rawPhone);
+        String normalizedEmail = DuplicateMatchingService.normalizeEmail(rawEmail);
+
+        if (contact == null && (normalizedPhone != null || normalizedEmail != null)
+                && dto.getContactName() != null && !dto.getContactName().trim().isEmpty()) {
+            contact = new SalesContact();
+            contact.setName(dto.getContactName().trim());
+            contact.setPhone(normalizedPhone);
+            contact.setEmail(normalizedEmail);
+            contact.setCompany(company);
+            contact.setPrimary(true);
+            contact = contactRepository.saveAndFlush(contact);
+        }
 
         Lead lead = new Lead();
         lead.setLeadNumber(generateLeadNumber());
@@ -69,6 +123,10 @@ public class LeadService {
         lead.setState(dto.getState());
         lead.setEstimatedValue(dto.getEstimatedValue());
         lead.setNotes(dto.getNotes());
+        lead.setPhone(normalizedPhone);
+        lead.setEmail(normalizedEmail);
+        lead.setCompany(company);
+        lead.setContact(contact);
 
         if (dto.getNextFollowUpDate() != null && !dto.getNextFollowUpDate().isEmpty()) {
             lead.setNextFollowUpDate(LocalDate.parse(dto.getNextFollowUpDate().trim()));
@@ -76,16 +134,8 @@ public class LeadService {
         if (dto.getNextFollowUpTime() != null && !dto.getNextFollowUpTime().isEmpty()) {
             lead.setNextFollowUpTime(LocalTime.parse(dto.getNextFollowUpTime().trim()));
         }
-        if (dto.getCompanyId() != null) {
-            lead.setCompany(companyRepository.findById(dto.getCompanyId())
-                    .orElseThrow(() -> new IllegalArgumentException("Company not found")));
-        }
-        if (dto.getContactId() != null) {
-            lead.setContact(contactRepository.findById(dto.getContactId())
-                    .orElseThrow(() -> new IllegalArgumentException("Contact not found")));
-        }
 
-        Lead saved = leadRepository.save(lead);
+        Lead saved = leadRepository.saveAndFlush(lead);
         log.info("Lead {} '{}' created by {}", saved.getLeadNumber(), saved.getTitle(), adminEmail);
         return mapToResponse(saved);
     }
@@ -93,48 +143,46 @@ public class LeadService {
     // ==================== COMBINED CALL + LEAD WORKFLOW ====================
 
     /**
-     * The BRD's key workflow: Search by phone → if no match,
+     * The BRD's key workflow: Search by phone/email → if no match,
      * create Contact + Company + Lead + Call Activity in one transaction.
+     * Rejects with 409 Conflict if mobile number or email already exists.
      */
     @Transactional
     public LeadResponse combinedCallAndLead(CombinedCallLeadDTO dto, String adminEmail) {
         Admin owner = adminRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
 
-        // 1. Check if contact already exists by phone
-        SalesContact contact = contactRepository.findByPhone(dto.getContactPhone()).orElse(null);
+        // 1. Check for duplicate mobile number or email BEFORE creating any records
+        duplicateMatchingService.checkDuplicateForNewLead(dto.getContactPhone(), dto.getContactEmail(), null);
+
+        String normalizedPhone = DuplicateMatchingService.normalizePhoneOrRaw(dto.getContactPhone());
+        String normalizedEmail = DuplicateMatchingService.normalizeEmail(dto.getContactEmail());
+
         SalesCompany company = null;
-
-        if (contact != null) {
-            // Contact exists — use their company
-            company = contact.getCompany();
-            log.info("Existing contact found: {} ({})", contact.getName(), contact.getPhone());
-        } else {
-            // 2. Create new company (if name provided)
-            if (dto.getCompanyName() != null && !dto.getCompanyName().isEmpty()) {
-                company = new SalesCompany();
-                company.setName(dto.getCompanyName());
-                company.setIndustry(dto.getIndustry());
-                company.setCompanyType(dto.getCompanyType());
-                company.setCity(dto.getCity());
-                company.setState(dto.getState());
-                company.setSource("phone_call");
-                company.setOwnerAdmin(owner);
-                company = companyRepository.save(company);
-                log.info("New company '{}' created during combined call", company.getName());
-            }
-
-            // 3. Create new contact
-            contact = new SalesContact();
-            contact.setName(dto.getContactName());
-            contact.setPhone(dto.getContactPhone());
-            contact.setEmail(dto.getContactEmail());
-            contact.setDesignation(dto.getContactDesignation());
-            contact.setCompany(company);
-            contact.setPrimary(true);
-            contact = contactRepository.save(contact);
-            log.info("New contact '{}' created during combined call", contact.getName());
+        // 2. Create new company (if name provided)
+        if (dto.getCompanyName() != null && !dto.getCompanyName().isEmpty()) {
+            company = new SalesCompany();
+            company.setName(dto.getCompanyName());
+            company.setIndustry(dto.getIndustry());
+            company.setCompanyType(dto.getCompanyType());
+            company.setCity(dto.getCity());
+            company.setState(dto.getState());
+            company.setSource("phone_call");
+            company.setOwnerAdmin(owner);
+            company = companyRepository.save(company);
+            log.info("New company '{}' created during combined call", company.getName());
         }
+
+        // 3. Create new contact
+        SalesContact contact = new SalesContact();
+        contact.setName(dto.getContactName());
+        contact.setPhone(normalizedPhone);
+        contact.setEmail(normalizedEmail);
+        contact.setDesignation(dto.getContactDesignation());
+        contact.setCompany(company);
+        contact.setPrimary(true);
+        contact = contactRepository.saveAndFlush(contact);
+        log.info("New contact '{}' created during combined call", contact.getName());
 
         // 4. Create the lead
         Lead lead = new Lead();
@@ -145,6 +193,8 @@ public class LeadService {
         lead.setOwnerAdmin(owner);
         lead.setCompany(company);
         lead.setContact(contact);
+        lead.setPhone(normalizedPhone);
+        lead.setEmail(normalizedEmail);
         lead.setCity(dto.getCity());
         lead.setState(dto.getState());
         lead.setEstimatedValue(dto.getEstimatedValue());
@@ -156,7 +206,7 @@ public class LeadService {
             lead.setNextFollowUpTime(LocalTime.parse(dto.getFollowUpTime().trim()));
         }
 
-        lead = leadRepository.save(lead);
+        lead = leadRepository.saveAndFlush(lead);
 
         // 5. Log the call activity
         Activity activity = new Activity();
@@ -186,10 +236,23 @@ public class LeadService {
         return mapToResponse(lead);
     }
 
-    // ==================== STATUS MANAGEMENT ====================
+    // ==================== STATUS MANAGEMENT & LOST WORKFLOW ====================
 
+    @Transactional
     public LeadResponse updateLeadStatus(Long leadId, String newStatus) {
+        UpdateLeadStatusDTO dto = new UpdateLeadStatusDTO();
+        dto.setStatus(newStatus);
+        return updateLeadStatus(leadId, dto, null);
+    }
+
+    @Transactional
+    public LeadResponse updateLeadStatus(Long leadId, UpdateLeadStatusDTO dto, String adminEmail) {
         Lead lead = findById(leadId);
+        String newStatus = dto != null ? dto.getStatus() : null;
+
+        if ("PENDING".equalsIgnoreCase(lead.getLostApprovalStatus())) {
+            throw new IllegalStateException("Cannot change status while a Lost Request is pending admin approval");
+        }
 
         LeadStatus current = LeadStatus.fromString(lead.getStatus());
         LeadStatus target = LeadStatus.fromString(newStatus);
@@ -198,14 +261,210 @@ public class LeadService {
             throw new IllegalArgumentException("Unknown lead status: " + newStatus);
         }
         if (!LeadStatus.isValidTransition(current, target)) {
+            if (current == LeadStatus.LOST) {
+                throw new IllegalArgumentException(
+                        "Cannot directly move a LOST lead to '" + newStatus + "'. An Admin must revoke the lost status first.");
+            }
             throw new IllegalArgumentException("Invalid status transition from '"
                     + lead.getStatus() + "' to '" + newStatus + "'");
+        }
+
+        if (target == LeadStatus.LOST) {
+            Admin actingAdmin = resolveAdminIfPresent(adminEmail);
+            if (actingAdmin != null && (actingAdmin.getRole() == null || !"ADMIN".equalsIgnoreCase(actingAdmin.getRole()))) {
+                throw new IllegalArgumentException(
+                        "Only an ADMIN can directly mark a lead as lost. Please submit a lost request for admin approval.");
+            }
+            lead.setPreviousStatus(lead.getStatus());
+            if (dto.getLostReason() != null && !dto.getLostReason().trim().isEmpty()) {
+                lead.setLostReason(dto.getLostReason().trim());
+            }
+            lead.setLostApprovalStatus("APPROVED");
+            lead.setLostApprovedByAdmin(actingAdmin);
+            lead.setLostApprovedAt(LocalDateTime.now());
         }
 
         lead.setStatus(target.getValue());
         Lead saved = leadRepository.save(lead);
         log.info("Lead {} status updated to '{}'", saved.getLeadNumber(), target.getValue());
         return mapToResponse(saved);
+    }
+
+    /**
+     * Step 1 of Lost Workflow: Sales Rep / Admin requests to mark a Lead as Lost.
+     * Saves previousStatus, lostReason, and notifies active Admins.
+     */
+    @Transactional
+    public LeadResponse requestLost(Long leadId, LostRequestDTO dto, String adminEmail) {
+        Admin requester = adminRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+
+        Lead lead = findById(leadId);
+        LeadStatus current = LeadStatus.fromString(lead.getStatus());
+
+        if (current == null || !current.isActiveStatus()) {
+            throw new IllegalArgumentException(
+                    "Lost request can only be raised for active leads. Current status: " + lead.getStatus());
+        }
+        if ("PENDING".equalsIgnoreCase(lead.getLostApprovalStatus())) {
+            throw new IllegalStateException("A lost request is already pending approval for this lead");
+        }
+
+        String reason = dto != null ? dto.getEffectiveLostReason() : null;
+        if (reason == null || reason.isEmpty()) {
+            throw new IllegalArgumentException("Lost reason is required");
+        }
+
+        lead.setPreviousStatus(lead.getStatus());
+        lead.setLostReason(reason);
+        lead.setLostApprovalStatus("PENDING");
+        lead.setLostRequestedByAdmin(requester);
+        lead.setLostRequestedAt(LocalDateTime.now());
+        lead.setLostApprovedByAdmin(null);
+        lead.setLostApprovedAt(null);
+        lead.setLostRevokedByAdmin(null);
+        lead.setLostRevokedAt(null);
+        lead.setLostRevokeReason(null);
+
+        Lead saved = leadRepository.save(lead);
+
+        adminNotificationService.notifyAdminsOfLostRequest(
+                "Lead", saved.getId(), saved.getLeadNumber(), saved.getTitle(),
+                saved.getPreviousStatus(), saved.getLostReason(), requester);
+
+        log.info("Lost request submitted for Lead {} (previousStatus='{}') by {}",
+                saved.getLeadNumber(), saved.getPreviousStatus(), adminEmail);
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Step 2 of Lost Workflow: Admin approves a pending Lost Request.
+     * Moves Lead status to 'lost' and records which Admin approved it.
+     */
+    @Transactional
+    public LeadResponse approveLost(Long leadId, AdminLostActionDTO dto, String adminEmail) {
+        Admin admin = requireSuperAdmin(adminEmail);
+        Lead lead = findById(leadId);
+
+        if (LeadStatus.LOST.matches(lead.getStatus())) {
+            throw new IllegalStateException("Lead is already in LOST status");
+        }
+        if (LeadStatus.CONVERTED.matches(lead.getStatus())) {
+            throw new IllegalArgumentException("Cannot mark a CONVERTED lead as lost");
+        }
+        if (!"PENDING".equalsIgnoreCase(lead.getLostApprovalStatus())) {
+            throw new IllegalStateException("No pending lost request found for this lead");
+        }
+
+        if (lead.getPreviousStatus() == null || lead.getPreviousStatus().trim().isEmpty()) {
+            lead.setPreviousStatus(lead.getStatus());
+        }
+        if (dto != null && dto.getEffectiveReason() != null) {
+            lead.setLostReason(dto.getEffectiveReason());
+        }
+
+        lead.setStatus(LeadStatus.LOST.getValue());
+        lead.setLostApprovalStatus("APPROVED");
+        lead.setLostApprovedByAdmin(admin);
+        lead.setLostApprovedAt(LocalDateTime.now());
+
+        Lead saved = leadRepository.save(lead);
+
+        notifyRequesterAndOwner(saved, "APPROVED", saved.getStatus(), saved.getLostReason(), admin);
+
+        log.info("Lost request APPROVED for Lead {} by admin {}", saved.getLeadNumber(), adminEmail);
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Step 3 of Lost Workflow: Admin revokes a Lost Lead (or rejects a pending Lost Request)
+     * and moves the Lead back to its previous pipeline status (or specified target status).
+     */
+    @Transactional
+    public LeadResponse revokeLost(Long leadId, AdminLostActionDTO dto, String adminEmail) {
+        Admin admin = requireSuperAdmin(adminEmail);
+        Lead lead = findById(leadId);
+
+        boolean isCurrentlyLost = LeadStatus.LOST.matches(lead.getStatus());
+        boolean isPendingRequest = "PENDING".equalsIgnoreCase(lead.getLostApprovalStatus());
+
+        if (!isCurrentlyLost && !isPendingRequest) {
+            throw new IllegalStateException(
+                    "Lead is neither LOST nor pending a lost request (current status: " + lead.getStatus() + ")");
+        }
+        if (LeadStatus.CONVERTED.matches(lead.getStatus())) {
+            throw new IllegalArgumentException("Cannot revoke lost status on a CONVERTED lead");
+        }
+
+        String targetStatus;
+        String requestedTarget = dto != null ? dto.getEffectiveTargetPipeline() : null;
+        if (requestedTarget != null) {
+            LeadStatus parsedTarget = LeadStatus.fromString(requestedTarget);
+            if (parsedTarget == null || !parsedTarget.isActiveStatus()) {
+                throw new IllegalArgumentException(
+                        "Invalid target pipeline status for revocation: " + requestedTarget
+                                + ". Allowed: new, contacted, qualified, nurture");
+            }
+            targetStatus = parsedTarget.getValue();
+        } else {
+            LeadStatus prev = LeadStatus.fromString(lead.getPreviousStatus());
+            targetStatus = (prev != null && prev.isActiveStatus())
+                    ? prev.getValue()
+                    : LeadStatus.QUALIFIED.getValue();
+        }
+
+        String revokeReason = dto != null ? dto.getEffectiveReason() : null;
+
+        lead.setStatus(targetStatus);
+        lead.setLostApprovalStatus("REVOKED");
+        lead.setLostRevokedByAdmin(admin);
+        lead.setLostRevokedAt(LocalDateTime.now());
+        lead.setLostRevokeReason(revokeReason);
+
+        Lead saved = leadRepository.save(lead);
+
+        notifyRequesterAndOwner(saved, "REVOKED", targetStatus, revokeReason, admin);
+
+        log.info("Lost status REVOKED for Lead {} by admin {} -> restored to '{}'",
+                saved.getLeadNumber(), adminEmail, targetStatus);
+        return mapToResponse(saved);
+    }
+
+    public List<LeadResponse> getPendingLostRequests() {
+        return leadRepository.findByLostApprovalStatusOrderByLostRequestedAtDesc("PENDING").stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private Admin requireSuperAdmin(String adminEmail) {
+        Admin admin = adminRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+        if (admin.getRole() == null || !"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            throw new AccessDeniedException("Only ADMIN can approve or revoke lost leads");
+        }
+        return admin;
+    }
+
+    private Admin resolveAdminIfPresent(String adminEmail) {
+        if (adminEmail == null || adminEmail.trim().isEmpty() || "system".equalsIgnoreCase(adminEmail.trim())) {
+            return null;
+        }
+        return adminRepository.findByEmail(adminEmail).orElse(null);
+    }
+
+    private void notifyRequesterAndOwner(Lead lead, String decision, String targetStage, String reason, Admin decidedBy) {
+        Set<Long> notifiedIds = new HashSet<>();
+        if (lead.getLostRequestedByAdmin() != null) {
+            notifiedIds.add(lead.getLostRequestedByAdmin().getId());
+            adminNotificationService.notifyAdminOfLostDecision(
+                    lead.getLostRequestedByAdmin(), decision, "Lead",
+                    lead.getLeadNumber(), lead.getTitle(), targetStage, reason, decidedBy);
+        }
+        if (lead.getOwnerAdmin() != null && !notifiedIds.contains(lead.getOwnerAdmin().getId())) {
+            adminNotificationService.notifyAdminOfLostDecision(
+                    lead.getOwnerAdmin(), decision, "Lead",
+                    lead.getLeadNumber(), lead.getTitle(), targetStage, reason, decidedBy);
+        }
     }
 
     // ==================== BULK OPERATIONS ====================
@@ -276,42 +535,61 @@ public class LeadService {
         return response;
     }
 
-    // ==================== CSV IMPORT ====================
+    // ==================== CSV / EXCEL IMPORT ====================
 
     /**
-     * Import leads from a CSV file.
-     * Expected CSV headers: title,source,city,state,estimatedValue,notes,contactName,contactPhone,contactEmail,companyName
+     * Import leads from a CSV or Excel (.xlsx/.xls) file.
+     * Enforces duplicate prevention by mobile number and email (both against DB and within the file).
+     * Expected headers: title,source,city,state,estimatedValue,notes,contactName,contactPhone,contactEmail,companyName
      */
     @Transactional
     public CsvImportResponse importFromCsv(MultipartFile file, String adminEmail) {
         Admin owner = adminRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
 
-        CsvImportResponse response = new CsvImportResponse();
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Import file is empty");
+        }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            String headerLine = reader.readLine();
-            if (headerLine == null) {
-                throw new IllegalArgumentException("CSV file is empty");
+        CsvImportResponse response = new CsvImportResponse();
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        boolean isExcel = originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xls");
+
+        try {
+            String[] headers;
+            List<String[]> dataRows;
+
+            if (isExcel) {
+                ParsedTable table = parseExcelTable(file.getInputStream());
+                headers = table.headers;
+                dataRows = table.rows;
+            } else {
+                ParsedTable table = parseCsvTable(file.getInputStream());
+                headers = table.headers;
+                dataRows = table.rows;
             }
 
-            String[] headers = headerLine.split(",");
-            int rowNum = 1;
+            if (headers == null || headers.length == 0) {
+                throw new IllegalArgumentException("Import file is empty");
+            }
 
-            String line;
-            while ((line = reader.readLine()) != null) {
+            Set<String> seenPhonesInFile = new HashSet<>();
+            Set<String> seenEmailsInFile = new HashSet<>();
+            String defaultSource = isExcel ? "excel_import" : "csv_import";
+
+            int rowNum = 1;
+            for (String[] values : dataRows) {
                 rowNum++;
                 response.setTotalRows(response.getTotalRows() + 1);
 
                 try {
-                    String[] values = parseCsvLine(line);
                     if (values.length < 2) {
                         response.setSkippedCount(response.getSkippedCount() + 1);
                         response.getErrors().add("Row " + rowNum + ": insufficient columns");
                         continue;
                     }
 
-                    String title = getColumnValue(headers, values, "title", "leadtitle", "leadname", "name", "subject");
+                    String title = getColumnValue(headers, values, "title", "leadtitle", "leadname", "subject");
                     String source = getColumnValue(headers, values, "source", "leadsource", "channel", "leadchannel");
                     String city = getColumnValue(headers, values, "city", "location", "town");
                     String state = getColumnValue(headers, values, "state", "province", "region");
@@ -322,9 +600,41 @@ public class LeadService {
                     String contactEmail = getColumnValue(headers, values, "contactemail", "email", "emailaddress", "mail");
                     String companyName = getColumnValue(headers, values, "companyname", "company", "organization", "org", "firm", "businessname", "account");
 
+                    String normalizedPhone = DuplicateMatchingService.normalizePhoneOrRaw(contactPhone);
+                    String normalizedEmail = DuplicateMatchingService.normalizeEmail(contactEmail);
+                    Set<String> phoneVariants = DuplicateMatchingService.buildPhoneVariants(contactPhone);
+
+                    // 1. Check intra-file duplicate mobile or email
+                    boolean dupInFile = false;
+                    for (String variant : phoneVariants) {
+                        if (seenPhonesInFile.contains(variant)) {
+                            dupInFile = true;
+                            break;
+                        }
+                    }
+                    if (!dupInFile && normalizedEmail != null && seenEmailsInFile.contains(normalizedEmail)) {
+                        dupInFile = true;
+                    }
+                    if (dupInFile) {
+                        response.setSkippedCount(response.getSkippedCount() + 1);
+                        response.setDuplicateCount(response.getDuplicateCount() + 1);
+                        response.getErrors().add("Row " + rowNum + ": Duplicate mobile number or email within import file");
+                        continue;
+                    }
+
+                    // 2. Check database duplicate mobile or email before saving
+                    try {
+                        duplicateMatchingService.checkDuplicateForNewLead(contactPhone, contactEmail, null);
+                    } catch (DuplicateLeadException dupEx) {
+                        response.setSkippedCount(response.getSkippedCount() + 1);
+                        response.setDuplicateCount(response.getDuplicateCount() + 1);
+                        response.getErrors().add("Row " + rowNum + ": " + dupEx.getMessage());
+                        continue;
+                    }
+
                     if (title == null || title.isEmpty()) {
                         if (contactName != null && !contactName.isEmpty()) {
-                            title = contactName + (companyName != null ? " - " + companyName : "");
+                            title = contactName + (companyName != null && !companyName.isEmpty() ? " - " + companyName : "");
                         } else if (companyName != null && !companyName.isEmpty()) {
                             title = companyName + " Lead";
                         } else {
@@ -343,37 +653,36 @@ public class LeadService {
                             company.setName(companyName);
                             company.setCity(city);
                             company.setState(state);
-                            company.setSource("csv_import");
+                            company.setSource(defaultSource);
                             company.setOwnerAdmin(owner);
                             company = companyRepository.save(company);
                         }
                     }
 
-                    // Create or find contact
+                    // Create contact if phone or email is present
                     SalesContact contact = null;
-                    if (contactPhone != null && !contactPhone.isEmpty()) {
-                        final SalesCompany finalCompany = company;
-                        contact = contactRepository.findByPhone(contactPhone).orElseGet(() -> {
-                            SalesContact newContact = new SalesContact();
-                            newContact.setName(contactName != null ? contactName : "Unknown");
-                            newContact.setPhone(contactPhone);
-                            newContact.setEmail(contactEmail);
-                            newContact.setCompany(finalCompany);
-                            newContact.setPrimary(true);
-                            return contactRepository.save(newContact);
-                        });
+                    if (normalizedPhone != null || normalizedEmail != null) {
+                        SalesContact newContact = new SalesContact();
+                        newContact.setName(contactName != null && !contactName.isEmpty() ? contactName : "Unknown");
+                        newContact.setPhone(normalizedPhone);
+                        newContact.setEmail(normalizedEmail);
+                        newContact.setCompany(company);
+                        newContact.setPrimary(true);
+                        contact = contactRepository.save(newContact);
                     }
 
                     // Create lead
                     Lead lead = new Lead();
                     lead.setLeadNumber(generateLeadNumber());
                     lead.setTitle(title);
-                    lead.setSource(source != null && !source.isEmpty() ? source : "csv_import");
+                    lead.setSource(source != null && !source.isEmpty() ? source : defaultSource);
                     lead.setStatus(LeadStatus.NEW.getValue());
                     lead.setOwnerAdmin(owner);
                     lead.setCity(city);
                     lead.setState(state);
                     lead.setNotes(notes);
+                    lead.setPhone(normalizedPhone);
+                    lead.setEmail(normalizedEmail);
                     lead.setCompany(company);
                     lead.setContact(contact);
 
@@ -386,6 +695,10 @@ public class LeadService {
                     }
 
                     leadRepository.save(lead);
+                    seenPhonesInFile.addAll(phoneVariants);
+                    if (normalizedEmail != null) {
+                        seenEmailsInFile.add(normalizedEmail);
+                    }
                     response.setImportedCount(response.getImportedCount() + 1);
 
                 } catch (Exception e) {
@@ -394,14 +707,87 @@ public class LeadService {
                 }
             }
 
-            log.info("CSV import completed by {}: {} imported, {} skipped out of {} rows",
-                    adminEmail, response.getImportedCount(), response.getSkippedCount(), response.getTotalRows());
+            log.info("Lead import completed by {}: {} imported, {} skipped ({} duplicates) out of {} rows",
+                    adminEmail, response.getImportedCount(), response.getSkippedCount(),
+                    response.getDuplicateCount(), response.getTotalRows());
 
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse CSV file: " + e.getMessage());
+            throw new IllegalArgumentException("Failed to parse import file: " + e.getMessage());
         }
 
         return response;
+    }
+
+    private static class ParsedTable {
+        final String[] headers;
+        final List<String[]> rows;
+
+        ParsedTable(String[] headers, List<String[]> rows) {
+            this.headers = headers;
+            this.rows = rows;
+        }
+    }
+
+    private ParsedTable parseCsvTable(InputStream is) throws Exception {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                throw new IllegalArgumentException("CSV file is empty");
+            }
+            String[] headers = parseCsvLine(headerLine);
+            List<String[]> rows = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    rows.add(parseCsvLine(line));
+                }
+            }
+            return new ParsedTable(headers, rows);
+        }
+    }
+
+    private ParsedTable parseExcelTable(InputStream is) throws Exception {
+        try (Workbook workbook = WorkbookFactory.create(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null || sheet.getLastRowNum() < 0) {
+                throw new IllegalArgumentException("Excel file is empty");
+            }
+            Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                throw new IllegalArgumentException("Excel header row is missing");
+            }
+            DataFormatter formatter = new DataFormatter();
+            int colCount = headerRow.getLastCellNum();
+            String[] headers = new String[colCount];
+            for (int c = 0; c < colCount; c++) {
+                Cell cell = headerRow.getCell(c);
+                headers[c] = cell != null ? formatter.formatCellValue(cell).trim() : "";
+            }
+
+            List<String[]> rows = new ArrayList<>();
+            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) {
+                    continue;
+                }
+                String[] vals = new String[colCount];
+                boolean hasAnyValue = false;
+                for (int c = 0; c < colCount; c++) {
+                    Cell cell = row.getCell(c);
+                    String val = cell != null ? formatter.formatCellValue(cell).trim() : "";
+                    vals[c] = val;
+                    if (!val.isEmpty()) {
+                        hasAnyValue = true;
+                    }
+                }
+                if (hasAnyValue) {
+                    rows.add(vals);
+                }
+            }
+            return new ParsedTable(headers, rows);
+        }
     }
 
     // ==================== QUERIES ====================
@@ -447,7 +833,7 @@ public class LeadService {
     }
 
     public List<LeadResponse> searchByPhone(String phone) {
-        return leadRepository.findByContactPhoneContaining(phone).stream()
+        return leadRepository.searchByAnyPhoneContaining(phone).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -528,6 +914,13 @@ public class LeadService {
         response.setIndiaMartLeadId(lead.getIndiaMartLeadId());
         response.setTags(lead.getTags());
         response.setConvertedToOpportunityId(lead.getConvertedToOpportunityId());
+        response.setPreviousStatus(lead.getPreviousStatus());
+        response.setLostReason(lead.getLostReason());
+        response.setLostApprovalStatus(lead.getLostApprovalStatus());
+        response.setLostRequestedAt(lead.getLostRequestedAt());
+        response.setLostApprovedAt(lead.getLostApprovedAt());
+        response.setLostRevokedAt(lead.getLostRevokedAt());
+        response.setLostRevokeReason(lead.getLostRevokeReason());
         response.setCreatedAt(lead.getCreatedAt());
         response.setUpdatedAt(lead.getUpdatedAt());
 
@@ -538,11 +931,27 @@ public class LeadService {
         if (lead.getContact() != null) {
             response.setContactId(lead.getContact().getId());
             response.setContactName(lead.getContact().getName());
-            response.setContactPhone(lead.getContact().getPhone());
+            response.setContactPhone(lead.getContact().getPhone() != null ? lead.getContact().getPhone() : lead.getPhone());
+            response.setContactEmail(lead.getContact().getEmail() != null ? lead.getContact().getEmail() : lead.getEmail());
+        } else {
+            response.setContactPhone(lead.getPhone());
+            response.setContactEmail(lead.getEmail());
         }
         if (lead.getOwnerAdmin() != null) {
             response.setOwnerAdminId(lead.getOwnerAdmin().getId());
             response.setOwnerAdminName(lead.getOwnerAdmin().getName());
+        }
+        if (lead.getLostRequestedByAdmin() != null) {
+            response.setLostRequestedByAdminId(lead.getLostRequestedByAdmin().getId());
+            response.setLostRequestedByAdminName(lead.getLostRequestedByAdmin().getName());
+        }
+        if (lead.getLostApprovedByAdmin() != null) {
+            response.setLostApprovedByAdminId(lead.getLostApprovedByAdmin().getId());
+            response.setLostApprovedByAdminName(lead.getLostApprovedByAdmin().getName());
+        }
+        if (lead.getLostRevokedByAdmin() != null) {
+            response.setLostRevokedByAdminId(lead.getLostRevokedByAdmin().getId());
+            response.setLostRevokedByAdminName(lead.getLostRevokedByAdmin().getName());
         }
 
         return response;

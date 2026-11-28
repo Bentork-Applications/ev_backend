@@ -21,6 +21,7 @@ public class LeadResponse {
     private Long contactId;
     private String contactName;
     private String contactPhone;
+    private String contactEmail;
     private Long ownerAdminId;
     private String ownerAdminName;
     private String city;
@@ -32,6 +33,19 @@ public class LeadResponse {
     private String indiaMartLeadId;
     private String tags;
     private Long convertedToOpportunityId;
+    private String previousStatus;
+    private String lostReason;
+    private String lostApprovalStatus;
+    private Long lostRequestedByAdminId;
+    private String lostRequestedByAdminName;
+    private LocalDateTime lostRequestedAt;
+    private Long lostApprovedByAdminId;
+    private String lostApprovedByAdminName;
+    private LocalDateTime lostApprovedAt;
+    private Long lostRevokedByAdminId;
+    private String lostRevokedByAdminName;
+    private LocalDateTime lostRevokedAt;
+    private String lostRevokeReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -89,6 +89,77 @@ public class AdminNotificationService implements IAdminNotificationService {
         }
     }
 
+    @Override
+    public void notifyAdminsOfLostRequest(String entityType, Long entityId, String entityNumber, String title,
+            String previousStage, String lostReason, Admin requestedBy) {
+        try {
+            List<Admin> admins = adminRepository.findByActiveTrue().stream()
+                    .filter(a -> a.getRole() != null && "ADMIN".equalsIgnoreCase(a.getRole()))
+                    .collect(Collectors.toList());
+
+            String requesterName = requestedBy != null && requestedBy.getName() != null
+                    ? requestedBy.getName()
+                    : (requestedBy != null ? requestedBy.getEmail() : "Sales Executive");
+            String type = "CRM_" + entityType.toUpperCase() + "_LOST_REQUEST";
+            String message = String.format(
+                    "Lost request for %s %s ('%s') from stage '%s' by %s. Reason: %s",
+                    entityType, entityNumber, title, previousStage, requesterName, lostReason);
+
+            for (Admin admin : admins) {
+                AdminNotification notification = new AdminNotification();
+                notification.setAdmin(admin);
+                notification.setType(type);
+                notification.setMessage(message);
+                notification.setRead(false);
+                notification.setCreatedAt(LocalDateTime.now());
+                notificationRepository.save(notification);
+
+                sendPushSafely(admin, "Lost Approval Request", message);
+            }
+        } catch (Exception e) {
+            log.error("Failed to notify admins of lost request for {} {}: {}", entityType, entityNumber, e.getMessage());
+        }
+    }
+
+    @Override
+    public void notifyAdminOfLostDecision(Admin targetAdmin, String decision, String entityType, String entityNumber,
+            String title, String targetStage, String reason, Admin decidedBy) {
+        if (targetAdmin == null) {
+            return;
+        }
+        try {
+            String adminName = decidedBy != null && decidedBy.getName() != null
+                    ? decidedBy.getName()
+                    : (decidedBy != null ? decidedBy.getEmail() : "Admin");
+            String type = "CRM_" + entityType.toUpperCase() + "_LOST_" + decision.toUpperCase();
+            String message;
+            if ("REVOKED".equalsIgnoreCase(decision)) {
+                message = String.format(
+                        "Lost status REVOKED for %s %s ('%s') by %s — moved back to '%s'%s",
+                        entityType, entityNumber, title, adminName, targetStage,
+                        reason != null ? ". Note: " + reason : "");
+            } else {
+                message = String.format(
+                        "Lost request APPROVED for %s %s ('%s') by %s%s",
+                        entityType, entityNumber, title, adminName,
+                        reason != null ? ". Reason: " + reason : "");
+            }
+
+            AdminNotification notification = new AdminNotification();
+            notification.setAdmin(targetAdmin);
+            notification.setType(type);
+            notification.setMessage(message);
+            notification.setRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+            notificationRepository.save(notification);
+
+            sendPushSafely(targetAdmin, "Lost Request " + decision, message);
+        } catch (Exception e) {
+            log.error("Failed to notify admin {} of lost decision for {} {}: {}",
+                    targetAdmin.getId(), entityType, entityNumber, e.getMessage());
+        }
+    }
+
     /**
      * Helper method to send push notifications without blocking or crashing the
      * flow.

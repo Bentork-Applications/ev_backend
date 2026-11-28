@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -149,11 +150,45 @@ public class GlobalExceptionHandler {
                 "Database access error"), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ErrorResponse> duplicateKey(DuplicateKeyException ex) {
+        logLine(ex);
+        return new ResponseEntity<>(build(HttpStatus.CONFLICT,
+                "Duplicate record already exists"), HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> integrity(DataIntegrityViolationException ex) {
         logLine(ex);
+        if (isDuplicateConstraintViolation(ex)) {
+            return new ResponseEntity<>(build(HttpStatus.CONFLICT,
+                    "Duplicate mobile number or email already exists"), HttpStatus.CONFLICT);
+        }
         return new ResponseEntity<>(build(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Database constraint violation"), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    public static boolean isDuplicateConstraintViolation(Throwable ex) {
+        Throwable curr = ex;
+        while (curr != null) {
+            String msg = curr.getMessage();
+            if (msg != null) {
+                String lower = msg.toLowerCase();
+                if (lower.contains("duplicate entry") || lower.contains("unique constraint")
+                        || lower.contains("uk_lead_") || lower.contains("uk_sales_contact_")) {
+                    return true;
+                }
+            }
+            if (curr instanceof SQLException sqlEx) {
+                String state = sqlEx.getSQLState();
+                int errCode = sqlEx.getErrorCode();
+                if ("23505".equals(state) || errCode == 1062) {
+                    return true;
+                }
+            }
+            curr = curr.getCause();
+        }
+        return false;
     }
 
     @ExceptionHandler(SQLException.class)
@@ -212,6 +247,25 @@ public class GlobalExceptionHandler {
         logLine(ex);
         return new ResponseEntity<>(build(HttpStatus.INTERNAL_SERVER_ERROR,
                 ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // -------- 409 CONFLICT (CRM DUPLICATE LEAD) ----------
+    @ExceptionHandler(DuplicateLeadException.class)
+    public ResponseEntity<Map<String, Object>> duplicateLead(DuplicateLeadException ex) {
+        logLine(ex);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("message", ex.getMessage());
+        if (ex.getDuplicateField() != null) {
+            body.put("duplicateField", ex.getDuplicateField());
+        }
+        if (ex.getExistingLeadId() != null) {
+            body.put("existingLeadId", ex.getExistingLeadId());
+        }
+        if (ex.getExistingLeadNumber() != null) {
+            body.put("existingLeadNumber", ex.getExistingLeadNumber());
+        }
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
     // -------- SESSION LOCKING ----------

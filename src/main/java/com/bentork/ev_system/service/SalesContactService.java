@@ -38,15 +38,24 @@ public class SalesContactService {
 
     @Transactional
     public ContactResponse createContact(CreateContactDTO dto) {
-        if (contactRepository.existsByPhone(dto.getPhone())) {
-            throw new IllegalArgumentException("Contact with phone '" + dto.getPhone() + "' already exists");
+        String phone = dto.getPhone() != null && !dto.getPhone().trim().isEmpty() ? dto.getPhone().trim() : null;
+        String email = DuplicateMatchingService.normalizeEmail(dto.getEmail());
+
+        if (phone != null) {
+            if (contactRepository.existsByPhone(phone)
+                    || contactRepository.findFirstByPhoneIn(DuplicateMatchingService.buildPhoneVariants(phone)).isPresent()) {
+                throw new IllegalArgumentException("Contact with phone '" + phone + "' already exists");
+            }
+        }
+        if (email != null && contactRepository.existsByEmailIgnoreCase(email)) {
+            throw new IllegalArgumentException("Contact with email '" + email + "' already exists");
         }
 
         SalesContact contact = new SalesContact();
         contact.setName(dto.getName());
         contact.setDesignation(dto.getDesignation());
-        contact.setPhone(dto.getPhone());
-        contact.setEmail(dto.getEmail());
+        contact.setPhone(phone);
+        contact.setEmail(email);
         contact.setPrimary(dto.isPrimary());
 
         if (dto.getCompanyId() != null) {
@@ -124,6 +133,11 @@ public class SalesContactService {
                         throw new IllegalArgumentException("Contact with phone '" + newPhone + "' already exists");
                     }
                 });
+                contactRepository.findFirstByPhoneIn(DuplicateMatchingService.buildPhoneVariants(newPhone)).ifPresent(existing -> {
+                    if (!existing.getId().equals(contact.getId())) {
+                        throw new IllegalArgumentException("Contact with phone '" + newPhone + "' already exists");
+                    }
+                });
                 contact.setPhone(newPhone);
             }
         }
@@ -138,8 +152,15 @@ public class SalesContactService {
         }
 
         if (dto.getEmail() != null) {
-            String email = dto.getEmail().trim();
-            contact.setEmail(email.isEmpty() ? null : email);
+            String email = DuplicateMatchingService.normalizeEmail(dto.getEmail());
+            if (email != null) {
+                contactRepository.findByEmailIgnoreCase(email).ifPresent(existing -> {
+                    if (!existing.getId().equals(contact.getId())) {
+                        throw new IllegalArgumentException("Contact with email '" + email + "' already exists");
+                    }
+                });
+            }
+            contact.setEmail(email);
         }
 
         if (dto.getCompanyId() != null) {

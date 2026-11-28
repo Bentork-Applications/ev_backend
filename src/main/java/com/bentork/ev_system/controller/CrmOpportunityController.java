@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,9 +14,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bentork.ev_system.dto.request.AdminLostActionDTO;
 import com.bentork.ev_system.dto.request.CreateOpportunityDTO;
+import com.bentork.ev_system.dto.request.LostRequestDTO;
 import com.bentork.ev_system.dto.request.UpdateOpportunityStageDTO;
 import com.bentork.ev_system.dto.response.OpportunityResponse;
 import com.bentork.ev_system.service.OpportunityService;
@@ -54,7 +58,7 @@ public class CrmOpportunityController {
         return ResponseEntity.ok(opportunityService.getAllOpportunities());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> getOpportunityById(@PathVariable Long id) {
         try {
@@ -64,14 +68,78 @@ public class CrmOpportunityController {
         }
     }
 
-    @PutMapping("/{id}/stage")
+    @PutMapping("/{id:[0-9]+}/stage")
     @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
     public ResponseEntity<?> updateStage(@PathVariable Long id, @RequestBody UpdateOpportunityStageDTO dto) {
         try {
-            return ResponseEntity.ok(opportunityService.updateStage(id, dto));
+            return ResponseEntity.ok(opportunityService.updateStage(id, dto, getCurrentUserEmail()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    /**
+     * Step 1: Request to mark an Opportunity as Lost (pending Admin approval).
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost-request", "/{id:[0-9]+}/request-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAnyAuthority('SALES_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> requestOpportunityLost(@PathVariable Long id, @RequestBody LostRequestDTO dto) {
+        try {
+            return ResponseEntity.ok(opportunityService.requestLost(id, dto, getCurrentUserEmail()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Step 2: Admin approves a pending Opportunity Lost Request (transitions stage to LOST).
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost/approve", "/{id:[0-9]+}/approve-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> approveOpportunityLost(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminLostActionDTO dto) {
+        try {
+            return ResponseEntity.ok(opportunityService.approveLost(id, dto, getCurrentUserEmail()));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Step 3: Admin revokes Lost stage (or rejects pending Lost Request) and restores Opportunity to pipeline.
+     */
+    @RequestMapping(value = {"/{id:[0-9]+}/lost/revoke", "/{id:[0-9]+}/revoke-lost"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<?> revokeOpportunityLost(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminLostActionDTO dto) {
+        try {
+            return ResponseEntity.ok(opportunityService.revokeLost(id, dto, getCurrentUserEmail()));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * List Opportunities with pending Lost Requests awaiting Admin approval.
+     */
+    @GetMapping({"/lost-requests", "/pending-lost"})
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<OpportunityResponse>> getPendingLostRequests() {
+        return ResponseEntity.ok(opportunityService.getPendingLostRequests());
     }
 
     @GetMapping("/pipeline-value")
@@ -82,6 +150,6 @@ public class CrmOpportunityController {
 
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getName();
+        return (auth != null && auth.getName() != null) ? auth.getName() : "system";
     }
 }

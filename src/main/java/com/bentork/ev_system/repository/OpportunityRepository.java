@@ -28,6 +28,8 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, Long> 
 
     List<Opportunity> findByStageOrderByCreatedAtDesc(String stage);
 
+    List<Opportunity> findByLostApprovalStatusOrderByLostRequestedAtDesc(String lostApprovalStatus);
+
     List<Opportunity> findAllByOrderByCreatedAtDesc();
 
     // Dashboard / Pipeline queries

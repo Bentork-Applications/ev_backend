@@ -33,7 +33,8 @@ import lombok.Setter;
         @Index(name = "idx_opportunity_stage", columnList = "stage"),
         @Index(name = "idx_opportunity_owner", columnList = "owner_admin_id"),
         @Index(name = "idx_opportunity_company", columnList = "company_id"),
-        @Index(name = "idx_opportunity_close_date", columnList = "expectedCloseDate")
+        @Index(name = "idx_opportunity_close_date", columnList = "expectedCloseDate"),
+        @Index(name = "idx_opportunity_lost_approval", columnList = "lostApprovalStatus")
 })
 @Getter
 @Setter
@@ -78,6 +79,33 @@ public class Opportunity {
     private Long linkedOrderId;
 
     private String lostReason; // Filled when stage = LOST
+
+    // ==================== Lost Approval & Revoke Workflow Fields ====================
+
+    private String previousStage;            // Stage saved before lost request/approval
+
+    private String lostApprovalStatus;       // "NONE", "PENDING", "APPROVED", "REVOKED"
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_requested_by_admin_id")
+    private Admin lostRequestedByAdmin;
+
+    private LocalDateTime lostRequestedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_approved_by_admin_id")
+    private Admin lostApprovedByAdmin;
+
+    private LocalDateTime lostApprovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_revoked_by_admin_id")
+    private Admin lostRevokedByAdmin;
+
+    private LocalDateTime lostRevokedAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String lostRevokeReason;
 
     @Column(columnDefinition = "TEXT")
     private String notes;

@@ -3,6 +3,7 @@ package com.bentork.ev_system.model;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Locale;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,7 +35,13 @@ import lombok.Setter;
         @Index(name = "idx_lead_owner", columnList = "owner_admin_id"),
         @Index(name = "idx_lead_follow_up", columnList = "nextFollowUpDate"),
         @Index(name = "idx_lead_follow_up_time", columnList = "nextFollowUpTime"),
-        @Index(name = "idx_lead_indiamart", columnList = "indiaMartLeadId")
+        @Index(name = "idx_lead_indiamart", columnList = "indiaMartLeadId"),
+        @Index(name = "idx_lead_phone", columnList = "phone"),
+        @Index(name = "idx_lead_email", columnList = "email"),
+        @Index(name = "idx_lead_lost_approval", columnList = "lostApprovalStatus")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_lead_phone", columnNames = "phone"),
+        @UniqueConstraint(name = "uk_lead_email", columnNames = "email")
 })
 @Getter
 @Setter
@@ -100,6 +108,36 @@ public class Lead {
 
     private String campaignSource;           // Campaign name that originally created this lead
 
+    // ==================== Lost Approval & Revoke Workflow Fields ====================
+
+    private String previousStatus;           // Status saved before lost request/approval
+
+    @Column(columnDefinition = "TEXT")
+    private String lostReason;               // Reason captured when marked or requested as lost
+
+    private String lostApprovalStatus;       // "NONE", "PENDING", "APPROVED", "REVOKED"
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_requested_by_admin_id")
+    private Admin lostRequestedByAdmin;
+
+    private LocalDateTime lostRequestedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_approved_by_admin_id")
+    private Admin lostApprovedByAdmin;
+
+    private LocalDateTime lostApprovedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lost_revoked_by_admin_id")
+    private Admin lostRevokedByAdmin;
+
+    private LocalDateTime lostRevokedAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String lostRevokeReason;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -113,10 +151,23 @@ public class Lead {
         if (this.status == null) {
             this.status = "new";
         }
+        normalizeContactFields();
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+        normalizeContactFields();
+    }
+
+    private void normalizeContactFields() {
+        if (this.phone != null) {
+            String trimmedPhone = this.phone.trim();
+            this.phone = trimmedPhone.isEmpty() ? null : trimmedPhone;
+        }
+        if (this.email != null) {
+            String trimmedEmail = this.email.trim().toLowerCase(Locale.ROOT);
+            this.email = trimmedEmail.isEmpty() ? null : trimmedEmail;
+        }
     }
 }

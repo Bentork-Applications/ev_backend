@@ -2,6 +2,7 @@ package com.bentork.ev_system.repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +40,21 @@ public interface LeadRepository extends JpaRepository<Lead, Long> {
     Optional<Lead> findFirstByContactPhoneOrderByCreatedAtDesc(String phone);
 
     List<Lead> findByContactPhoneContaining(String phone);
+
+    @Query("SELECT DISTINCT l FROM Lead l LEFT JOIN l.contact c WHERE l.phone LIKE CONCAT('%', :phone, '%') OR c.phone LIKE CONCAT('%', :phone, '%')")
+    List<Lead> searchByAnyPhoneContaining(@Param("phone") String phone);
+
+    Optional<Lead> findFirstByPhoneInOrderByCreatedAtDesc(Collection<String> phones);
+
+    Optional<Lead> findFirstByContactPhoneInOrderByCreatedAtDesc(Collection<String> phones);
+
+    Optional<Lead> findFirstByEmailIgnoreCaseOrderByCreatedAtDesc(String email);
+
+    Optional<Lead> findFirstByContactEmailIgnoreCaseOrderByCreatedAtDesc(String email);
+
+    Optional<Lead> findFirstByContactIdOrderByCreatedAtDesc(Long contactId);
+
+    List<Lead> findByLostApprovalStatusOrderByLostRequestedAtDesc(String lostApprovalStatus);
 
     List<Lead> findByTitleContainingIgnoreCaseOrNotesContainingIgnoreCase(String title, String notes);
 

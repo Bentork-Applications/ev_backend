@@ -33,6 +33,7 @@ public class IndiaMartService {
     private final SalesContactRepository salesContactRepository;
     private final SalesCompanyRepository salesCompanyRepository;
     private final AdminRepository adminRepository;
+    private final DuplicateMatchingService duplicateMatchingService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -48,12 +49,24 @@ public class IndiaMartService {
             return;
         }
 
-        // Deduplication
+        // Deduplication by IndiaMART query ID
         Optional<Lead> existingLead = leadRepository.findByIndiaMartLeadId(payload.getUniqueQueryId());
         if (existingLead.isPresent()) {
             log.info("Lead {} already exists in the system. Ignoring.", payload.getUniqueQueryId());
             return;
         }
+
+        // Deduplication by mobile number or email
+        DuplicateMatchingService.MatchResult dupMatch = duplicateMatchingService
+                .matchByPhoneOrEmail(payload.getSenderMobile(), payload.getSenderEmail());
+        if (dupMatch.isMatched() && dupMatch.getMatchedLead() != null) {
+            log.info("Lead already exists for mobile/email (Lead: {}). Ignoring duplicate IndiaMART enquiry {}.",
+                    dupMatch.getMatchedLead().getLeadNumber(), payload.getUniqueQueryId());
+            return;
+        }
+
+        String normalizedPhone = DuplicateMatchingService.normalizePhoneOrRaw(payload.getSenderMobile());
+        String normalizedEmail = DuplicateMatchingService.normalizeEmail(payload.getSenderEmail());
 
         // 1. Get default sales owner
         Admin defaultOwner = adminRepository.findByActiveTrue().stream()
@@ -83,19 +96,23 @@ public class IndiaMartService {
 
         // 3. Process Contact
         SalesContact contact = null;
-        if (payload.getSenderMobile() != null && !payload.getSenderMobile().isEmpty()) {
-            final SalesCompany finalCompany = company; // effectively final for lambda
-            contact = salesContactRepository.findByPhone(payload.getSenderMobile()).orElseGet(() -> {
+        if (normalizedPhone != null || normalizedEmail != null) {
+            if (normalizedPhone != null) {
+                contact = salesContactRepository.findFirstByPhoneIn(
+                        DuplicateMatchingService.buildPhoneVariants(payload.getSenderMobile())).orElse(null);
+            }
+            if (contact == null && normalizedEmail != null) {
+                contact = salesContactRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+            }
+            if (contact == null) {
                 SalesContact newContact = new SalesContact();
                 newContact.setName(payload.getSenderName() != null ? payload.getSenderName() : "Unknown");
-                newContact.setPhone(payload.getSenderMobile());
-                newContact.setEmail(payload.getSenderEmail());
-                newContact.setCompany(finalCompany);
+                newContact.setPhone(normalizedPhone);
+                newContact.setEmail(normalizedEmail);
+                newContact.setCompany(company);
                 newContact.setPrimary(true);
-                return salesContactRepository.save(newContact);
-            });
-            // Update contact's company if it was null
-            if (contact.getCompany() == null && company != null) {
+                contact = salesContactRepository.save(newContact);
+            } else if (contact.getCompany() == null && company != null) {
                 contact.setCompany(company);
                 salesContactRepository.save(contact);
             }
@@ -112,6 +129,8 @@ public class IndiaMartService {
         lead.setOwnerAdmin(defaultOwner);
         lead.setCompany(company);
         lead.setContact(contact);
+        lead.setPhone(normalizedPhone);
+        lead.setEmail(normalizedEmail);
         
         String notes = "Message: " + payload.getQueryMessage();
         lead.setNotes(notes);

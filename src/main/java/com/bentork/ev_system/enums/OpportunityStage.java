@@ -105,6 +105,13 @@ public enum OpportunityStage {
         }
     }
 
+    /**
+     * Returns true if this stage represents an active (non-terminal) pipeline stage.
+     */
+    public boolean isActiveStage() {
+        return this != WON && this != LOST;
+    }
+
     @Override
     public String toString() {
         return value;
